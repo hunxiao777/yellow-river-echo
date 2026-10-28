@@ -14,6 +14,7 @@
     "pages/PotteryPage",
     "pages/ActivityPage",
     "pages/SyncPage",
-    "pages/TopicPage"
+    "pages/TopicPage",
+    "pages/QuizPage"
   ]
 }
