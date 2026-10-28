@@ -8,8 +8,9 @@ import { HomeView } from '../view/HomeView';
 import { ShopView } from '../view/ShopView';
 import { SocialView } from '../view/SocialView';
 import { MineView } from '../view/MineView';
-import { INK, SUB, LOESS, CLAY, RIVER, paletteOf } from '../common/Theme';
-import { goArchive, goPottery, goTopic, goSync, goCourses, openDrawer, closeDrawer } from '../common/Nav';
+import { INK, SUB, LOESS, CLAY, paletteOf, WATER_NAMES, WATER_LABELS, SCALE_LABELS, fs } from '../common/Theme';
+import { effectiveWaterMode } from '../common/River';
+import { goArchive, goPottery, goTopic, goSync, goCourses, goQuiz, goGuide, goEngineer, closeDrawer } from '../common/Nav';
 
 @Entry
 @Component
@@ -17,8 +18,13 @@ struct Index {
   @StorageLink('mainTab') tab: number = 0;
   @StorageLink('drawerOpen') drawer: boolean = false;
   @StorageLink('studioRev') studioRev: number = 0;
+  @StorageLink('textScale') ts: number = 1;
   @State ready: boolean = false;
   @State createOpen: boolean = false;
+  // 彩蛋：连点头像 5 次才露出「河工面板」入口
+  @State taps: number = 0;
+  @State engineerUnlocked: boolean = false;
+  private lastTap: number = 0;
 
   aboutToAppear(): void {
     let ctx = getContext(this) as common.UIAbilityContext;
@@ -48,10 +54,10 @@ struct Index {
   @Builder
   drawerRow(icon: string, title: string, note: string, act: () => void) {
     Row({ space: 12 }) {
-      Text(icon).fontSize(15).fontColor(LOESS).width(20)
-      Text(title).fontSize(15).fontColor(INK).layoutWeight(1)
+      Text(icon).fontSize(fs(15)).fontColor(LOESS).width(20)
+      Text(title).fontSize(fs(15)).fontColor(INK).layoutWeight(1)
       if (note.length > 0) {
-        Text(note).fontSize(12).fontColor(SUB)
+        Text(note).fontSize(fs(12)).fontColor(SUB)
       }
     }
     .width('100%')
@@ -63,21 +69,66 @@ struct Index {
     })
   }
 
+  // 一行标题 + 三个胶囊：档位选择放同一行，边侧栏不用滚到底才看见设置
+  @Builder
+  drawerPicker(icon: string, title: string, labels: string[], current: number, pick: (i: number) => void) {
+    Row({ space: 8 }) {
+      Text(icon).fontSize(fs(15)).fontColor(LOESS).width(20)
+      Text(title).fontSize(fs(15)).fontColor(INK)
+      Blank()
+      ForEach(labels, (lb: string, i: number): void => {
+        Text(lb)
+          .fontSize(fs(12))
+          .fontColor(current === i ? '#FFFFFF' : SUB)
+          .backgroundColor(current === i ? LOESS : $r('app.color.page_bg'))
+          .padding({ left: 11, right: 11, top: 5, bottom: 5 })
+          .borderRadius(12)
+          .onClick((): void => {
+            pick(i);
+          })
+      }, (lb: string): string => lb)
+    }
+    .width('100%')
+    .height(46)
+    .padding({ left: 16, right: 16 })
+  }
+
+  tapAvatar(): void {
+    let now = Date.now();
+    // 隔太久就当重新开始数，别让人误触发；但也别要求 1 秒内点完 5 下
+    if (now - this.lastTap > 1500) {
+      this.taps = 0;
+    }
+    this.lastTap = now;
+    this.taps += 1;
+    if (this.taps >= 5) {
+      this.taps = 0;
+      if (!this.engineerUnlocked) {
+        this.engineerUnlocked = true;
+        promptAction.showToast({ message: '河工面板已解锁', duration: 1600 });
+      }
+    }
+  }
+
   @Builder
   drawerPanel() {
     Column() {
       Row({ space: 12 }) {
         Column() {
           Text(StudioStore.get().profile.nick.substring(0, 1))
-            .fontSize(19).fontColor(paletteOf(this.avatarKey()).ink).fontWeight(FontWeight.Bold)
+            .fontSize(fs(19)).fontColor(paletteOf(this.avatarKey()).ink).fontWeight(FontWeight.Bold)
         }
         .width(48).height(48).borderRadius(24)
         .justifyContent(FlexAlign.Center)
         .backgroundColor(paletteOf(this.avatarKey()).deep)
+        .onClick((): void => {
+          this.tapAvatar();
+        })
 
         Column({ space: 3 }) {
-          Text(StudioStore.get().profile.nick).fontSize(16).fontColor(INK).fontWeight(FontWeight.Medium)
-          Text(StudioStore.get().profile.bio).fontSize(11).fontColor(SUB)
+          Text(StudioStore.get().profile.nick).fontSize(fs(16)).fontColor(INK).fontWeight(FontWeight.Medium)
+          Text(this.engineerUnlocked ? '河工面板已解锁' : StudioStore.get().profile.bio)
+            .fontSize(fs(11)).fontColor(this.engineerUnlocked ? CLAY : SUB)
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
@@ -116,13 +167,30 @@ struct Index {
           this.drawerRow('⊚', '主题知识网络', '', (): void => {
             goTopic();
           })
+          this.drawerRow('？', '趣味自测', '测测你是哪一段', (): void => {
+            goQuiz('drawer');
+          })
           this.drawerRow('⇄', '同步面板', '', (): void => {
             goSync();
           })
+          if (this.engineerUnlocked) {
+            this.drawerRow('⚙', '河工面板', '同步状态与行数', (): void => {
+              goEngineer();
+            })
+          }
+
+          Divider().strokeWidth(1).color($r('app.color.line')).margin({ left: 16, right: 16, top: 6, bottom: 6 })
+
+          this.drawerPicker('〰', '河道动效', WATER_LABELS, this.waterIndex(), (i: number): void => {
+            StudioStore.get().setWaterMode(WATER_NAMES[i]);
+          })
+          this.drawerPicker('A', '字号', SCALE_LABELS, StudioStore.get().scaleStep, (i: number): void => {
+            StudioStore.get().setScaleStep(i);
+          })
 
           Row({ space: 12 }) {
-            Text('◎').fontSize(15).fontColor(LOESS).width(20)
-            Text('离线模式').fontSize(15).fontColor(INK).layoutWeight(1)
+            Text('◎').fontSize(fs(15)).fontColor(LOESS).width(20)
+            Text('离线模式').fontSize(fs(15)).fontColor(INK).layoutWeight(1)
             Toggle({ type: ToggleType.Switch, isOn: SyncService.get().localOnly })
               .selectedColor(LOESS)
               .onChange((on: boolean): void => {
@@ -133,12 +201,17 @@ struct Index {
           .height(46)
           .padding({ left: 16, right: 16 })
 
-          Divider().strokeWidth(1).color($r('app.color.line')).margin({ left: 16, right: 16 })
+          Divider().strokeWidth(1).color($r('app.color.line')).margin({ left: 16, right: 16, top: 6, bottom: 6 })
+
+          this.drawerRow('↻', '重看引河', '', (): void => {
+            StudioStore.get().redoGuide();
+            goGuide();
+          })
           this.drawerRow('↧', '备份与恢复', '在「我的」里', (): void => {
             this.tab = 3;
           })
           Text('黄河记忆 1.1 · 数据只存本机与同账号可信设备')
-            .fontSize(10).fontColor(SUB)
+            .fontSize(fs(10)).fontColor(SUB)
             .margin({ top: 14, bottom: 18 })
         }
         .width('100%')
@@ -153,11 +226,15 @@ struct Index {
     .backgroundColor($r('app.color.card_bg'))
   }
 
+  waterIndex(): number {
+    return WATER_NAMES.indexOf(effectiveWaterMode());
+  }
+
   @Builder
   drawerStat(title: string, value: string) {
     Column({ space: 2 }) {
-      Text(value).fontSize(16).fontColor(INK).fontWeight(FontWeight.Bold)
-      Text(title).fontSize(10).fontColor(SUB)
+      Text(value).fontSize(fs(16)).fontColor(INK).fontWeight(FontWeight.Bold)
+      Text(title).fontSize(fs(10)).fontColor(SUB)
     }
   }
 

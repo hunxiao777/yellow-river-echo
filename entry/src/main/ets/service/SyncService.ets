@@ -15,6 +15,13 @@ export interface ConflictRow {
   kept: string;
 }
 
+// 状态机日志：只留本次启动以来的，写在内存里，用于「河工面板」自查
+export interface SyncLog {
+  at: number;
+  tag: string;
+  msg: string;
+}
+
 // 同步引擎：本地写 preferences 成功后进入 KV 存储队列，
 // 发现同账号可信设备后 PUSH_PULL；策略是 updatedAt 新者胜，
 // 被覆盖的笔记存一份副本，可在同步面板里找回。
@@ -31,6 +38,7 @@ export class SyncService {
   devices: DeviceRow[] = [];
   dirty: Map<string, number> = new Map();
   localOnly: boolean = false;
+  log: SyncLog[] = [];
 
   private kv?: distributedKVStore.SingleKVStore;
   private devMgr?: distributedDeviceManager.DeviceManager;
@@ -40,6 +48,13 @@ export class SyncService {
   private lastDevScan: number = 0;
   private putFailStreak: number = 0;
   private booted: boolean = false;
+
+  private note(tag: string, msg: string): void {
+    this.log.unshift({ at: Date.now(), tag: tag, msg: msg });
+    if (this.log.length > 40) {
+      this.log.pop();
+    }
+  }
 
   async init(ctx: common.Context, bundleName: string): Promise<void> {
     if (this.booted) {
@@ -60,6 +75,7 @@ export class SyncService {
       }
     } catch (e) {
       console.error('sync prefs: ' + JSON.stringify(e));
+      this.note('warn', '本机同步账本读不出来，重新开了一份：' + JSON.stringify(e));
     }
     try {
       const cfg: distributedKVStore.KVManagerConfig = {
@@ -82,14 +98,17 @@ export class SyncService {
         });
       this.devMgr = distributedDeviceManager.createDeviceManager(bundleName);
       this.state = 'ready';
+      this.note('ready', 'KV 存储就绪：hh_memory_kv / SINGLE_VERSION / S1');
       if (this.localOnly) {
         this.hint = '本机模式：数据只写本地，跨设备同步暂停';
+        this.note('info', '上次退出时是本机模式，未启动设备扫描');
       } else {
         this.hint = '等待可信设备出现';
         // 设备扫描是同步阻塞调用，放到启动帧之后，别拖慢首屏
         setTimeout((): void => {
           this.refreshDevices();
           if (this.dirty.size > 0) {
+            this.note('info', '开机续传：账本里还有 ' + this.dirty.size + ' 条没送出去');
             this.retry();
           }
         }, 1200);
@@ -97,6 +116,7 @@ export class SyncService {
     } catch (e) {
       this.state = 'unavailable';
       this.hint = '本机分布式服务不可用，数据仍保存在本地，恢复后自动续传';
+      this.note('error', 'createKVManager / getKVStore 失败：' + JSON.stringify(e));
       console.error('kv init: ' + JSON.stringify(e));
     }
     this.notify();
@@ -117,6 +137,7 @@ export class SyncService {
     }).catch((err: Error): void => {
       console.warn('hh perf kv.put fail ' + key + ' ' + (Date.now() - t0) + 'ms ' + err.message);
       this.putFailStreak += 1;
+      this.note('warn', 'kv.put 失败 ' + key + '：' + err.message + '（连续 ' + this.putFailStreak + ' 次）');
       if (this.putFailStreak >= 3) {
         this.setLocalOnly(true, '分布式存储多次写入失败，已自动切换为本机模式');
         return;
@@ -128,6 +149,8 @@ export class SyncService {
 
   setLocalOnly(on: boolean, why: string = ''): void {
     this.localOnly = on;
+    this.note('state', on ? '进入本机模式：' + (why.length > 0 ? why : '用户手动切换')
+      : '恢复跨设备同步：重新扫描可信设备');
     if (on) {
       if (this.syncTimer >= 0) {
         clearTimeout(this.syncTimer);
@@ -175,11 +198,13 @@ export class SyncService {
       let list = this.devMgr.getAvailableDeviceListSync();
       this.devices = list.map((d: distributedDeviceManager.DeviceBasicInfo): DeviceRow =>
         ({ name: d.deviceName, id: d.networkId ?? '' }));
+      this.note('state', '设备扫描：' + this.devices.length + ' 台同账号可信设备');
       if (this.devices.length === 0 && this.hint.indexOf('不可用') < 0) {
         this.hint = '未发现同账号可信设备，检查蓝牙/Wi-Fi 与登录状态';
       }
     } catch (e) {
       this.devices = [];
+      this.note('warn', '设备扫描抛异常：' + JSON.stringify(e));
     }
     this.notify();
   }
@@ -201,23 +226,27 @@ export class SyncService {
       // sync 是异步广播，没有回执；4 秒内没抛异常就认为已推送，
       // 对端真正落库以对方的 dataChange 为准
       this.kv.sync(ids, distributedKVStore.SyncMode.PUSH_PULL, 3000);
+      this.note('state', 'PUSH_PULL 已发出：' + ids.length + ' 台设备 / ' + sent + ' 条变更 / 超时 3000ms');
       setTimeout((): void => {
         this.syncing = false;
         this.dirty.clear();
         this.lastSyncAt = Date.now();
         this.hint = '已向 ' + ids.length + ' 台设备推送 ' + sent + ' 条变更';
+        this.note('ok', '4 秒内无异常，队列已清（对端落库以 dataChange 为准）');
         this.persistDirty();
         this.notify();
       }, 4000);
     } catch (e) {
       this.syncing = false;
       this.hint = '同步通道异常，本地内容不受影响，稍后可手动重试';
+      this.note('error', 'kv.sync 抛异常：' + JSON.stringify(e));
       this.persistDirty();
       this.notify();
     }
   }
 
   retry(): void {
+    this.note('info', '手动重试：清扫描节流后重新 PUSH_PULL');
     this.lastDevScan = 0;
     this.refreshDevices(true);
     this.trySync();
@@ -248,6 +277,7 @@ export class SyncService {
           if (this.conflicts.length > 20) {
             this.conflicts.pop();
           }
+          this.note('conflict', '冲突 ' + key + '：本机 ' + localTs + ' > 远端 ' + remoteTs + '，保留本机版本');
           if (entity === 'note') {
             await store.addConflictCopy(JSON.parse(payload) as NoteRec);
           }
@@ -259,6 +289,7 @@ export class SyncService {
         } else {
           this.dirty.delete(key);
           await store.applyRemote(entity, payload);
+          this.note('remote', '采纳远端 ' + key + '（本机 ' + localTs + ' ≤ 远端 ' + remoteTs + '）');
         }
       } catch (e) {
         console.error('remote key ' + key + ': ' + JSON.stringify(e));

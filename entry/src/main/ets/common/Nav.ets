@@ -62,6 +62,16 @@ export function goSync(): void {
   router.pushUrl({ url: 'pages/SyncPage' });
 }
 
+// 彩蛋：连点头像 5 次后出现的「河工面板」，把同步状态机和各表行数摊开看
+export function goEngineer(): void {
+  router.pushUrl({ url: 'pages/EngineerPage' });
+}
+
+// 边侧栏「重看引河」：guideSeen 已由 StudioStore.redoGuide() 清掉
+export function goGuide(): void {
+  router.pushUrl({ url: 'pages/GuidePage' });
+}
+
 export function goTopic(): void {
   router.pushUrl({ url: 'pages/TopicPage' });
 }

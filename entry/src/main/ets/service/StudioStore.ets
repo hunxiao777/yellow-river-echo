@@ -115,6 +115,16 @@ export class StudioStore {
     }
   }
 
+  // 边侧栏「重看引河」：只清首启标记，收藏笔记作品一律不动
+  redoGuide(): void {
+    this.guideSeen = false;
+    if (this.p !== null) {
+      this.p.put('guideSeen', false);
+      this.scheduleFlush();
+    }
+    StudioStore.rev();
+  }
+
   async signIn(nick: string, avatar: number): Promise<void> {
     this.profile = { nick: nick, avatar: avatar, bio: this.profile.bio, joinedAt: Date.now() };
     this.save('profile', this.profile);
