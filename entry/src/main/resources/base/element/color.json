@@ -1,0 +1,40 @@
+{
+  "color": [
+    {
+      "name": "start_window_background",
+      "value": "#F5EFE4"
+    },
+    {
+      "name": "page_bg",
+      "value": "#F5EFE4"
+    },
+    {
+      "name": "card_bg",
+      "value": "#FFFFFF"
+    },
+    {
+      "name": "ink",
+      "value": "#2B2622"
+    },
+    {
+      "name": "sub_ink",
+      "value": "#7A6E62"
+    },
+    {
+      "name": "loess",
+      "value": "#C8A160"
+    },
+    {
+      "name": "clay",
+      "value": "#A6553D"
+    },
+    {
+      "name": "river",
+      "value": "#4A7B8C"
+    },
+    {
+      "name": "line",
+      "value": "#E5DAC6"
+    }
+  ]
+}

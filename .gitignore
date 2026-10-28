@@ -1,0 +1,22 @@
+/node_modules
+/oh_modules
+/local.properties
+/.idea
+**/build
+/.hvigor
+.cxx
+/.clangd
+/.clang-format
+/.clang-tidy
+**/.test
+/.appanalyzer
+/entry/.preview
+
+# 本地自验产物：uitest/hdc 的 UI dump、截图与构建日志不入库
+/shots/
+shots*.jpeg
+*.log
+build_err.txt
+build_err_clean.txt
+build_warn.txt
+/vibe_images/

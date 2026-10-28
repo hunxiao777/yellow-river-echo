@@ -1,0 +1,19 @@
+{
+  "src": [
+    "pages/SplashPage",
+    "pages/GuidePage",
+    "pages/LoginPage",
+    "pages/Index",
+    "pages/ArchivePage",
+    "pages/ListPage",
+    "pages/DetailPage",
+    "pages/NoteEditPage",
+    "pages/GoodsDetailPage",
+    "pages/CoursePage",
+    "pages/PlayerPage",
+    "pages/PotteryPage",
+    "pages/ActivityPage",
+    "pages/SyncPage",
+    "pages/TopicPage"
+  ]
+}

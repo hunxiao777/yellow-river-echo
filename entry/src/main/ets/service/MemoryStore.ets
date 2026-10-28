@@ -1,0 +1,601 @@
+import { preferences } from '@kit.ArkData';
+import { common } from '@kit.AbilityKit';
+import { util } from '@kit.ArkTS';
+import { FavRec, NoteRec, ProgressRec, TagRec, TopicRec, ViewLog, BackupData } from '../model/Models';
+import { DEFAULT_TAG_NAMES } from '../common/Theme';
+
+// 个人数据仓库：收藏、标签、笔记、进度、主题都存在 preferences 里。
+// 约定：所有本地变更先落盘、再通知同步层；deleted 是墓碑标记，不物理删。
+export class MemoryStore {
+  private static readonly inst: MemoryStore = new MemoryStore();
+  static get(): MemoryStore {
+    return MemoryStore.inst;
+  }
+
+  onLocalChange: ((entity: string, id: string, payload: string, ts: number) => void) | null = null;
+
+  private p: preferences.Preferences | null = null;
+  favs: FavRec[] = [];
+  tags: TagRec[] = [];
+  notes: NoteRec[] = [];
+  prog: ProgressRec[] = [];
+  topics: TopicRec[] = [];
+  views: ViewLog[] = [];
+  conflictCopies: NoteRec[] = [];
+  deviceSn: string = '';
+
+  async init(ctx: common.Context): Promise<void> {
+    if (this.p !== null) {
+      return;
+    }
+    this.p = await preferences.getPreferences(ctx, 'hh_memory');
+    this.favs = this.readArr<FavRec>('favs');
+    this.tags = this.readArr<TagRec>('tags');
+    this.notes = this.readArr<NoteRec>('notes');
+    this.prog = this.readArr<ProgressRec>('prog');
+    this.topics = this.readArr<TopicRec>('topics');
+    this.views = this.readArr<ViewLog>('views');
+    this.conflictCopies = this.readArr<NoteRec>('conflicts');
+    this.deviceSn = this.p.getSync('deviceSn', '') as string;
+    if (this.deviceSn.length === 0) {
+      this.deviceSn = util.generateRandomUUID().substring(0, 8);
+      await this.p.put('deviceSn', this.deviceSn);
+    }
+    if (this.tagsActive().length === 0) {
+      for (let name of DEFAULT_TAG_NAMES) {
+        let t: TagRec = { id: 'tg_' + Date.now() + '_' + name.length, name: name,
+          createdAt: Date.now(), updatedAt: Date.now(), deleted: false };
+        this.tags.push(t);
+      }
+      await this.persist('tags', this.tags);
+    }
+    MemoryStore.bumpRev();
+  }
+
+  private readArr<T>(key: string): T[] {
+    if (this.p === null) {
+      return [];
+    }
+    let raw = this.p.getSync(key, '[]') as string;
+    try {
+      return JSON.parse(raw) as T[];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  private async persist(key: string, arr: Object[]): Promise<void> {
+    if (this.p === null) {
+      return;
+    }
+    // put 成功即可刷新界面；flush 慢且没必要卡住交互，攒一批后台落盘
+    let t0 = Date.now();
+    await this.p.put(key, JSON.stringify(arr));
+    if (Date.now() - t0 > 200) {
+      console.warn('hh slow persist ' + key + ' ' + (Date.now() - t0) + 'ms');
+    }
+    this.scheduleFlush();
+  }
+
+  private flushTimer: number = -1;
+
+  private scheduleFlush(): void {
+    if (this.flushTimer >= 0 || this.p === null) {
+      return;
+    }
+    this.flushTimer = setTimeout((): void => {
+      this.flushTimer = -1;
+      this.flushNow();
+    }, 600);
+  }
+
+  flushNow(): void {
+    if (this.p === null) {
+      return;
+    }
+    if (this.flushTimer >= 0) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = -1;
+    }
+    this.p.flush().catch((e: Error): void => {
+      console.error('prefs flush: ' + e.message);
+    });
+  }
+
+  static bumpRev(): void {
+    let rev = AppStorage.get<number>('dataRev') ?? 0;
+    AppStorage.setOrCreate('dataRev', rev + 1);
+  }
+
+  private emit(entity: string, id: string, rec: Object): void {
+    let payload = JSON.stringify(rec);
+    let r = rec as Record<string, Object>;
+    let ts = r.updatedAt as number;
+    // 同步入队延后到本帧之后，点击响应不等分布式 KV 的原生调用
+    setTimeout((): void => {
+      if (this.onLocalChange !== null) {
+        this.onLocalChange(entity, id, payload, ts);
+      }
+    }, 0);
+  }
+
+  // ---- 收藏 ----
+
+  favsActive(): FavRec[] {
+    return this.favs.filter((f: FavRec): boolean => !f.deleted);
+  }
+
+  favOf(siteId: string): FavRec | undefined {
+    return this.favsActive().find((f: FavRec): boolean => f.siteId === siteId);
+  }
+
+  isFav(siteId: string): boolean {
+    return this.favOf(siteId) !== undefined;
+  }
+
+  favIds(): string[] {
+    return this.favsActive().map((f: FavRec): string => f.siteId);
+  }
+
+  async addFav(siteId: string): Promise<void> {
+    if (this.isFav(siteId)) {
+      return;
+    }
+    let rec: FavRec = { siteId: siteId, tagIds: [], createdAt: Date.now(), updatedAt: Date.now(), deleted: false };
+    this.favs.push(rec);
+    await this.persist('favs', this.favs);
+    this.emit('fav', siteId, rec);
+    MemoryStore.bumpRev();
+  }
+
+  async removeFav(siteId: string): Promise<void> {
+    let t0 = Date.now();
+    let rec = this.favOf(siteId);
+    if (rec === undefined) {
+      return;
+    }
+    rec.deleted = true;
+    rec.updatedAt = Date.now();
+    await this.persist('favs', this.favs);
+    this.emit('fav', siteId, rec);
+    MemoryStore.bumpRev();
+    console.warn('hh perf removeFav total ' + (Date.now() - t0) + 'ms');
+  }
+
+  async setFavTags(siteId: string, tagIds: string[]): Promise<void> {
+    let rec = this.favOf(siteId);
+    if (rec === undefined) {
+      await this.addFav(siteId);
+      rec = this.favOf(siteId);
+    }
+    if (rec === undefined) {
+      return;
+    }
+    rec.tagIds = tagIds;
+    rec.updatedAt = Date.now();
+    await this.persist('favs', this.favs);
+    this.emit('fav', siteId, rec);
+    MemoryStore.bumpRev();
+  }
+
+  // ---- 标签 ----
+
+  tagsActive(): TagRec[] {
+    return this.tags.filter((t: TagRec): boolean => !t.deleted);
+  }
+
+  tagName(id: string): string {
+    let t = this.tagsActive().find((x: TagRec): boolean => x.id === id);
+    return t === undefined ? '' : t.name;
+  }
+
+  async addTag(name: string): Promise<void> {
+    if (name.trim().length === 0) {
+      return;
+    }
+    let rec: TagRec = { id: 'tg_' + Date.now(), name: name.trim(),
+      createdAt: Date.now(), updatedAt: Date.now(), deleted: false };
+    this.tags.push(rec);
+    await this.persist('tags', this.tags);
+    this.emit('tag', rec.id, rec);
+    MemoryStore.bumpRev();
+  }
+
+  async renameTag(id: string, name: string): Promise<void> {
+    let rec = this.tags.find((t: TagRec): boolean => t.id === id && !t.deleted);
+    if (rec === undefined || name.trim().length === 0) {
+      return;
+    }
+    rec.name = name.trim();
+    rec.updatedAt = Date.now();
+    await this.persist('tags', this.tags);
+    this.emit('tag', id, rec);
+    MemoryStore.bumpRev();
+  }
+
+  // 删标签只解除关联，不动收藏本身
+  async deleteTag(id: string): Promise<void> {
+    let rec = this.tags.find((t: TagRec): boolean => t.id === id && !t.deleted);
+    if (rec === undefined) {
+      return;
+    }
+    rec.deleted = true;
+    rec.updatedAt = Date.now();
+    for (let f of this.favsActive()) {
+      let i = f.tagIds.indexOf(id);
+      if (i >= 0) {
+        f.tagIds.splice(i, 1);
+        f.updatedAt = Date.now();
+        this.emit('fav', f.siteId, f);
+      }
+    }
+    await this.persist('tags', this.tags);
+    await this.persist('favs', this.favs);
+    this.emit('tag', id, rec);
+    MemoryStore.bumpRev();
+  }
+
+  // ---- 笔记 ----
+
+  notesActive(): NoteRec[] {
+    let out = this.notes.filter((n: NoteRec): boolean => !n.deleted);
+    out.sort((a: NoteRec, b: NoteRec): number => b.updatedAt - a.updatedAt);
+    return out;
+  }
+
+  notesOfSite(siteId: string): NoteRec[] {
+    return this.notesActive().filter((n: NoteRec): boolean => n.siteId === siteId);
+  }
+
+  noteOf(id: string): NoteRec | undefined {
+    return this.notes.find((n: NoteRec): boolean => n.id === id && !n.deleted);
+  }
+
+  async addNote(siteId: string, text: string, srcIds: string[]): Promise<NoteRec | null> {
+    let body = text.trim();
+    if (body.length === 0) {
+      return null;
+    }
+    let rec: NoteRec = { id: 'nt_' + Date.now() + '_' + this.deviceSn, siteId: siteId, text: body,
+      createdAt: Date.now(), updatedAt: Date.now(), version: 1, deviceId: this.deviceSn, deleted: false };
+    if (srcIds.length > 0) {
+      rec.srcIds = srcIds;
+    }
+    this.notes.push(rec);
+    await this.persist('notes', this.notes);
+    this.emit('note', rec.id, rec);
+    MemoryStore.bumpRev();
+    return rec;
+  }
+
+  async updateNote(id: string, text: string): Promise<void> {
+    let body = text.trim();
+    let rec = this.noteOf(id);
+    if (rec === undefined || body.length === 0) {
+      return;
+    }
+    rec.text = body;
+    rec.updatedAt = Date.now();
+    rec.version = rec.version + 1;
+    rec.deviceId = this.deviceSn;
+    await this.persist('notes', this.notes);
+    this.emit('note', id, rec);
+    MemoryStore.bumpRev();
+  }
+
+  async deleteNote(id: string): Promise<void> {
+    let rec = this.noteOf(id);
+    if (rec === undefined) {
+      return;
+    }
+    rec.deleted = true;
+    rec.updatedAt = Date.now();
+    await this.persist('notes', this.notes);
+    this.emit('note', id, rec);
+    MemoryStore.bumpRev();
+  }
+
+  async addConflictCopy(rec: NoteRec): Promise<void> {
+    this.conflictCopies.unshift(rec);
+    if (this.conflictCopies.length > 30) {
+      this.conflictCopies = this.conflictCopies.slice(0, 30);
+    }
+    await this.persist('conflicts', this.conflictCopies);
+  }
+
+  async restoreConflict(id: string): Promise<void> {
+    let idx = this.conflictCopies.findIndex((n: NoteRec): boolean => n.id === id);
+    if (idx < 0) {
+      return;
+    }
+    let src = this.conflictCopies[idx];
+    this.conflictCopies.splice(idx, 1);
+    await this.persist('conflicts', this.conflictCopies);
+    await this.addNote(src.siteId, src.text, []);
+  }
+
+  // ---- 学习进度 ----
+
+  progressOf(siteId: string): ProgressRec | undefined {
+    return this.prog.find((p: ProgressRec): boolean => p.siteId === siteId);
+  }
+
+  async bumpSection(siteId: string, section: number): Promise<void> {
+    let rec = this.progressOf(siteId);
+    if (rec === undefined) {
+      rec = { siteId: siteId, maxSection: section, read: false, updatedAt: Date.now() };
+      this.prog.push(rec);
+    } else if (section > rec.maxSection) {
+      rec.maxSection = section;
+      rec.updatedAt = Date.now();
+    } else {
+      return;
+    }
+    await this.persist('prog', this.prog);
+    this.emit('prog', siteId, rec);
+  }
+
+  async markRead(siteId: string, read: boolean): Promise<void> {
+    let rec = this.progressOf(siteId);
+    if (rec === undefined) {
+      rec = { siteId: siteId, maxSection: 0, read: read, updatedAt: Date.now() };
+      this.prog.push(rec);
+    } else {
+      rec.read = read;
+      rec.updatedAt = Date.now();
+    }
+    await this.persist('prog', this.prog);
+    this.emit('prog', siteId, rec);
+    MemoryStore.bumpRev();
+  }
+
+  readCount(): number {
+    return this.prog.filter((p: ProgressRec): boolean => p.read).length;
+  }
+
+  // ---- 浏览记录 ----
+
+  touchView(siteId: string): void {
+    this.views = this.views.filter((v: ViewLog): boolean => v.siteId !== siteId);
+    this.views.unshift({ siteId: siteId, at: Date.now() });
+    if (this.views.length > 50) {
+      this.views = this.views.slice(0, 50);
+    }
+    if (this.p !== null) {
+      this.p.put('views', JSON.stringify(this.views));
+      this.scheduleFlush();
+    }
+  }
+
+  async clearViews(): Promise<void> {
+    this.views = [];
+    await this.persist('views', this.views);
+    MemoryStore.bumpRev();
+  }
+
+  // ---- 主题 ----
+
+  topicsActive(): TopicRec[] {
+    return this.topics.filter((t: TopicRec): boolean => !t.deleted);
+  }
+
+  topicOf(id: string): TopicRec | undefined {
+    return this.topicsActive().find((t: TopicRec): boolean => t.id === id);
+  }
+
+  async addTopic(name: string): Promise<void> {
+    if (name.trim().length === 0) {
+      return;
+    }
+    let rec: TopicRec = { id: 'tp_' + Date.now(), name: name.trim(), siteIds: [],
+      createdAt: Date.now(), updatedAt: Date.now(), deleted: false };
+    this.topics.push(rec);
+    await this.persist('topics', this.topics);
+    this.emit('topic', rec.id, rec);
+    MemoryStore.bumpRev();
+  }
+
+  async renameTopic(id: string, name: string): Promise<void> {
+    let rec = this.topicOf(id);
+    if (rec === undefined || name.trim().length === 0) {
+      return;
+    }
+    rec.name = name.trim();
+    rec.updatedAt = Date.now();
+    await this.persist('topics', this.topics);
+    this.emit('topic', id, rec);
+    MemoryStore.bumpRev();
+  }
+
+  async deleteTopic(id: string): Promise<void> {
+    let rec = this.topicOf(id);
+    if (rec === undefined) {
+      return;
+    }
+    rec.deleted = true;
+    rec.updatedAt = Date.now();
+    await this.persist('topics', this.topics);
+    this.emit('topic', id, rec);
+    MemoryStore.bumpRev();
+  }
+
+  async toggleTopicSite(id: string, siteId: string): Promise<void> {
+    let rec = this.topicOf(id);
+    if (rec === undefined) {
+      return;
+    }
+    let i = rec.siteIds.indexOf(siteId);
+    if (i >= 0) {
+      rec.siteIds.splice(i, 1);
+    } else {
+      rec.siteIds.push(siteId);
+    }
+    rec.updatedAt = Date.now();
+    await this.persist('topics', this.topics);
+    this.emit('topic', id, rec);
+    MemoryStore.bumpRev();
+  }
+
+  // ---- 远端数据落库（由同步层调用，不再回抛同步事件） ----
+
+  async applyRemote(entity: string, payload: string): Promise<void> {
+    if (entity === 'fav') {
+      this.mergeInto<FavRec>('favs', this.favs, JSON.parse(payload) as FavRec, (x: FavRec): string => x.siteId);
+    } else if (entity === 'tag') {
+      this.mergeInto<TagRec>('tags', this.tags, JSON.parse(payload) as TagRec, (x: TagRec): string => x.id);
+    } else if (entity === 'note') {
+      this.mergeInto<NoteRec>('notes', this.notes, JSON.parse(payload) as NoteRec, (x: NoteRec): string => x.id);
+    } else if (entity === 'prog') {
+      this.mergeInto<ProgressRec>('prog', this.prog, JSON.parse(payload) as ProgressRec,
+        (x: ProgressRec): string => x.siteId);
+    } else if (entity === 'topic') {
+      this.mergeInto<TopicRec>('topics', this.topics, JSON.parse(payload) as TopicRec,
+        (x: TopicRec): string => x.id);
+    }
+    MemoryStore.bumpRev();
+  }
+
+  private mergeInto<T>(key: string, arr: T[], rec: T, idOf: (x: T) => string): void {
+    let id = idOf(rec);
+    let idx = arr.findIndex((x: T): boolean => idOf(x) === id);
+    if (idx < 0) {
+      arr.push(rec);
+    } else {
+      let old = arr[idx] as Record<string, Object>;
+      let neu = rec as Record<string, Object>;
+      if ((neu.updatedAt as number) >= (old.updatedAt as number)) {
+        arr[idx] = rec;
+      }
+    }
+    if (this.p !== null) {
+      this.p.put(key, JSON.stringify(arr));
+      this.scheduleFlush();
+    }
+  }
+
+  localTs(entity: string, id: string): number {    if (entity === 'fav') {
+      let r = this.favs.find((x: FavRec): boolean => x.siteId === id);
+      return r === undefined ? 0 : r.updatedAt;
+    }
+    if (entity === 'tag') {
+      let r = this.tags.find((x: TagRec): boolean => x.id === id);
+      return r === undefined ? 0 : r.updatedAt;
+    }
+    if (entity === 'note') {
+      let r = this.notes.find((x: NoteRec): boolean => x.id === id);
+      return r === undefined ? 0 : r.updatedAt;
+    }
+    if (entity === 'prog') {
+      let r = this.prog.find((x: ProgressRec): boolean => x.siteId === id);
+      return r === undefined ? 0 : r.updatedAt;
+    }
+    let r = this.topics.find((x: TopicRec): boolean => x.id === id);
+    return r === undefined ? 0 : r.updatedAt;
+  }
+
+  recordOf(entity: string, id: string): Object | undefined {
+    if (entity === 'fav') {
+      return this.favs.find((x: FavRec): boolean => x.siteId === id);
+    }
+    if (entity === 'tag') {
+      return this.tags.find((x: TagRec): boolean => x.id === id);
+    }
+    if (entity === 'note') {
+      return this.notes.find((x: NoteRec): boolean => x.id === id);
+    }
+    if (entity === 'prog') {
+      return this.prog.find((x: ProgressRec): boolean => x.siteId === id);
+    }
+    return this.topics.find((x: TopicRec): boolean => x.id === id);
+  }
+
+  // ---- 草稿：只留本机，不参与同步 ----
+
+  saveDraft(siteId: string, text: string): void {
+    if (this.p !== null) {
+      this.p.put('draft_' + siteId, text);
+    }
+  }
+
+  loadDraft(siteId: string): string {
+    if (this.p === null) {
+      return '';
+    }
+    return this.p.getSync('draft_' + siteId, '') as string;
+  }
+
+  clearDraft(siteId: string): void {
+    if (this.p !== null) {
+      this.p.delete('draft_' + siteId);
+    }
+  }
+
+  // ---- 备份 / 恢复 ----
+
+  exportAll(siteCount: number): BackupData {
+    let data: BackupData = {
+      formatVer: 1, appVer: '1.0.0', exportedAt: Date.now(), siteCount: siteCount,
+      checksum: 0,
+      favorites: this.favs, tags: this.tags, notes: this.notes,
+      progress: this.prog, topics: this.topics
+    };
+    let body = JSON.stringify(data.favorites) + JSON.stringify(data.notes) +
+      JSON.stringify(data.tags) + JSON.stringify(data.progress) + JSON.stringify(data.topics);
+    data.checksum = MemoryStore.fnv(body);
+    return data;
+  }
+
+  static fnv(s: string): number {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+    }
+    return h >>> 0;
+  }
+
+  // 恢复前校验，成功后整体打时间戳重新广播，避免被旧副本盖掉
+  async importAll(data: BackupData): Promise<boolean> {
+    if (data.formatVer !== 1) {
+      return false;
+    }
+    let body = JSON.stringify(data.favorites) + JSON.stringify(data.notes) +
+      JSON.stringify(data.tags) + JSON.stringify(data.progress) + JSON.stringify(data.topics);
+    if (MemoryStore.fnv(body) !== data.checksum) {
+      return false;
+    }
+    if (this.p !== null) {
+      await this.p.put('prev_import_snapshot', JSON.stringify({
+        favs: this.favs, tags: this.tags, notes: this.notes, prog: this.prog, topics: this.topics
+      }));
+    }
+    this.favs = data.favorites;
+    this.tags = data.tags;
+    this.notes = data.notes;
+    this.prog = data.progress;
+    this.topics = data.topics;
+    await this.persist('favs', this.favs);
+    await this.persist('tags', this.tags);
+    await this.persist('notes', this.notes);
+    await this.persist('prog', this.prog);
+    await this.persist('topics', this.topics);
+    let now = Date.now();
+    for (let f of this.favs) {
+      this.emit('fav', f.siteId, f);
+    }
+    for (let t of this.tags) {
+      this.emit('tag', t.id, t);
+    }
+    for (let n of this.notes) {
+      this.emit('note', n.id, n);
+    }
+    for (let pr of this.prog) {
+      this.emit('prog', pr.siteId, pr);
+    }
+    for (let tp of this.topics) {
+      this.emit('topic', tp.id, tp);
+    }
+    console.info('import done at ' + now);
+    MemoryStore.bumpRev();
+    return true;
+  }
+}

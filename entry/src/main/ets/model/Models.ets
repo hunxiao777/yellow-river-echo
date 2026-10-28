@@ -1,0 +1,194 @@
+export interface Poem {
+  line: string;
+  author: string;
+  source: string;
+}
+
+export interface TravelInfo {
+  ticket: string;
+  openTime: string;
+  tips: string;
+  updated: string;
+}
+
+export interface SiteInfo {
+  id: string;
+  name: string;
+  alias: string;
+  city: string;
+  eras: string[];
+  types: string[];
+  cover: string;
+  summary: string;
+  intro: string;
+  archaeology: string;
+  history: string;
+  poems: Poem[];
+  travel: TravelInfo;
+  source: string;
+}
+
+export interface Suggestion {
+  site: SiteInfo;
+  reason: string;
+  score: number;
+}
+
+// ---- 个人数据（参与同步的记录都带 updatedAt 与 deleted） ----
+
+export interface FavRec {
+  siteId: string;
+  tagIds: string[];
+  createdAt: number;
+  updatedAt: number;
+  deleted: boolean;
+}
+
+export interface TagRec {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  deleted: boolean;
+}
+
+export interface NoteRec {
+  id: string;
+  siteId: string;
+  text: string;
+  createdAt: number;
+  updatedAt: number;
+  version: number;
+  deviceId: string;
+  deleted: boolean;
+  // 由多篇笔记合并而来时记录来源，原文仍保留
+  srcIds?: string[];
+}
+
+export interface ProgressRec {
+  siteId: string;
+  maxSection: number;
+  read: boolean;
+  updatedAt: number;
+}
+
+export interface TopicRec {
+  id: string;
+  name: string;
+  siteIds: string[];
+  createdAt: number;
+  updatedAt: number;
+  deleted: boolean;
+}
+
+export interface ViewLog {
+  siteId: string;
+  at: number;
+}
+
+// ---- 内容包（文创 / 课程 / 活动 / 社区），随包只读 ----
+
+export interface SpecKV {
+  k: string;
+  v: string;
+}
+
+export interface Goods {
+  id: string;
+  name: string;
+  sub: string;
+  cat: string;
+  price: number;
+  era: string;
+  origin: string;
+  likes: number;
+  tags: string[];
+  palette: string;
+  spec: SpecKV[];
+  story: string;
+  source: string;
+}
+
+export interface CourseStep {
+  t: string;
+  d: string;
+}
+
+export interface Course {
+  id: string;
+  title: string;
+  brief: string;
+  cat: string;
+  level: string;
+  minutes: number;
+  palette: string;
+  steps: CourseStep[];
+  siteId: string;
+  source: string;
+}
+
+export interface EventInfo {
+  id: string;
+  title: string;
+  kind: string;
+  date: string;
+  place: string;
+  fee: string;
+  seats: string;
+  brief: string;
+  chars: string[];
+  siteId: string;
+}
+
+export interface PostComment {
+  author: string;
+  text: string;
+  at: number;
+}
+
+export interface Post {
+  id: string;
+  author: string;
+  role: string;
+  kind: string;
+  text: string;
+  siteId: string;
+  topic: string;
+  likes: number;
+  at: number;
+  comments: PostComment[];
+}
+
+// ---- 本机创作与互动数据（不参与跨端同步） ----
+
+export interface WorkRec {
+  id: string;
+  name: string;
+  shape: string;
+  motif: string;
+  glaze: string;
+  word: string;
+  box: string;
+  createdAt: number;
+}
+
+export interface Profile {
+  nick: string;
+  avatar: number;
+  bio: string;
+  joinedAt: number;
+}
+
+// 备份文件结构
+export interface BackupData {
+  formatVer: number;
+  appVer: string;
+  exportedAt: number;
+  siteCount: number;
+  checksum: number;
+  favorites: FavRec[];
+  tags: TagRec[];
+  notes: NoteRec[];
+  progress: ProgressRec[];
+  topics: TopicRec[];
+}
