@@ -12,6 +12,7 @@ export interface RouteParam {
   courseId?: string;
   eventId?: string;
   tab?: number;
+  from?: string;
 }
 
 export function goDetail(id: string): void {
@@ -63,6 +64,12 @@ export function goSync(): void {
 
 export function goTopic(): void {
   router.pushUrl({ url: 'pages/TopicPage' });
+}
+
+// from 记录来源，结果页据此决定返回后露出哪个入口
+export function goQuiz(from: string): void {
+  let p: RouteParam = { from: from };
+  router.pushUrl({ url: 'pages/QuizPage', params: p });
 }
 
 export function openDrawer(): void {

@@ -17,6 +17,24 @@ export const RIVER = '#4A7B8C';
 export const PAPER = '#F5EFE4';
 export const LINE = '#E5DAC6';
 
+// 河道动效三档：流动 / 静水 / 关闭（见扩展设计方案 §1.6）
+export const WATER_FLOW: string = 'flow';
+export const WATER_STILL: string = 'still';
+export const WATER_OFF: string = 'off';
+export const WATER_NAMES: string[] = [WATER_FLOW, WATER_STILL, WATER_OFF];
+export const WATER_LABELS: string[] = ['流动', '静水', '关闭'];
+
+// 字号三档：S / M / L
+export const SCALE_STEPS: number[] = [0.92, 1, 1.12];
+export const SCALE_LABELS: string[] = ['小', '标准', '大'];
+
+// 全局字号缩放。组件需持有 @StorageLink('textScale') 才会在切换档位后重绘。
+export function fs(base: number): number {
+  let s = AppStorage.get<number>('textScale') ?? 1;
+  let v = base * s;
+  return Math.round(v * 10) / 10;
+}
+
 export function coverOf(era: string): string {
   if (era === '龙山') {
     return 'era_longshan';

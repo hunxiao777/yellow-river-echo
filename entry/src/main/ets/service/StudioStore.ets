@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
-import { Profile, WorkRec } from '../model/Models';
+import { Profile, WorkRec, CheckinRec, QuizRun } from '../model/Models';
+import { WATER_FLOW, WATER_STILL, WATER_OFF, SCALE_STEPS } from '../common/Theme';
 
 // 本机互动与创作数据：昵称头像、商品点赞/清单、集字、签到、彩陶作品。
 // 刻意不进分布式队列——这些是演示型数据，跨端要同步的仍是档案收藏与笔记。
@@ -19,6 +20,11 @@ export class StudioStore {
   readPosts: string[] = [];
   followed: string[] = [];
   guideSeen: boolean = false;
+  // '' 表示用户没选过，由 River.effectiveWaterMode() 按机型给默认档
+  waterMode: string = '';
+  scaleStep: number = 1;
+  siteCheckins: CheckinRec[] = [];
+  quizRuns: QuizRun[] = [];
 
   private p: preferences.Preferences | null = null;
 
@@ -43,6 +49,19 @@ export class StudioStore {
     this.works = this.readArr<WorkRec>('works');
     this.readPosts = this.readArr('readPosts');
     this.followed = this.readArr('followed');
+    this.waterMode = this.p.getSync('waterMode', '') as string;
+    this.scaleStep = this.clampStep(this.p.getSync('scaleStep', 1) as number);
+    this.siteCheckins = this.readArr<CheckinRec>('siteCheckins');
+    this.quizRuns = this.readArr<QuizRun>('quizRuns');
+    AppStorage.setOrCreate('textScale', SCALE_STEPS[this.scaleStep]);
+  }
+
+  private clampStep(n: number): number {
+    let i = Math.floor(n);
+    if (i < 0 || i >= SCALE_STEPS.length) {
+      return 1;
+    }
+    return i;
   }
 
   private readArr<T>(key: string): T[] {
@@ -239,6 +258,82 @@ export class StudioStore {
       this.works.splice(i, 1);
       this.save('works', this.works);
     }
+  }
+
+  // ---- 河道动效档位（本机偏好，不跨端同步：换设备互相打断观感） ----
+  setWaterMode(mode: string): void {
+    if (WATER_FLOW !== mode && WATER_STILL !== mode && WATER_OFF !== mode) {
+      return;
+    }
+    this.waterMode = mode;
+    if (this.p !== null) {
+      this.p.put('waterMode', mode);
+      this.scheduleFlush();
+    }
+    StudioStore.rev();
+  }
+
+  // ---- 字号三档 ----
+  setScaleStep(i: number): void {
+    this.scaleStep = this.clampStep(i);
+    AppStorage.setOrCreate('textScale', SCALE_STEPS[this.scaleStep]);
+    if (this.p !== null) {
+      this.p.put('scaleStep', this.scaleStep);
+      this.scheduleFlush();
+    }
+    StudioStore.rev();
+  }
+
+  // ---- 到遗址现场打卡（本机数据） ----
+  checkinOf(siteId: string): CheckinRec | undefined {
+    for (let c of this.siteCheckins) {
+      if (c.siteId === siteId) {
+        return c;
+      }
+    }
+    return undefined;
+  }
+
+  siteChecked(siteId: string): boolean {
+    return this.checkinOf(siteId) !== undefined;
+  }
+
+  checkinSite(siteId: string): boolean {
+    if (this.siteChecked(siteId)) {
+      return false;
+    }
+    let rec: CheckinRec = { siteId: siteId, at: Date.now() };
+    this.siteCheckins.unshift(rec);
+    this.save('siteCheckins', this.siteCheckins);
+    return true;
+  }
+
+  undoCheckinSite(siteId: string): void {
+    this.siteCheckins = this.siteCheckins.filter((c: CheckinRec): boolean => c.siteId !== siteId);
+    this.save('siteCheckins', this.siteCheckins);
+  }
+
+  checkedSiteIds(): string[] {
+    return this.siteCheckins.map((c: CheckinRec): string => c.siteId);
+  }
+
+  // ---- 趣味测试记录 ----
+  addQuizRun(persona: string, picks: number[]): void {
+    let rec: QuizRun = {
+      id: `qz_${Date.now()}`,
+      persona: persona,
+      at: Date.now(),
+      picks: picks
+    };
+    this.quizRuns.unshift(rec);
+    if (this.quizRuns.length > 20) {
+      this.quizRuns.pop();
+    }
+    this.save('quizRuns', this.quizRuns);
+  }
+
+  latestQuiz(): QuizRun | undefined {
+    return this.quizRuns.length > 0 ? this.quizRuns[0] : undefined;
   }
 
   flushNow(): void {

@@ -86,6 +86,20 @@ export interface ViewLog {
   at: number;
 }
 
+// 到某一处遗址现场的落点记录（本机数据，暂未进跨端队列）
+export interface CheckinRec {
+  siteId: string;
+  at: number;
+}
+
+// 趣味测试的一次作答
+export interface QuizRun {
+  id: string;
+  persona: string;
+  at: number;
+  picks: number[];
+}
+
 // ---- 内容包（文创 / 课程 / 活动 / 社区），随包只读 ----
 
 export interface SpecKV {
