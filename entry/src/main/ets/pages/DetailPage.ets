@@ -208,6 +208,21 @@ struct DetailPage {
         Image(coverRes(this.site!.cover))
           .width('100%').height(200).objectFit(ImageFit.Cover)
           .translate({ y: this.scrollY * 0.4 })
+
+        // 配图是 AI 生成的示意图，不是现场照片：标注钉在图上，不只写在页脚
+        Column() {
+          Text('AI 生成示意图')
+            .fontSize(fs(9)).fontColor('#F0E7D8')
+            .backgroundColor('rgba(43,38,34,0.42)')
+            .padding({ left: 7, right: 7, top: 3, bottom: 3 })
+            .borderRadius(8)
+        }
+        .width('100%').height('100%')
+        .alignItems(HorizontalAlign.End)
+        .justifyContent(FlexAlign.Start)
+        .padding(12)
+        .hitTestBehavior(HitTestMode.Transparent)
+
         Column({ space: 4 }) {
           Text(this.site!.name)
             .fontSize(fs(22)).fontColor(Color.White).fontWeight(FontWeight.Bold)

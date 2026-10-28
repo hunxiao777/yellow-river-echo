@@ -12,6 +12,73 @@ import { INK, SUB, LOESS, CLAY, paletteOf, WATER_NAMES, WATER_LABELS, SCALE_LABE
 import { effectiveWaterMode } from '../common/River';
 import { goArchive, goPottery, goTopic, goSync, goCourses, goQuiz, goGuide, goEngineer, closeDrawer } from '../common/Nav';
 
+// 档位胶囊组。做成组件而不是 @Builder：Builder 的普通参数是快照，
+// 点了「大」之后高亮不会跟着变（真机上实测到的高亮卡死）。
+@Component
+struct DrawerPicker {
+  @Require @Prop kind: string; // water | scale
+  @StorageLink('studioRev') @Watch('refresh') rev: number = 0;
+  @State cur: number = 0;
+
+  aboutToAppear(): void {
+    this.refresh();
+  }
+
+  refresh(): void {
+    this.cur = this.kind === 'water' ? WATER_NAMES.indexOf(effectiveWaterMode()) : StudioStore.get().scaleStep;
+  }
+
+  labels(): string[] {
+    return this.kind === 'water' ? WATER_LABELS : SCALE_LABELS;
+  }
+
+  title(): string {
+    return this.kind === 'water' ? '河道动效' : '字号';
+  }
+
+  icon(): string {
+    return this.kind === 'water' ? '〰' : 'A';
+  }
+
+  pick(i: number): void {
+    if (this.kind === 'water') {
+      StudioStore.get().setWaterMode(WATER_NAMES[i]);
+    } else {
+      StudioStore.get().setScaleStep(i);
+    }
+  }
+
+  build() {
+    Column({ space: 7 }) {
+      Row({ space: 8 }) {
+        Text(this.icon()).fontSize(fs(15)).fontColor(LOESS).width(20)
+        Text(this.title()).fontSize(fs(15)).fontColor(INK)
+      }
+      .width('100%')
+
+      Row({ space: 8 }) {
+        ForEach(this.labels(), (lb: string, i: number): void => {
+          Text(lb)
+            .fontSize(fs(12))
+            .textAlign(TextAlign.Center)
+            .fontColor(this.cur === i ? '#FFFFFF' : SUB)
+            .backgroundColor(this.cur === i ? LOESS : $r('app.color.page_bg'))
+            .padding({ top: 6, bottom: 6 })
+            .borderRadius(14)
+            .layoutWeight(1)
+            .onClick((): void => {
+              this.pick(i);
+            })
+        }, (lb: string): string => lb)
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding({ left: 16, right: 16, top: 8, bottom: 8 })
+  }
+}
+
 @Entry
 @Component
 struct Index {
@@ -67,30 +134,6 @@ struct Index {
       closeDrawer();
       act();
     })
-  }
-
-  // 一行标题 + 三个胶囊：档位选择放同一行，边侧栏不用滚到底才看见设置
-  @Builder
-  drawerPicker(icon: string, title: string, labels: string[], current: number, pick: (i: number) => void) {
-    Row({ space: 8 }) {
-      Text(icon).fontSize(fs(15)).fontColor(LOESS).width(20)
-      Text(title).fontSize(fs(15)).fontColor(INK)
-      Blank()
-      ForEach(labels, (lb: string, i: number): void => {
-        Text(lb)
-          .fontSize(fs(12))
-          .fontColor(current === i ? '#FFFFFF' : SUB)
-          .backgroundColor(current === i ? LOESS : $r('app.color.page_bg'))
-          .padding({ left: 11, right: 11, top: 5, bottom: 5 })
-          .borderRadius(12)
-          .onClick((): void => {
-            pick(i);
-          })
-      }, (lb: string): string => lb)
-    }
-    .width('100%')
-    .height(46)
-    .padding({ left: 16, right: 16 })
   }
 
   tapAvatar(): void {
@@ -181,12 +224,9 @@ struct Index {
 
           Divider().strokeWidth(1).color($r('app.color.line')).margin({ left: 16, right: 16, top: 6, bottom: 6 })
 
-          this.drawerPicker('〰', '河道动效', WATER_LABELS, this.waterIndex(), (i: number): void => {
-            StudioStore.get().setWaterMode(WATER_NAMES[i]);
-          })
-          this.drawerPicker('A', '字号', SCALE_LABELS, StudioStore.get().scaleStep, (i: number): void => {
-            StudioStore.get().setScaleStep(i);
-          })
+          // 标题一行、胶囊一行：272vp 的边侧栏塞不下"标题 + 三个胶囊"同行，实测会切掉"关闭"
+          DrawerPicker({ kind: 'water' })
+          DrawerPicker({ kind: 'scale' })
 
           Row({ space: 12 }) {
             Text('◎').fontSize(fs(15)).fontColor(LOESS).width(20)
@@ -224,10 +264,6 @@ struct Index {
     .height('100%')
     .alignItems(HorizontalAlign.Start)
     .backgroundColor($r('app.color.card_bg'))
-  }
-
-  waterIndex(): number {
-    return WATER_NAMES.indexOf(effectiveWaterMode());
   }
 
   @Builder

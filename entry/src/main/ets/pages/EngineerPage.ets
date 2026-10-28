@@ -261,7 +261,7 @@ struct EngineerPage {
             Row({ space: 8 }) {
               this.cell({ label: '待同步', live: this.pending, note: 'dirty 队列' })
               this.cell({ label: '冲突', live: SyncService.get().conflicts.length, note: '本次启动' })
-              this.cell({ label: '可信设备', live: this.devs.length, note: 'networkId 已取' })
+              this.cell({ label: '可信设备', live: this.devs.length, note: '本次扫描' })
               this.cell({ label: '现场打卡', live: this.checkedTotal(), note: '本机' })
             }
             .width('100%')

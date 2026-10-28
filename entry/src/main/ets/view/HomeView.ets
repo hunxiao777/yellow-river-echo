@@ -552,7 +552,7 @@ export struct HomeView {
           this.grid()
           this.eventSection()
 
-          Text('遗址档案文字来自公开资料整理；今日一句中除两条唐诗外均为拟咏；文创与活动为概念演示数据，全程离线。')
+          Text('遗址档案文字来自公开资料整理；配图为 AI 生成示意图，非现场照片；今日一句中除两条唐诗外均为拟咏；文创与活动为概念演示数据，全程离线。')
             .fontSize(fs(10))
             .fontColor(SUB)
             .width('100%')

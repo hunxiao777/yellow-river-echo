@@ -326,7 +326,8 @@ struct QuizPage {
           .fontColor(INK)
           .fontWeight(FontWeight.Medium)
         ForEach(this.reco, (s: SiteInfo): void => {
-          SiteCard({ site: s, note: `${s.city} · ${personaOf(this.resultKey).era}段` })
+          // 不传 note：让卡片显示各自的摘要，比重复一遍"城市 · 年代段"有用
+          SiteCard({ site: s })
         }, (s: SiteInfo): string => s.id)
       }
       .width('100%')
