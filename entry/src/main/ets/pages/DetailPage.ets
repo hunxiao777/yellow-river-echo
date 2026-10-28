@@ -1,8 +1,10 @@
-import { router } from '@kit.ArkUI';
+import { router, promptAction } from '@kit.ArkUI';
 import { SiteRepo } from '../service/SiteRepo';
 import { MemoryStore } from '../service/MemoryStore';
+import { StudioStore } from '../service/StudioStore';
 import { SiteInfo, Suggestion, NoteRec, TagRec, Poem } from '../model/Models';
-import { coverRes, INK, SUB, LOESS, CLAY } from '../common/Theme';
+import { coverRes, INK, SUB, LOESS, CLAY, fs } from '../common/Theme';
+import { RiverRibbon } from '../common/River';
 import { params, goNote } from '../common/Nav';
 import { SiteCard } from '../view/SiteCard';
 
@@ -11,13 +13,21 @@ interface SecCard {
   body: string;
 }
 
+// 详情页（扩展设计方案 §2.5）：头图视差 + 诗词逐字浮现 + 在此打卡 + 同一段河 + 河道缩略。
+// 阅读页不做动效主角：河道缩略只在正文之外出现一次，正文卡片保持不透底。
 @Entry
 @Component
 struct DetailPage {
   @StorageLink('dataRev') rev: number = 0;
+  @StorageLink('studioRev') @Watch('syncCheckin') studioRev: number = 0;
+  @StorageLink('textScale') ts: number = 1;
   @State site: SiteInfo | undefined = undefined;
   @State sheetOpen: boolean = false;
   @State sheetPicked: string[] = [];
+  @State scrollY: number = 0;
+  @State poemOn: boolean = false;
+  @State sealOn: boolean = false;
+  private scroller: Scroller = new Scroller();
 
   aboutToAppear(): void {
     let p = params();
@@ -25,7 +35,14 @@ struct DetailPage {
       this.site = SiteRepo.get().byId(p.id);
       if (this.site !== undefined) {
         MemoryStore.get().touchView(this.site.id);
+        this.sealOn = StudioStore.get().siteChecked(this.site.id);
       }
+    }
+  }
+
+  syncCheckin(): void {
+    if (this.site !== undefined) {
+      this.sealOn = StudioStore.get().siteChecked(this.site.id);
     }
   }
 
@@ -59,20 +76,73 @@ struct DetailPage {
     return `读到第 ${pr.maxSection + 1} 节 / 共 ${this.secs().length} 节`;
   }
 
+  barAlpha(): number {
+    let v = (this.scrollY - 132) / 60;
+    if (v < 0) {
+      return 0;
+    }
+    return v > 1 ? 1 : v;
+  }
+
+  checkinText(): string {
+    let s = this.site;
+    if (s === undefined) {
+      return '';
+    }
+    let rec = StudioStore.get().checkinOf(s.id);
+    if (rec === undefined) {
+      return '在此打卡';
+    }
+    let d = new Date(rec.at);
+    return `你于 ${d.getMonth() + 1} 月 ${d.getDate()} 日在此打卡`;
+  }
+
+  sealChar(): string {
+    let s = this.site;
+    if (s === undefined) {
+      return '河';
+    }
+    let src = s.alias.length > 0 ? s.alias : s.name;
+    return src.substring(0, 1);
+  }
+
+  doCheckin(): void {
+    let s = this.site;
+    if (s === undefined) {
+      return;
+    }
+    if (StudioStore.get().checkinSite(s.id)) {
+      promptAction.showToast({ message: '已记下这一步（只存本机）' });
+    }
+  }
+
+  undoCheckin(): void {
+    let s = this.site;
+    if (s === undefined) {
+      return;
+    }
+    StudioStore.get().undoCheckinSite(s.id);
+  }
+
   @Builder
   sectionCard(sec: SecCard, idx: number) {
     Column({ space: 6 }) {
       Row({ space: 8 }) {
-        Text(`${idx + 1}`).fontSize(12).fontColor(Color.White)
+        Text(`${idx + 1}`).fontSize(fs(12)).fontColor(Color.White)
           .width(18).height(18).borderRadius(9)
           .backgroundColor(idx < 3 ? CLAY : LOESS)
           .textAlign(TextAlign.Center)
-        Text(sec.t).fontSize(16).fontColor(INK).fontWeight(FontWeight.Medium)
+        Text(sec.t).fontSize(fs(16)).fontColor(INK).fontWeight(FontWeight.Medium)
+        Blank()
+        if (idx === 3) {
+          Text('拟咏已按库内标注').fontSize(fs(9)).fontColor(SUB)
+        }
       }
+      .width('100%')
       Text(sec.body)
-        .fontSize(14)
+        .fontSize(fs(14))
         .fontColor(INK)
-        .lineHeight(23)
+        .lineHeight(fs(23))
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
@@ -81,93 +151,225 @@ struct DetailPage {
     .borderRadius(12)
   }
 
+  // 诗词：竖排 + 自右向左逐列浮现（每列 260ms 间隔），首次可见才播
+  @Builder
+  poemCard() {
+    Column({ space: 10 }) {
+      Row({ space: 8 }) {
+        Text('4').fontSize(fs(12)).fontColor(Color.White)
+          .width(18).height(18).borderRadius(9)
+          .backgroundColor(LOESS)
+          .textAlign(TextAlign.Center)
+        Text('相关诗词').fontSize(fs(16)).fontColor(INK).fontWeight(FontWeight.Medium)
+        Blank()
+        Text('库内收录').fontSize(fs(9)).fontColor(SUB)
+      }
+      .width('100%')
+
+      Row() {
+        ForEach(this.site!.poems, (x: Poem, pi: number): void => {
+          Column({ space: 3 }) {
+            ForEach(x.line.split(''), (ch: string, ci: number): void => {
+              Text(ch)
+                .fontSize(fs(17))
+                .fontColor(INK)
+                .lineHeight(fs(26))
+            }, (ch: string, ci: number): string => `${pi}-${ci}-${ch}`)
+            Text(`${x.author}｜${x.source}`)
+              .fontSize(fs(10))
+              .fontColor(SUB)
+              .margin({ top: 6 })
+          }
+          .alignItems(HorizontalAlign.Center)
+          .opacity(this.poemOn ? 1 : 0)
+          .margin({ right: 16 })
+          .animation({ duration: 320, delay: pi * 260, curve: Curve.EaseOut })
+        }, (x: Poem, pi: number): string => `${pi}-${x.line}`)
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.Start)
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding(14)
+    .backgroundColor($r('app.color.card_bg'))
+    .borderRadius(12)
+    .onVisibleAreaChange([0.4], (isVisible: boolean): void => {
+      if (isVisible) {
+        this.poemOn = true;
+      }
+    })
+  }
+
+  @Builder
+  headerItem() {
+    Column() {
+      Stack({ alignContent: Alignment.BottomStart }) {
+        Image(coverRes(this.site!.cover))
+          .width('100%').height(200).objectFit(ImageFit.Cover)
+          .translate({ y: this.scrollY * 0.4 })
+        Column({ space: 4 }) {
+          Text(this.site!.name)
+            .fontSize(fs(22)).fontColor(Color.White).fontWeight(FontWeight.Bold)
+          Text(`${this.site!.city} · ${this.site!.eras.join('/')} · ${this.site!.types.join('/')}`)
+            .fontSize(fs(12)).fontColor('#E8E0D2')
+        }
+        .alignItems(HorizontalAlign.Start)
+        .padding(14)
+
+        // 打卡印章：盖在头图右下角
+        Stack({ alignContent: Alignment.BottomEnd }) {
+          Column() {
+            Text(this.sealChar())
+              .fontSize(fs(17))
+              .fontColor('#F6E2CE')
+              .fontWeight(FontWeight.Bold)
+          }
+          .width(42).height(42)
+          .borderRadius(6)
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor('rgba(166,85,61,0.86)')
+          .border({ width: 2, color: '#DCC3A8' })
+          .margin({ right: 14, bottom: 14 })
+          .opacity(this.sealOn ? 0.95 : 0)
+          .scale({ x: this.sealOn ? 1 : 1.7, y: this.sealOn ? 1 : 1.7 })
+          .rotate({ angle: -8 })
+          .animation({ duration: 340, curve: Curve.FastOutSlowIn })
+        }
+        .width('100%').height('100%')
+      }
+      .width('100%').height(200).clip(true)
+    }
+  }
+
+  @Builder
+  actionBar() {
+    Row({ space: 10 }) {
+      Button(MemoryStore.get().isFav(this.site!.id) ? '已收藏' : '收藏')
+        .fontSize(fs(13))
+        .backgroundColor(MemoryStore.get().isFav(this.site!.id) ? LOESS : CLAY)
+        .onClick(async (): Promise<void> => {
+          if (MemoryStore.get().isFav(this.site!.id)) {
+            await MemoryStore.get().removeFav(this.site!.id);
+          } else {
+            await MemoryStore.get().addFav(this.site!.id);
+          }
+        })
+      Button('归类')
+        .fontSize(fs(13))
+        .backgroundColor($r('app.color.line'))
+        .fontColor(INK)
+        .onClick((): void => {
+          let fav = MemoryStore.get().favOf(this.site!.id);
+          this.sheetPicked = fav === undefined ? [] : fav.tagIds.slice();
+          this.sheetOpen = true;
+        })
+      Button('写一笔')
+        .fontSize(fs(13))
+        .backgroundColor($r('app.color.line'))
+        .fontColor(INK)
+        .onClick((): void => {
+          goNote(this.site!.id, '');
+        })
+      Blank()
+      Text(MemoryStore.get().progressOf(this.site!.id) !== undefined &&
+        MemoryStore.get().progressOf(this.site!.id)!.read ? '已读' : '未读')
+        .fontSize(fs(12)).fontColor(SUB)
+        .onClick(async (): Promise<void> => {
+          let pr = MemoryStore.get().progressOf(this.site!.id);
+          let cur = pr !== undefined && pr.read;
+          await MemoryStore.get().markRead(this.site!.id, !cur);
+        })
+    }
+    .width('100%')
+    .padding({ left: 2, right: 2 })
+  }
+
+  @Builder
+  checkinRow() {
+    Row({ space: 10 }) {
+      Column() {
+        Text(this.checkinText())
+          .fontSize(fs(13))
+          .fontColor(this.sealOn ? CLAY : INK)
+          .fontWeight(this.sealOn ? FontWeight.Normal : FontWeight.Medium)
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      if (this.sealOn) {
+        Text('撤销')
+          .fontSize(fs(12))
+          .fontColor(SUB)
+          .onClick((): void => {
+            this.undoCheckin();
+          })
+      } else {
+        Text('打卡')
+          .fontSize(fs(13))
+          .fontColor('#FFFFFF')
+          .padding({ left: 14, right: 14, top: 7, bottom: 7 })
+          .backgroundColor(CLAY)
+          .borderRadius(14)
+          .onClick((): void => {
+            this.doCheckin();
+          })
+      }
+    }
+    .width('100%')
+    .padding(12)
+    .backgroundColor($r('app.color.card_bg'))
+    .borderRadius(12)
+  }
+
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
       if (this.site !== undefined) {
-        List({ space: 10 }) {
+        List({ space: 10, scroller: this.scroller }) {
           ListItem() {
-            Column() {
-              Stack({ alignContent: Alignment.BottomStart }) {
-                Image(coverRes(this.site.cover))
-                  .width('100%').height(200).objectFit(ImageFit.Cover)
-                Column({ space: 4 }) {
-                  Text(this.site.name)
-                    .fontSize(22).fontColor(Color.White).fontWeight(FontWeight.Bold)
-                  Text(`${this.site.city} · ${this.site.eras.join('/')} · ${this.site.types.join('/')}`)
-                    .fontSize(12).fontColor('#E8E0D2')
-                }
-                .alignItems(HorizontalAlign.Start)
-                .padding(14)
-              }
-              .width('100%').height(200).clip(true)
-            }
+            this.headerItem()
           }
 
           ListItem() {
-            Row({ space: 10 }) {
-              Button(MemoryStore.get().isFav(this.site.id) ? '已收藏' : '收藏')
-                .fontSize(13)
-                .backgroundColor(MemoryStore.get().isFav(this.site.id) ? LOESS : CLAY)
-                .onClick(async (): Promise<void> => {
-                  if (MemoryStore.get().isFav(this.site!.id)) {
-                    await MemoryStore.get().removeFav(this.site!.id);
-                  } else {
-                    await MemoryStore.get().addFav(this.site!.id);
-                  }
-                })
-              Button('归类')
-                .fontSize(13)
-                .backgroundColor($r('app.color.line'))
-                .fontColor(INK)
-                .onClick((): void => {
-                  let fav = MemoryStore.get().favOf(this.site!.id);
-                  this.sheetPicked = fav === undefined ? [] : fav.tagIds.slice();
-                  this.sheetOpen = true;
-                })
-              Button('写一笔')
-                .fontSize(13)
-                .backgroundColor($r('app.color.line'))
-                .fontColor(INK)
-                .onClick((): void => {
-                  goNote(this.site!.id, '');
-                })
-              Blank()
-              Text(MemoryStore.get().progressOf(this.site.id) !== undefined &&
-                MemoryStore.get().progressOf(this.site.id)!.read ? '已读' : '未读')
-                .fontSize(12).fontColor(SUB)
-                .onClick(async (): Promise<void> => {
-                  let pr = MemoryStore.get().progressOf(this.site!.id);
-                  let cur = pr !== undefined && pr.read;
-                  await MemoryStore.get().markRead(this.site!.id, !cur);
-                })
-            }
-            .width('100%')
-            .padding({ left: 2, right: 2 })
+            this.actionBar()
           }
 
           ListItem() {
-            Text(this.readLine()).fontSize(11).fontColor(SUB)
+            this.checkinRow()
+          }
+
+          ListItem() {
+            Text(this.readLine()).fontSize(fs(11)).fontColor(SUB)
               .width('100%').padding({ left: 4 })
+          }
+
+          ListItem() {
+            RiverRibbon({ bandHeight: 66, showDots: true, activeId: this.site.id,
+              note: '你在干流上的位置。横轴是年代，纵向偏移是城市自西向东；示意排布，非真实经纬。' })
           }
 
           ForEach(this.secs(), (sec: SecCard, idx: number): void => {
             ListItem() {
-              this.sectionCard(sec, idx)
+              if (idx === 3 && this.site !== undefined && this.site!.poems.length > 0) {
+                this.poemCard()
+              } else {
+                this.sectionCard(sec, idx)
+              }
             }
           }, (sec: SecCard): string => sec.t)
 
           ListItem() {
             Text(`这里的笔记（${MemoryStore.get().notesOfSite(this.site.id).length}）`)
-              .fontSize(15).fontColor(INK).fontWeight(FontWeight.Medium)
+              .fontSize(fs(15)).fontColor(INK).fontWeight(FontWeight.Medium)
               .width('100%').padding(4)
           }
 
           ForEach(MemoryStore.get().notesOfSite(this.site.id), (n: NoteRec): void => {
             ListItem() {
               Column({ space: 4 }) {
-                Text(n.text).fontSize(13).fontColor(INK).maxLines(3)
+                Text(n.text).fontSize(fs(13)).fontColor(INK).maxLines(3)
                   .textOverflow({ overflow: TextOverflow.Ellipsis })
-                Text('点按编辑').fontSize(10).fontColor(SUB)
+                Text('点按编辑').fontSize(fs(10)).fontColor(SUB)
               }
               .width('100%')
               .alignItems(HorizontalAlign.Start)
@@ -181,8 +383,8 @@ struct DetailPage {
           }, (n: NoteRec): string => n.id)
 
           ListItem() {
-            Text('顺着河往下看')
-              .fontSize(15).fontColor(INK).fontWeight(FontWeight.Medium)
+            Text('同一段河')
+              .fontSize(fs(15)).fontColor(INK).fontWeight(FontWeight.Medium)
               .width('100%').padding(4)
           }
 
@@ -200,31 +402,50 @@ struct DetailPage {
         .height('100%')
         .scrollBar(BarState.Off)
         .padding({ left: 14, right: 14 })
+        .onDidScroll((offset: number, state: ScrollState): void => {
+          let next = this.scrollY + offset;
+          this.scrollY = next < 0 ? 0 : next;
+        })
         .onScrollIndex((first: number, last: number): void => {
-          // 头部占两行，正文节号从 2 开始；末尾笔记/推荐行不计入
+          // 前 5 行是头图/操作/打卡/进度/河道缩略，正文从第 6 个 ListItem 起
           let max = this.secs().length - 1;
-          let secIdx = Math.min(Math.max(last - 3, 0), max);
+          let secIdx = Math.min(Math.max(last - 5, 0), max);
           if (this.site !== undefined) {
             MemoryStore.get().bumpSection(this.site.id, secIdx);
           }
         })
       } else {
         Column() {
-          Text('没找到这条资源').fontSize(15).fontColor(INK)
+          Text('没找到这条资源').fontSize(fs(15)).fontColor(INK)
         }.width('100%').height('100%').justifyContent(FlexAlign.Center)
       }
 
-      Text('‹ 返回')
-        .fontSize(14)
-        .fontColor(Color.White)
-        .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-        .margin({ left: 10, top: 12 })
-        .backgroundColor('#66000000')
-        .borderRadius(14)
-        .position({ x: 0, y: 0 })
-        .onClick((): void => {
-          router.back();
-        })
+      Row({ space: 10 }) {
+        Text('‹ 返回')
+          .fontSize(fs(14))
+          .fontColor(this.barAlpha() > 0.5 ? INK : Color.White)
+          .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+          .backgroundColor(this.barAlpha() > 0.5 ? Color.Transparent : '#66000000')
+          .borderRadius(14)
+          .onClick((): void => {
+            router.back();
+          })
+        if (this.site !== undefined) {
+          Text(this.site.name)
+            .fontSize(fs(16))
+            .fontColor(INK)
+            .fontWeight(FontWeight.Medium)
+            .opacity(this.barAlpha())
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
+        }
+      }
+      .width('100%')
+      .padding({ left: 10, right: 14, top: 12, bottom: 8 })
+      .backgroundColor(`rgba(245,239,228,${(this.barAlpha() * 0.96).toFixed(2)})`)
+      .position({ x: 0, y: 0 })
+      .hitTestBehavior(this.barAlpha() > 0.5 ? HitTestMode.Default : HitTestMode.Transparent)
 
       if (this.sheetOpen && this.site !== undefined) {
         Column()
@@ -234,10 +455,10 @@ struct DetailPage {
             this.sheetOpen = false;
           })
         Column({ space: 10 }) {
-          Text('归类到标签').fontSize(16).fontColor(INK).fontWeight(FontWeight.Medium)
+          Text('归类到标签').fontSize(fs(16)).fontColor(INK).fontWeight(FontWeight.Medium)
           ForEach(MemoryStore.get().tagsActive(), (t: TagRec): void => {
             Row() {
-              Text(t.name).fontSize(14).fontColor(INK).layoutWeight(1)
+              Text(t.name).fontSize(fs(14)).fontColor(INK).layoutWeight(1)
               Toggle({ type: ToggleType.Switch, isOn: this.sheetPicked.indexOf(t.id) >= 0 })
                 .selectedColor(CLAY)
                 .onChange((on: boolean): void => {
