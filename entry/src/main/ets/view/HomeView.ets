@@ -356,7 +356,7 @@ export struct HomeView {
   tiles(): TileRec[] {
     return [
       { kind: 'scroll', title: '遗址档案', act: (): void => { goArchive(0); } },
-      { kind: 'seal', title: '河道打卡', act: (): void => { goCheckin(); } },
+      { kind: 'seal', title: '河图洛书', act: (): void => { goCheckin(); } },
       { kind: 'route', title: '行程规划', act: (): void => { goRoute(); } },
       { kind: 'lantern', title: '沿河活动', act: (): void => { this.openFirstEvent(); } },
       { kind: 'pot', title: '创意工坊', act: (): void => { goStudio(0); } },

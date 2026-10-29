@@ -2,24 +2,25 @@ import { router, promptAction } from '@kit.ArkUI';
 import { SiteInfo } from '../model/Models';
 import { SiteRepo } from '../service/SiteRepo';
 import { StudioStore } from '../service/StudioStore';
-import { RiverRibbon, siteDot } from '../common/River';
-import { ERAS, INK, SUB, LOESS, CLAY, agoText, coverRes, fs } from '../common/Theme';
+import { BasinMap } from '../common/BasinMap';
+import { INK, SUB, LOESS, CLAY, RIVER, agoText, coverRes, fs } from '../common/Theme';
 import { goDetail } from '../common/Nav';
 
-// 河道打卡页：把首页那条动态河道搬到这里，让它从"装饰"变成"可点的地图"。
-// 点一个圈选中一处遗址，盖章写进 StudioStore.siteCheckins（只存本机，不进分布式队列）。
-const BAND_H: number = 262;
-const HIT_R: number = 26;
+// 河图洛书：一整幅黄河流域图，从约古宗列曲到东营入海，两侧支流同框。
+// 干流是缓慢流动的黄色荧光，点河道溅黄橘渐变水花；放大到河南流域才出现 20 处遗址圈，
+// 选中后盖章写进 StudioStore.siteCheckins（只存本机，不进分布式队列）。
+const MAP_H: number = 316;
 
 @Entry
 @Component
 struct CheckinPage {
   @StorageLink('studioRev') @Watch('reload') studioRev: number = 0;
-  @State bandW: number = 0;
   @State sites: SiteInfo[] = [];
   @State doneIds: string[] = [];
   @State checkedList: SiteInfo[] = [];
   @State sel: SiteInfo | undefined = undefined;
+  @State flashReq: string = '';
+  private flashSeq: number = 0;
 
   aboutToAppear(): void {
     this.reload();
@@ -50,38 +51,20 @@ struct CheckinPage {
       return '已打卡';
     }
     let r = StudioStore.get().checkinOf(s.id);
-    return r === undefined ? '已打卡' : '已打卡 · ' + agoText(r.at);
+    return r === undefined ? '已打卡 · 刚刚' : '已打卡 · ' + agoText(r.at);
   }
 
-  // Area 的宽高可能是数字也可能是带单位的字符串，两种都吃
-  toNum(v: Length): number {
-    let n = parseFloat(`${v}`);
-    return Number.isNaN(n) ? 0 : n;
+  pickSite(id: string): void {
+    let s = SiteRepo.get().byId(id);
+    if (s !== undefined) {
+      this.sel = s;
+    }
   }
 
-  // 命中判定：在带子里找离触点最近的圈，超过 HIT_R 就算点了空白
-  pick(x: number, y: number): void {
-    let w = this.bandW;
-    if (w <= 0) {
-      return;
-    }
-    let best: SiteInfo | undefined = undefined;
-    let bestD = HIT_R * HIT_R;
-    for (let s of this.sites) {
-      let p = siteDot(s, w, BAND_H);
-      let dx = p.x - x;
-      let dy = p.y - y;
-      let d = dx * dx + dy * dy;
-      if (d <= bestD) {
-        bestD = d;
-        best = s;
-      }
-    }
-    if (best === undefined) {
-      promptAction.showToast({ message: '没点到圈，试试河道上那些小圆' });
-      return;
-    }
-    this.sel = best;
+  // 盖成功就在图上炸一团光：父组件只改这一个字符串，落点由地图自己按当前视图算
+  flash(id: string): void {
+    this.flashSeq = this.flashSeq + 1;
+    this.flashReq = `${id}|${this.flashSeq}`;
   }
 
   doCheckin(): void {
@@ -90,6 +73,7 @@ struct CheckinPage {
       return;
     }
     if (StudioStore.get().checkinSite(s.id)) {
+      this.flash(s.id);
       promptAction.showToast({ message: '已盖章：' + s.name });
     }
   }
@@ -104,14 +88,9 @@ struct CheckinPage {
   }
 
   @Builder
-  legend(filled: boolean, text: string) {
+  chip(col: string, text: string) {
     Row({ space: 5 }) {
-      Circle()
-        .width(11)
-        .height(11)
-        .fill(filled ? CLAY : Color.Transparent)
-        .stroke(filled ? CLAY : SUB)
-        .strokeWidth(1.2)
+      Circle().width(9).height(9).fill(col)
       Text(text).fontSize(fs(11)).fontColor(SUB)
     }
   }
@@ -177,10 +156,11 @@ struct CheckinPage {
   emptyCard() {
     Column({ space: 6 }) {
       Text('点河道上的一个小圆').fontSize(fs(13)).fontColor(INK)
-      Text('选中一处遗址，就能在这条河上盖一个章').fontSize(fs(11)).fontColor(SUB)
+      Text('遗址圈都在河南流域那一段：按右下角「河南流域」一键放大，或双指放大地图。点发光的水面还会溅起水花')
+        .fontSize(fs(11)).fontColor(SUB)
     }
     .width('100%')
-    .padding({ top: 22, bottom: 22 })
+    .padding({ top: 18, bottom: 18 })
     .alignItems(HorizontalAlign.Center)
     .backgroundColor($r('app.color.card_bg'))
     .borderRadius(14)
@@ -193,7 +173,7 @@ struct CheckinPage {
           .onClick((): void => {
             router.back();
           })
-        Text('河道打卡').fontSize(fs(18)).fontColor(INK).fontWeight(FontWeight.Bold).layoutWeight(1)
+        Text('河图洛书').fontSize(fs(18)).fontColor(INK).fontWeight(FontWeight.Bold).layoutWeight(1)
         Text(`${this.doneIds.length} / ${this.sites.length}`).fontSize(fs(14)).fontColor(LOESS)
       }
       .width('100%')
@@ -201,45 +181,64 @@ struct CheckinPage {
 
       Scroll() {
         Column({ space: 12 }) {
-          // 河道带：整块可点，坐标按 siteDot 命中
-          Column({ space: 6 }) {
-            Row({ space: 14 }) {
-              this.legend(false, '没去过')
-              this.legend(true, '盖过章')
+          // 流域图：整块可缩放/平移，点河道有水花，放大到河南流域才出现遗址圈
+          Column({ space: 8 }) {
+            Row({ space: 8 }) {
+              // 这块是深色底（#1A212A），标题/提示不能用纸面上的 INK/SUB，否则黑压黑看不清
+              Text('黄河全流域').fontSize(fs(14)).fontColor('#F2E6CF').fontWeight(FontWeight.Medium)
               Blank()
-              Text('纵向偏移＝城市自西向东').fontSize(fs(10)).fontColor(SUB)
+              Text('双指缩放 · 拖动平移 · 点河道溅水花').fontSize(fs(10)).fontColor('rgba(226,216,196,0.62)')
             }
             .width('100%')
 
-            // 年代轴：六个等宽格子的中心正好对上 siteU 的分段中点
-            Row() {
-              ForEach(ERAS, (era: string): void => {
-                Text(era)
-                  .fontSize(fs(9))
-                  .fontColor(SUB)
-                  .textAlign(TextAlign.Center)
-                  .layoutWeight(1)
-              }, (era: string): string => era)
-            }
-            .width('100%')
+            BasinMap({
+              mapHeight: MAP_H,
+              activeId: this.sel === undefined ? '' : this.sel!.id,
+              flashReq: this.flashReq,
+              onSitePick: (id: string): void => {
+                this.pickSite(id);
+              },
+              onMiss: (x: number, y: number): void => {
+                promptAction.showToast({ message: '这儿是黄土高原，河在发光的那条线上' });
+              }
+            })
 
-            Stack() {
-              RiverRibbon({ bandHeight: BAND_H, showDots: true,
-                activeId: this.sel === undefined ? '' : this.sel!.id, note: '' })
+            Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
+              Row({ space: 4 }) {
+                Circle().width(8).height(8).fill('#FFD873')
+                Text('干流（荧光流动）').fontSize(fs(10)).fontColor(SUB)
+              }.margin({ right: 12, bottom: 4 })
+              Row({ space: 4 }) {
+                Circle().width(8).height(8).fill(RIVER)
+                Text('支流 23 条').fontSize(fs(10)).fontColor(SUB)
+              }.margin({ right: 12, bottom: 4 })
+              Row({ space: 4 }) {
+                Circle().width(8).height(8).fill(CLAY)
+                Text('盖过章的遗址').fontSize(fs(10)).fontColor(SUB)
+              }.margin({ right: 12, bottom: 4 })
+              Row({ space: 4 }) {
+                Circle().width(8).height(8).fill('#F0EBE2')
+                Text('城镇').fontSize(fs(10)).fontColor(SUB)
+              }.margin({ bottom: 4 })
             }
             .width('100%')
-            .height(BAND_H)
-            .onAreaChange((oldV: Area, newV: Area): void => {
-              this.bandW = this.toNum(newV.width);
-            })
-            .onClick((e: ClickEvent): void => {
-              this.pick(e.x, e.y);
-            })
           }
           .width('100%')
-          .padding(14)
-          .backgroundColor($r('app.color.card_bg'))
-          .borderRadius(14)
+          .padding(12)
+          .backgroundColor('#1A212A')
+          .borderRadius(16)
+
+          Stack({ alignContent: Alignment.BottomStart }) {
+            Image($r('app.media.hh_scene_a'))
+              .width('100%').height(92).borderRadius(10).objectFit(ImageFit.Cover)
+            Text('黄河乾坤湾 · 实景')
+              .fontSize(fs(10)).fontColor('#FFFFFF')
+              .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+              .backgroundColor('rgba(43,38,34,0.45)')
+              .borderRadius({ topLeft: 10, bottomRight: 10 })
+              .margin(6)
+          }
+          .width('100%')
 
           if (this.sel === undefined) {
             this.emptyCard()
@@ -311,7 +310,7 @@ struct CheckinPage {
           .width('100%')
           .alignItems(HorizontalAlign.Start)
 
-          Text('点位是示意排布，不是真实经纬；打卡只存本机，不进分布式队列；卡片配图为 AI 生成示意图。')
+          Text('河道走向按真实经纬手工标定，是示意地图、不是测绘成果；打卡只存本机，不进分布式队列；实景照片来自 Wikimedia Commons 黄河乾坤湾（CC0 授权），卡片配图为 AI 生成示意图。')
             .fontSize(fs(10)).fontColor(SUB)
             .width('100%').textAlign(TextAlign.Center)
             .margin({ top: 2, bottom: 18 })
