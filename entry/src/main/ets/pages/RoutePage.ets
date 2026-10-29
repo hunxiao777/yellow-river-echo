@@ -68,15 +68,41 @@ struct RoutePage {
   }
 
   @Builder
-  chip(text: string, on: boolean, act: () => void) {
+  eraChip(text: string) {
     Text(text)
       .fontSize(fs(12))
-      .fontColor(on ? Color.White : INK)
+      .fontColor(this.eraOn(text) ? Color.White : INK)
       .padding({ left: 12, right: 12, top: 6, bottom: 6 })
       .borderRadius(14)
-      .backgroundColor(on ? CLAY : $r('app.color.card_bg'))
-      .border({ width: 1, color: on ? CLAY : LINE })
-      .onClick(act)
+      .backgroundColor(this.eraOn(text) ? CLAY : $r('app.color.card_bg'))
+      .border({ width: 1, color: this.eraOn(text) ? CLAY : LINE })
+      .onClick((): void => {
+        this.era = text === '全部' ? '' : (this.era === text ? '' : text);
+        this.compute();
+      })
+  }
+
+  @Builder
+  cityChip(text: string) {
+    Text(text)
+      .fontSize(fs(12))
+      .fontColor(this.cityOn(text) ? Color.White : INK)
+      .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+      .borderRadius(14)
+      .backgroundColor(this.cityOn(text) ? CLAY : $r('app.color.card_bg'))
+      .border({ width: 1, color: this.cityOn(text) ? CLAY : LINE })
+      .onClick((): void => {
+        this.city = text === '全部' ? '' : (this.city === text ? '' : text);
+        this.compute();
+      })
+  }
+
+  eraOn(text: string): boolean {
+    return text === '全部' ? this.era.length === 0 : this.era === text;
+  }
+
+  cityOn(text: string): boolean {
+    return text === '全部' ? this.city.length === 0 : this.city === text;
   }
 
   // 路线条：一根横线串起各站的小圆，盖过章的填实，一眼看出走到哪了
@@ -95,11 +121,10 @@ struct RoutePage {
             .borderRadius(6)
             .backgroundColor(this.checked(s.id) ? CLAY : $r('app.color.card_bg'))
             .border({ width: 1.5, color: this.checked(s.id) ? CLAY : LOESS })
-            .layoutWeight(1)
-            .margin({ left: 6, right: 6 })
         }, (s: SiteInfo): string => 'dot_' + s.id)
       }
       .width('86%')
+      .justifyContent(FlexAlign.SpaceBetween)
     }
     .width('100%')
     .height(26)
@@ -202,15 +227,9 @@ struct RoutePage {
                 .width(30)
               Scroll() {
                 Row({ space: 7 }) {
-                  this.chip('全部', this.era.length === 0, (): void => {
-                    this.era = '';
-                    this.compute();
-                  })
+                  this.eraChip('全部')
                   ForEach(ERAS, (e: string): void => {
-                    this.chip(e, this.era === e, (): void => {
-                      this.era = this.era === e ? '' : e;
-                      this.compute();
-                    })
+                    this.eraChip(e)
                   }, (e: string): string => 'era_' + e)
                 }
                 .padding({ right: 10 })
@@ -228,15 +247,9 @@ struct RoutePage {
                 .width(30)
               Scroll() {
                 Row({ space: 7 }) {
-                  this.chip('全部', this.city.length === 0, (): void => {
-                    this.city = '';
-                    this.compute();
-                  })
+                  this.cityChip('全部')
                   ForEach(CITIES, (c: string): void => {
-                    this.chip(c, this.city === c, (): void => {
-                      this.city = this.city === c ? '' : c;
-                      this.compute();
-                    })
+                    this.cityChip(c)
                   }, (c: string): string => 'city_' + c)
                 }
                 .padding({ right: 10 })
