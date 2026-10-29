@@ -7,7 +7,7 @@ import { goGoods, params } from '../common/Nav';
 
 // 颜色工坊：一个颜色对应一类文物。色名是演示口径的称呼（仰韶红、宋天青…），
 // 对应的文物从文创演示数据里按 palette 取，点芯片能跳到那件文物。
-interface ColorRow {
+export interface ColorRow {
   key: string;
   name: string;
   era: string;
@@ -22,6 +22,16 @@ const ROWS: ColorRow[] = [
   { key: 'hantang', name: '汉唐赭黄', era: '汉唐', saying: '赭黄是三彩釉里的主色，铅釉在火里流得开。' },
   { key: 'song', name: '宋天青', era: '宋', saying: '天青是"雨过天晴云破处"的那一层青。' }
 ];
+
+// 展台等外部页面按色键取色名与一句话说法
+export function colorRowOf(key: string): ColorRow {
+  for (let r of ROWS) {
+    if (r.key === key) {
+      return r;
+    }
+  }
+  return ROWS[0];
+}
 
 const SHAPES: string[] = ['pot', 'jar', 'ding', 'tile', 'stele', 'box', 'coin', 'kiln'];
 
@@ -49,12 +59,7 @@ struct ColorPage {
   }
 
   row(): ColorRow {
-    for (let r of ROWS) {
-      if (r.key === this.sel) {
-        return r;
-      }
-    }
-    return ROWS[0];
+    return colorRowOf(this.sel);
   }
 
   rep(): Goods | undefined {

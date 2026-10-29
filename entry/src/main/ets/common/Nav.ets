@@ -79,7 +79,7 @@ export function goColor(colorKey: string): void {
   router.pushUrl({ url: 'pages/ColorPage', params: p });
 }
 
-// 「创意工坊」单独模块：tab 0 陶艺 / 1 颜色 / 2 教程
+// 「创意工坊」单独模块：默认页顶栏切工坊、选教程；tab 0 陶艺 / 1 颜色 / 2 教程
 export function goStudio(tab: number): void {
   let p: RouteParam = { tab: tab };
   router.pushUrl({ url: 'pages/StudioPage', params: p });
@@ -103,6 +103,10 @@ export function goTopic(): void {
 export function goQuiz(from: string): void {
   let p: RouteParam = { from: from };
   router.pushUrl({ url: 'pages/QuizPage', params: p });
+}
+
+export function goBack(): void {
+  router.back();
 }
 
 export function openDrawer(): void {

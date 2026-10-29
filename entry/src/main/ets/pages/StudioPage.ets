@@ -1,72 +1,37 @@
 import { router } from '@kit.ArkUI';
+import { INK, SUB, PAPER, CLAY, LINE, fs, coverRes, paletteOf } from '../common/Theme';
+import { goBack, params, goPlayer, goCourses } from '../common/Nav';
+import { PatternBg } from '../view/PatternBg';
 import { ContentRepo } from '../service/ContentRepo';
 import { Course } from '../model/Models';
-import { INK, SUB, LOESS, CLAY, LINE, paletteOf, fs, coverRes } from '../common/Theme';
-import { params, goPottery, goColor, goPlayer } from '../common/Nav';
-import { PatternBg } from '../view/PatternBg';
+import { colorRowOf } from './ColorPage';
 
-// 展台上的六件"实物参考"：图用的是包内实景风格文物照，
-// 一件对应一个时代、一种釉色，也对应工坊里的一套参数。
-interface Relic {
-  key: string;
+// 「创意工坊」独立模块：默认页顶栏切工坊、选教程
+// 页内三块：3D 文物展台（旋转 + 倒影 + 指示点）、陶艺/颜色工坊入口、教程选单
+interface ExhibitRec {
   img: string;
-  name: string;
-  era: string;
-  note: string;
-  potHint: string;
-  saying: string;
+  key: string;
 }
 
-const RELICS: Relic[] = [
-  {
-    key: 'yangshao', img: 'era_yangshao', name: '彩陶鱼纹双耳盆', era: '仰韶',
-    note: '鱼纹一笔撇在腹部，漩涡纹压在下带，是陶艺工坊纹样的原型。',
-    potHint: '鱼纹、漩涡纹都取自这件；红陶底衬黑彩最稳。',
-    saying: '彩陶的底色，是黄河泥在窑火里烧出来的红。'
-  },
-  {
-    key: 'longshan', img: 'era_longshan', name: '黑陶高足杯', era: '龙山',
-    note: '快轮拉坯、渗碳烧成，胎薄如壳，黑得发亮。',
-    potHint: '素台加一圈拉坯线就够说话；器型可试高足。',
-    saying: '黑陶靠渗碳烧成，黑得发亮，薄得透光。'
-  },
-  {
-    key: 'xiashang', img: 'era_xiashang', name: '青铜尊与青铜盘', era: '夏商',
-    note: '范铸在器身留下范线，兽面与同心圆藏在青绿锈里。',
-    potHint: '兽面纹可以搬到陶腹上；配色取夏商青绿。',
-    saying: '青铜刚铸出来是亮的青绿，锈了才沉成现在这样。'
-  },
-  {
-    key: 'zhou', img: 'era_zhou', name: '青铜鼎与编钟组', era: '周',
-    note: '礼乐器的组合：鼎数列等级，钟磬定声音。',
-    potHint: '题字可以借金文笔意；器型试鼎式。',
-    saying: '玉色是礼器的底子，温而不艳，压得住场面。'
-  },
-  {
-    key: 'hantang', img: 'era_hantang', name: '三彩驼骑俑', era: '汉唐',
-    note: '铅釉在窑里自己流动，赭黄与绿交叠，件件不同。',
-    potHint: '配色用汉唐赭黄，让釉流一点更像三彩。',
-    saying: '赭黄是三彩釉里的主色，铅釉在火里流得开。'
-  },
-  {
-    key: 'song', img: 'era_song', name: '青花与青釉瓶', era: '宋',
-    note: '"雨过天晴云破处"，宋人把这一层青烧进了釉里。',
-    potHint: '素台天青，题字留白，纹样别抢戏。',
-    saying: '天青是"雨过天晴云破处"的那一层青。'
-  }
+// 六件展品：实物示意图 + 对应色键，与颜色工坊六色一一对上
+const SHOW: ExhibitRec[] = [
+  { img: 'relic_caitao', key: 'yangshao' },
+  { img: 'relic_heitao', key: 'longshan' },
+  { img: 'relic_qingtong', key: 'xiashang' },
+  { img: 'relic_bianzhong', key: 'zhou' },
+  { img: 'relic_sancai', key: 'hantang' },
+  { img: 'relic_tianqing', key: 'song' }
 ];
-
-const WORKS: string[] = ['陶艺工坊', '颜色工坊', '教程工坊'];
 const CATS: string[] = ['全部', '手作', '讲读', '影像'];
+const CAT_NAMES: string[] = ['全部', '手作演示', '讲读', '影像'];
 
-// 创意工坊：单独模块的默认页。顶栏切工坊、挑教程；
-// 中间是 3D 展台——实景文物照排成一圈，侧件侧身、主件慢摆，脚下压一片影子。
 @Entry
 @Component
-struct StudioPage {
+export struct StudioPage {
   @State tab: number = 0;
   @State cur: number = 0;
-  @State sway: number = -6;
+  @State sway: number = -5;
+  @State floatY: number = 0;
   @State cat: string = '全部';
 
   aboutToAppear(): void {
@@ -74,347 +39,36 @@ struct StudioPage {
     if (p !== undefined && p.tab !== undefined && p.tab >= 0 && p.tab <= 2) {
       this.tab = p.tab;
     }
+    // 展台缓摆：绕 y 轴 -5°~5° 往复；上下 8px 浮沉，像展柜里被轻托着
     animateTo({
-      duration: 2800,
-      curve: Curve.EaseInOut,
-      iterations: -1,
-      playMode: PlayMode.Alternate
+      duration: 6000, curve: Curve.EaseInOut, iterations: -1, playMode: PlayMode.Alternate
     }, (): void => {
-      this.sway = 6;
+      this.sway = 5;
+    });
+    animateTo({
+      duration: 4200, curve: Curve.EaseInOut, iterations: -1, playMode: PlayMode.Alternate
+    }, (): void => {
+      this.floatY = -8;
     });
   }
 
-  relic(): Relic {
-    return RELICS[this.cur];
-  }
-
-  // 环形相对位置：-3..3，0 是正中间那件
-  rel(i: number): number {
+  // 展品相对当前选中的偏移：-3..3，只渲染 |rel|<=1（两侧侧身件 + 中央正身件）
+  private rel(i: number): number {
     let d = i - this.cur;
-    if (d > 3) {
-      d -= RELICS.length;
+    while (d > 3) {
+      d -= 6;
     }
-    if (d < -3) {
-      d += RELICS.length;
+    while (d < -3) {
+      d += 6;
     }
     return d;
   }
 
-  step(d: number): void {
-    animateTo({ duration: 380, curve: Curve.EaseInOut }, (): void => {
-      this.cur = (this.cur + d + RELICS.length) % RELICS.length;
-    });
-  }
-
-  pick(i: number): void {
-    if (i === this.cur) {
-      return;
-    }
-    animateTo({ duration: 380, curve: Curve.EaseInOut }, (): void => {
-      this.cur = i;
-    });
-  }
-
-  // 每个工坊挂自己的教程：陶艺认"陶/泥/坯"，颜色认"釉/墨"，教程工坊走分类
-  tutorials(): Course[] {
-    let all = ContentRepo.get().courses;
-    if (this.tab === 2) {
-      return ContentRepo.get().coursesOf(this.cat);
-    }
-    let out: Course[] = [];
-    for (let c of all) {
-      if (this.tab === 0 && (c.title.indexOf('陶') >= 0 || c.title.indexOf('泥') >= 0 || c.title.indexOf('坯') >= 0)) {
-        out.push(c);
-      } else if (this.tab === 1 && (c.title.indexOf('釉') >= 0 || c.title.indexOf('墨') >= 0)) {
-        out.push(c);
-      }
-    }
-    return out;
-  }
-
-  @Builder
-  topBar() {
-    Row({ space: 10 }) {
-      Text('‹')
-        .fontSize(fs(24))
-        .fontColor(CLAY)
-        .width(22)
-        .onClick((): void => {
-          router.back();
-        })
-      Column({ space: 2 }) {
-        Text('创意工坊')
-          .fontSize(fs(18))
-          .fontColor(INK)
-          .fontWeight(FontWeight.Bold)
-          .letterSpacing(2)
-        Text('陶艺 · 颜色 · 教程')
-          .fontSize(fs(10))
-          .fontColor(SUB)
-      }
-      .alignItems(HorizontalAlign.Start)
-      .layoutWeight(1)
-
-      Row({ space: 2 }) {
-        ForEach(WORKS, (w: string, i: number): void => {
-          Text(w)
-            .fontSize(fs(12))
-            .fontColor(this.tab === i ? Color.White : SUB)
-            .fontWeight(this.tab === i ? FontWeight.Medium : FontWeight.Regular)
-            .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-            .borderRadius(14)
-            .backgroundColor(this.tab === i ? CLAY : Color.Transparent)
-            .onClick((): void => {
-              this.tab = i;
-            })
-        }, (w: string, i: number): string => 'wk_' + i)
-      }
-      .padding(2)
-      .borderRadius(16)
-      .backgroundColor('rgba(233,219,196,0.65)')
-    }
-    .width('100%')
-    .padding({ left: 14, right: 12, top: 10, bottom: 8 })
-  }
-
-  // 顶栏下面一行挑教程：陶艺/颜色挂相关课，教程工坊走分类筛选
-  @Builder
-  courseChips() {
-    Row({ space: 8 }) {
-      Text(this.tab === 2 ? '筛选' : '选教程')
-        .fontSize(fs(11))
-        .fontColor(LOESS)
-        .fontWeight(FontWeight.Medium)
-      Scroll() {
-        Row({ space: 7 }) {
-          if (this.tab === 2) {
-            ForEach(CATS, (o: string): void => {
-              Text(o)
-                .fontSize(fs(11))
-                .fontColor(o === this.cat ? Color.White : INK)
-                .padding({ left: 11, right: 11, top: 5, bottom: 5 })
-                .borderRadius(13)
-                .backgroundColor(o === this.cat ? CLAY : 'rgba(255,255,255,0.6)')
-                .border({ width: 1, color: o === this.cat ? CLAY : LINE })
-                .onClick((): void => {
-                  this.cat = o;
-                })
-            }, (o: string): string => 'cat_' + o)
-          } else {
-            ForEach(this.tutorials(), (c: Course): void => {
-              Text(c.title)
-                .fontSize(fs(11))
-                .fontColor(INK)
-                .padding({ left: 11, right: 11, top: 5, bottom: 5 })
-                .borderRadius(13)
-                .backgroundColor('rgba(255,255,255,0.6)')
-                .border({ width: 1, color: LINE })
-                .onClick((): void => {
-                  goPlayer(c.id);
-                })
-            }, (c: Course): string => 'tut_' + c.id)
-          }
-        }
-        .padding({ right: 12 })
-      }
-      .scrollable(ScrollDirection.Horizontal)
-      .scrollBar(BarState.Off)
-      .layoutWeight(1)
-    }
-    .width('100%')
-    .padding({ left: 14, right: 0, bottom: 6 })
-  }
-
-  // 3D 展台：六件围成一圈，侧件侧身退后，主件慢摆，脚下压一片虚影
-  @Builder
-  stage() {
-    Stack({ alignContent: Alignment.Center }) {
-      // 地面虚影：位置不随摆动变，撑住"立在台面上"的感觉
-      Column()
-        .width(150)
-        .height(14)
-        .borderRadius(7)
-        .backgroundColor('rgba(43,38,34,0.22)')
-        .blur(9)
-        .offset({ y: 108 })
-
-      ForEach(RELICS, (r: Relic, i: number): void => {
-        Stack() {
-          Image(coverRes(r.img))
-            .width(186)
-            .height(186)
-            .objectFit(ImageFit.Cover)
-            .borderRadius(14)
-          // 侧件压暗一点，拉开前后层次
-          Column()
-            .width(186)
-            .height(186)
-            .borderRadius(14)
-            .linearGradient({
-              angle: 90,
-              colors: [['rgba(43,38,34,0.34)', 0], ['rgba(43,38,34,0.05)', 0.5], ['rgba(43,38,34,0.34)', 1]]
-            })
-            .opacity(this.rel(i) === 0 ? 0 : 0.8)
-        }
-        .rotate({ x: 0, y: 1, z: 0, angle: this.rel(i) === 0 ? this.sway : (this.rel(i) < 0 ? 42 : -42) })
-        .scale({ x: this.rel(i) === 0 ? 1 : (Math.abs(this.rel(i)) === 1 ? 0.7 : 0.54),
-          y: this.rel(i) === 0 ? 1 : (Math.abs(this.rel(i)) === 1 ? 0.7 : 0.54) })
-        .opacity(this.rel(i) === 0 ? 1 : (Math.abs(this.rel(i)) === 1 ? 0.6 : 0.28))
-        .translate({ x: this.rel(i) * 108, y: this.rel(i) === 0 ? -6 : (Math.abs(this.rel(i)) === 1 ? 8 : 16) })
-        .zIndex(this.rel(i) === 0 ? 20 : (Math.abs(this.rel(i)) === 1 ? 10 : 4))
-        .onClick((): void => {
-          this.pick(i);
-        })
-      }, (r: Relic, i: number): string => 'st_' + r.key + '_' + i)
-
-      Text('‹')
-        .fontSize(fs(30))
-        .fontColor('rgba(122,110,98,0.7)')
-        .position({ x: 4, y: 128 })
-        .zIndex(30)
-        .onClick((): void => {
-          this.step(-1);
-        })
-      Text('›')
-        .fontSize(fs(30))
-        .fontColor('rgba(122,110,98,0.7)')
-        .position({ x: 330, y: 128 })
-        .zIndex(30)
-        .onClick((): void => {
-          this.step(1);
-        })
-    }
-    .width('100%')
-    .height(288)
-  }
-
-  // 色点行：照参考图那排圆点，选中的套一圈环
-  @Builder
-  dots() {
-    Row({ space: 26 }) {
-      ForEach(RELICS, (r: Relic, i: number): void => {
-        Stack() {
-          if (this.cur === i) {
-            Column()
-              .width(27)
-              .height(27)
-              .borderRadius(14)
-              .border({ width: 1.5, color: paletteOf(r.key).deep })
-          }
-          Column()
-            .width(16)
-            .height(16)
-            .borderRadius(8)
-            .backgroundColor(paletteOf(r.key).base)
-        }
-        .width(27)
-        .height(27)
-        .onClick((): void => {
-          this.pick(i);
-        })
-      }, (r: Relic, i: number): string => 'dot_' + r.key + '_' + i)
-    }
-    .width('100%')
-    .justifyContent(FlexAlign.Center)
-    .padding({ top: 10, bottom: 4 })
-  }
-
-  @Builder
-  courseRow(c: Course) {
-    Row({ space: 10 }) {
-      Image(coverRes(c.palette === 'yangshao' ? 'era_yangshao' :
-        (c.palette === 'longshan' ? 'era_longshan' :
-          (c.palette === 'xiashang' ? 'era_xiashang' :
-            (c.palette === 'song' ? 'era_song' : 'era_hantang')))))
-        .width(58)
-        .height(72)
-        .objectFit(ImageFit.Cover)
-        .borderRadius(9)
-        .rotate({ x: 0, y: 1, z: 0, angle: -8 })
-      Column({ space: 4 }) {
-        Text(c.title)
-          .fontSize(fs(14))
-          .fontColor(INK)
-          .fontWeight(FontWeight.Medium)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(c.brief)
-          .fontSize(fs(11))
-          .fontColor(SUB)
-          .maxLines(2)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-        Text(`${c.cat} · ${c.level} · ${c.minutes} 分钟`)
-          .fontSize(fs(10))
-          .fontColor(CLAY)
-      }
-      .alignItems(HorizontalAlign.Start)
-      .layoutWeight(1)
-      Text('›')
-        .fontSize(fs(14))
-        .fontColor(SUB)
-    }
-    .width('100%')
-    .padding(10)
-    .backgroundColor($r('app.color.card_bg'))
-    .borderRadius(12)
-    .alignItems(VerticalAlign.Center)
-    .onClick((): void => {
-      goPlayer(c.id);
-    })
-  }
-
-  @Builder
-  actionCard() {
-    if (this.tab === 2) {
-      Column({ space: 8 }) {
-        ForEach(this.tutorials(), (c: Course): void => {
-          this.courseRow(c)
-        }, (c: Course): string => 'row_' + c.id)
-        if (this.tutorials().length === 0) {
-          Text('这一类暂时没有课程')
-            .fontSize(fs(12))
-            .fontColor(SUB)
-            .width('100%')
-            .textAlign(TextAlign.Center)
-            .padding({ top: 16, bottom: 16 })
-        }
-      }
-      .width('100%')
-    } else {
-      Row({ space: 10 }) {
-        Column({ space: 4 }) {
-          Text(this.tab === 0 ? '借这件的器形与纹样' : '借这件的釉色')
-            .fontSize(fs(12))
-            .fontColor(INK)
-            .fontWeight(FontWeight.Medium)
-          Text(this.tab === 0 ? this.relic().potHint : this.relic().saying)
-            .fontSize(fs(10))
-            .fontColor(SUB)
-            .maxLines(2)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-
-        Text(this.tab === 0 ? '进陶艺工坊' : '进颜色工坊')
-          .fontSize(fs(12))
-          .fontColor(Color.White)
-          .padding({ left: 13, right: 13, top: 8, bottom: 8 })
-          .borderRadius(16)
-          .backgroundColor(CLAY)
-          .onClick((): void => {
-            if (this.tab === 0) {
-              goPottery();
-            } else {
-              goColor(this.relic().key);
-            }
-          })
-      }
-      .width('100%')
-      .padding(12)
-      .backgroundColor($r('app.color.card_bg'))
-      .borderRadius(12)
-      .alignItems(VerticalAlign.Center)
+  private pick(i: number): void {
+    if (this.rel(i) === 1) {
+      this.cur = (this.cur + 1) % 6;
+    } else if (this.rel(i) === -1) {
+      this.cur = (this.cur + 5) % 6;
     }
   }
 
@@ -422,57 +76,344 @@ struct StudioPage {
     Stack() {
       PatternBg()
       Column() {
-        this.topBar()
-        this.courseChips()
-        Scroll() {
-          Column({ space: 6 }) {
-            this.stage()
-            Row({ space: 8 }) {
-              Text(this.relic().name)
-                .fontSize(fs(17))
-                .fontColor(INK)
-                .fontWeight(FontWeight.Bold)
-              Text(this.relic().era)
-                .fontSize(fs(10))
-                .fontColor(paletteOf(this.relic().key).ink)
-                .backgroundColor(paletteOf(this.relic().key).deep)
-                .borderRadius(7)
-                .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-            }
-            .width('100%')
-            .justifyContent(FlexAlign.Center)
-
-            Text(this.relic().note)
-              .fontSize(fs(11))
-              .fontColor(SUB)
-              .width('100%')
-              .textAlign(TextAlign.Center)
-              .lineHeight(fs(18))
-              .padding({ left: 26, right: 26 })
-
-            this.dots()
-            this.actionCard()
-
-            Text('展台文物照为 AI 生成示意图，非馆藏实拍；教程为手绘分镜演示。')
-              .fontSize(fs(10))
-              .fontColor(SUB)
-              .width('100%')
-              .textAlign(TextAlign.Center)
-              .margin({ top: 10, bottom: 16 })
-          }
-          .width('100%')
-          .padding({ left: 14, right: 14 })
-          .alignItems(HorizontalAlign.Start)
-        }
-        .layoutWeight(1)
-        .scrollBar(BarState.Off)
-        .align(Alignment.Top)
+      // 页头：返回 + 居中标题
+      Row() {
+        Text('‹')
+          .fontSize(fs(20))
+          .fontColor(INK)
+          .width(34)
+          .height(34)
+          .textAlign(TextAlign.Center)
+          .backgroundColor('rgba(255,255,255,0.72)')
+          .borderRadius(17)
+          .onClick(goBack)
+        Blank()
+        Text('创意工坊')
+          .fontSize(fs(18))
+          .fontWeight(FontWeight.Bold)
+          .fontColor(INK)
+          .letterSpacing(3)
+        Blank()
+        Column().width(34).height(34)
       }
       .width('100%')
-      .height('100%')
+      .padding({ left: 14, right: 14, top: 10, bottom: 6 })
+
+      // 页顶栏：切工坊 / 选教程
+      Row() {
+        ForEach(['切工坊', '选教程'], (t: string, i: number): void => {
+          Column({ space: 5 }) {
+            Text(t)
+              .fontSize(fs(14))
+              .fontColor(this.tab === i ? INK : SUB)
+              .fontWeight(this.tab === i ? FontWeight.Bold : FontWeight.Regular)
+              .letterSpacing(1)
+            Column()
+              .width(this.tab === i ? 24 : 0)
+              .height(3)
+              .borderRadius(1.5)
+              .backgroundColor(CLAY)
+          }
+          .padding({ left: 16, right: 16, top: 2, bottom: 4 })
+          .onClick((): void => {
+            animateTo({ duration: 240, curve: Curve.EaseOut }, (): void => {
+              this.tab = i;
+            });
+          })
+        }, (t: string, i: number): string => 'tab_' + i)
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.Center)
+
+      Scroll() {
+        Column({ space: 14 }) {
+          if (this.tab === 0) {
+            this.stage()
+            this.works()
+          } else {
+            this.coursePick()
+          }
+          Text('文物图为 AI 生成的博物馆示意，非馆藏实拍；教程为手绘分镜演示。')
+            .fontSize(fs(9))
+            .fontColor(SUB)
+            .width('100%')
+            .textAlign(TextAlign.Center)
+            .padding({ bottom: 18 })
+        }
+        .width('100%')
+      }
+      .layoutWeight(1)
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
     }
     .width('100%')
     .height('100%')
-    .backgroundColor($r('app.color.page_bg'))
+    .backgroundColor(PAPER)
+  }
+  }
+
+  // —— 3D 文物展台：中央正身缓摆 + 两侧侧身件 + 地面倒影 + 指示点 ——
+  @Builder
+  stage() {
+    Column({ space: 8 }) {
+      Stack({ alignContent: Alignment.Center }) {
+        // 展台净底：一圈纸色柔光晕开，文物像立在展柜灯下，也盖住背景纹样
+        Column()
+          .width(330)
+          .height(296)
+          .borderRadius(148)
+          .radialGradient({
+            center: ['50%', '46%'], radius: 210,
+            colors: [['#F5EFE4', 0], ['#F5EFE4', 0.62], ['rgba(245,239,228,0)', 1]]
+          })
+        ForEach(SHOW, (e: ExhibitRec, i: number): void => {
+          if (Math.abs(this.rel(i)) <= 1) {
+            Column() {
+              Image(coverRes(e.img))
+                .width(216)
+                .height(216)
+                .objectFit(ImageFit.Contain)
+              // 倒影：同一张图取一段翻转压扁，纸色渐变抹淡
+              if (this.rel(i) === 0) {
+                Stack({ alignContent: Alignment.Top }) {
+                  Image(coverRes(e.img))
+                    .width(216)
+                    .height(64)
+                    .objectFit(ImageFit.Cover)
+                    .scale({ y: -1 })
+                    .opacity(0.16)
+                  Column()
+                    .width(216)
+                    .height(64)
+                    .linearGradient({
+                      angle: 180,
+                      colors: [['rgba(245,239,228,0.25)', 0], ['rgba(245,239,228,1)', 0.85]]
+                    })
+                }
+                .width(216)
+                .height(64)
+              }
+            }
+            .rotate({
+              x: 0, y: 1, z: 0,
+              angle: this.rel(i) === 0 ? this.sway : (this.rel(i) < 0 ? 40 : -40)
+            })
+            .scale({ x: this.rel(i) === 0 ? 1 : 0.66, y: this.rel(i) === 0 ? 1 : 0.66 })
+            .opacity(this.rel(i) === 0 ? 1 : 0.55)
+            .translate({ x: this.rel(i) * 148, y: this.rel(i) === 0 ? this.floatY : 12 })
+            .zIndex(this.rel(i) === 0 ? 20 : 10)
+            .onClick((): void => {
+              this.pick(i);
+            })
+          }
+        }, (e: ExhibitRec, i: number): string => 'stage_' + e.img + '_' + this.cur)
+        // 左右切换箭头
+        Row() {
+          Text('‹')
+            .fontSize(fs(22))
+            .fontColor(SUB)
+            .padding(10)
+            .onClick((): void => {
+              this.cur = (this.cur + 5) % 6;
+            })
+          Blank()
+          Text('›')
+            .fontSize(fs(22))
+            .fontColor(SUB)
+            .padding(10)
+            .onClick((): void => {
+              this.cur = (this.cur + 1) % 6;
+            })
+        }
+        .width('100%')
+        .height(60)
+        .padding({ left: 4, right: 4 })
+        .zIndex(30)
+      }
+      .width('100%')
+      .height(300)
+
+      // 展品名 + 指示点
+      Text(colorRowOf(SHOW[this.cur].key).name)
+        .fontSize(fs(15))
+        .fontWeight(FontWeight.Bold)
+        .fontColor(INK)
+        .letterSpacing(2)
+      Row({ space: 6 }) {
+        ForEach(SHOW, (e: ExhibitRec, i: number): void => {
+          Column()
+            .width(i === this.cur ? 14 : 5)
+            .height(5)
+            .borderRadius(2.5)
+            .backgroundColor(i === this.cur ? CLAY : LINE)
+            .onClick((): void => {
+              this.cur = i;
+            })
+        }, (e: ExhibitRec, i: number): string => 'dot_' + e.img)
+      }
+
+      Text(colorRowOf(SHOW[this.cur].key).saying)
+        .fontSize(fs(10))
+        .fontColor(SUB)
+        .width('80%')
+        .textAlign(TextAlign.Center)
+    }
+    .width('100%')
+    .padding({ top: 6 })
+  }
+
+  // —— 工坊入口：陶艺工坊 / 颜色工坊，各带一句玩法说明 ——
+  @Builder
+  works() {
+    Column({ space: 10 }) {
+      Row() {
+        Column({ space: 6 }) {
+          Text('陶艺工坊')
+            .fontSize(fs(15))
+            .fontWeight(FontWeight.Bold)
+            .fontColor(INK)
+            .letterSpacing(2)
+          Text('拉坯 · 上彩 · 入窑，做一件自己的彩陶')
+            .fontSize(fs(10))
+            .fontColor(SUB)
+          Row({ space: 4 }) {
+            Text('进工坊')
+              .fontSize(fs(10))
+              .fontColor(CLAY)
+            Text('›')
+              .fontSize(fs(11))
+              .fontColor(CLAY)
+          }
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        .padding(12)
+        .backgroundColor('rgba(255,255,255,0.72)')
+        .borderRadius(12)
+        .border({ width: 1, color: LINE })
+        .onClick((): void => {
+          router.pushUrl({ url: 'pages/PotteryPage' });
+        })
+      }
+      .width('100%')
+
+      Row() {
+        Column({ space: 6 }) {
+          Text('颜色工坊')
+            .fontSize(fs(15))
+            .fontWeight(FontWeight.Bold)
+            .fontColor(INK)
+            .letterSpacing(2)
+          Text('认矿物色 · 给线稿上彩，一色一类文物')
+            .fontSize(fs(10))
+            .fontColor(SUB)
+          Row({ space: 4 }) {
+            Text('进工坊')
+              .fontSize(fs(10))
+              .fontColor(CLAY)
+            Text('›')
+              .fontSize(fs(11))
+              .fontColor(CLAY)
+          }
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        .padding(12)
+        .backgroundColor('rgba(255,255,255,0.72)')
+        .borderRadius(12)
+        .border({ width: 1, color: LINE })
+        .onClick((): void => {
+          router.pushUrl({ url: 'pages/ColorPage' });
+        })
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .padding({ left: 14, right: 14 })
+  }
+
+  // —— 选教程：分类胶囊 + 教程列表 ——
+  @Builder
+  coursePick() {
+    Column({ space: 10 }) {
+      Scroll() {
+        Row({ space: 8 }) {
+          ForEach(CATS, (c: string, i: number): void => {
+            Text(CAT_NAMES[i])
+              .fontSize(fs(10.5))
+              .fontColor(this.cat === c ? PAPER : INK)
+              .backgroundColor(this.cat === c ? CLAY : 'rgba(255,255,255,0.72)')
+              .borderRadius(13)
+              .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+              .border({ width: 1, color: this.cat === c ? CLAY : LINE })
+              .onClick((): void => {
+                this.cat = c;
+              })
+          }, (c: string): string => 'cat_' + c)
+        }
+        .padding({ left: 14, right: 14 })
+      }
+      .scrollable(ScrollDirection.Horizontal)
+      .scrollBar(BarState.Off)
+      .width('100%')
+
+      Column({ space: 8 }) {
+        ForEach(ContentRepo.get().coursesOf(this.cat), (c: Course): void => {
+          Row({ space: 10 }) {
+            Column()
+              .width(56)
+              .height(70)
+              .borderRadius(9)
+              .backgroundColor(paletteOf(c.palette).base)
+              .border({ width: 1, color: LINE })
+            Column({ space: 4 }) {
+              Text(c.title)
+                .fontSize(fs(12))
+                .fontWeight(FontWeight.Medium)
+                .fontColor(INK)
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+              Text(c.level + ' · ' + c.minutes + ' 分钟')
+                .fontSize(fs(9.5))
+                .fontColor(SUB)
+              Row({ space: 4 }) {
+                Text('看教程')
+                  .fontSize(fs(9.5))
+                  .fontColor(CLAY)
+                Text('›')
+                  .fontSize(fs(10.5))
+                  .fontColor(CLAY)
+              }
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+          }
+          .width('100%')
+          .padding(10)
+          .backgroundColor('rgba(255,255,255,0.72)')
+          .borderRadius(12)
+          .border({ width: 1, color: LINE })
+          .onClick((): void => {
+            goPlayer(c.id);
+          })
+        }, (c: Course): string => 'row_' + c.id)
+      }
+      .width('100%')
+      .padding({ left: 14, right: 14 })
+
+      Row({ space: 4 }) {
+        Text('打开完整教程列表')
+          .fontSize(fs(10))
+          .fontColor(CLAY)
+        Text('›')
+          .fontSize(fs(11))
+          .fontColor(CLAY)
+      }
+      .onClick((): void => {
+        goCourses();
+      })
+    }
+    .width('100%')
+    .padding({ top: 6 })
   }
 }
