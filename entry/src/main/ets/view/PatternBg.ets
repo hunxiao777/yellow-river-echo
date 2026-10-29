@@ -1,51 +1,102 @@
-// 底层水纹贴图：一笔描出、按周期平铺的波纹线，透明度压得很低，
-// 再整体往下慢速漂移一个周期（26vp）循环播放，接缝看不出来。
-// 动效只有这一层在动，内容层保持安静，避免花哨。
+// 纸面纹样底层：Canvas 一遍画成极淡的「水波纹」重复纹样（静态贴图感），
+// 再叠两团慢漂的暖光斑与几粒浮沉金屑——背景有纹样、有动效，
+// 但全部压在底层低不透明度，只衬内容不抢内容。
+const SPECKS: number[][] = [
+  [10, 26, 3, 0.6], [84, 36, 2.5, 1], [32, 55, 2, 0.8],
+  [70, 66, 3, 0.5], [18, 78, 2.5, 0.9], [88, 86, 2, 0.7]
+];
+
 @Component
 export struct PatternBg {
-  @State dy: number = 0;
-  private cmd: string = '';
+  private settings: RenderingContextSettings = new RenderingContextSettings(true);
+  private ctx: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.settings);
+  @State drift: number = 0;
+  @State floatY: number = 0;
 
   aboutToAppear(): void {
-    this.cmd = buildWaves();
     animateTo({
-      duration: 11000,
-      curve: Curve.Linear,
-      iterations: -1,
-      playMode: PlayMode.Normal
+      duration: 15000, curve: Curve.Linear, iterations: -1, playMode: PlayMode.Alternate
     }, (): void => {
-      this.dy = 26;
+      this.drift = 44;
     });
+    animateTo({
+      duration: 6000, curve: Curve.EaseInOut, iterations: -1, playMode: PlayMode.Alternate
+    }, (): void => {
+      this.floatY = -16;
+    });
+  }
+
+  // 水波纹：一鳞三圈同心半环，隔行错半格，满铺如鱼鳞；两色交替避免死板
+  private waves(): void {
+    let c = this.ctx;
+    let w = c.width;
+    let h = c.height;
+    if (w <= 0 || h <= 0) {
+      return;
+    }
+    c.clearRect(0, 0, w, h);
+    c.lineWidth = 1;
+    let R = 30;
+    let row = 0;
+    for (let y = 0; y < h + R; y += R / 2) {
+      let off = (row % 2) * (R / 2);
+      for (let x = -R; x < w + R; x += R) {
+        let cx = x + off;
+        for (let k = 0; k < 3; k++) {
+          c.strokeStyle = k === 1 ? 'rgba(200,161,96,0.075)' : 'rgba(166,85,61,0.055)';
+          c.beginPath();
+          c.arc(cx, y, R - k * 8, Math.PI, 2 * Math.PI);
+          c.stroke();
+        }
+      }
+      row++;
+    }
   }
 
   build() {
     Stack() {
-      Path()
+      Canvas(this.ctx)
         .width('100%')
-        .height(988)
-        .commands(this.cmd)
-        .stroke('#B98D4F')
-        .strokeWidth(1)
-        .fill(Color.Transparent)
-        .opacity(0.09)
+        .height('100%')
+        .onReady((): void => {
+          this.waves();
+        })
+
+      // 慢漂暖光：两团柔光斜向游走，让纸面有呼吸感
+      Column()
+        .width(260)
+        .height(260)
+        .borderRadius(130)
+        .radialGradient({
+          center: ['50%', '50%'], radius: 130,
+          colors: [['rgba(200,161,96,0.10)', 0], ['rgba(200,161,96,0)', 1]]
+        })
+        .position({ x: -60, y: 120 })
+        .translate({ x: this.drift, y: this.drift * 0.4 })
+      Column()
+        .width(300)
+        .height(300)
+        .borderRadius(150)
+        .radialGradient({
+          center: ['50%', '50%'], radius: 150,
+          colors: [['rgba(166,85,61,0.08)', 0], ['rgba(166,85,61,0)', 1]]
+        })
+        .position({ x: 180, y: 420 })
+        .translate({ x: -this.drift * 0.7, y: -this.drift * 0.3 })
+
+      // 浮沉金屑：六粒小金点按各自相位起落
+      ForEach(SPECKS, (s: number[], i: number): void => {
+        Column()
+          .width(s[2])
+          .height(s[2])
+          .borderRadius(s[2] / 2)
+          .backgroundColor('rgba(200,161,96,0.38)')
+          .position({ x: `${s[0]}%`, y: `${s[1]}%` })
+          .translate({ y: this.floatY * s[3] })
+      }, (s: number[], i: number): string => 'sp_' + i)
     }
     .width('100%')
     .height('100%')
-    .translate({ y: this.dy - 26 })
     .hitTestBehavior(HitTestMode.None)
   }
-}
-
-// 行距 26、列距 44，奇数行错半格；从 -26 起笔，保证下漂一个周期后顶部不露空。
-function buildWaves(): string {
-  let out = '';
-  let row = 0;
-  for (let y = -26; y <= 962; y += 26) {
-    let x0 = row % 2 === 0 ? -12 : 10;
-    for (let x = x0; x < 420; x += 44) {
-      out += `M${x} ${y} q11 -8 22 0 q11 8 22 0 `;
-    }
-    row += 1;
-  }
-  return out;
 }
