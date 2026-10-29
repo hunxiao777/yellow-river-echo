@@ -5,6 +5,7 @@ import { ContentRepo } from '../service/ContentRepo';
 import { StudioStore } from '../service/StudioStore';
 import { MemoryStore } from '../service/MemoryStore';
 import { ArtCover } from './ArtCover';
+import { PatternBg } from './PatternBg';
 import { Verse, verseOf, verseSiteName } from '../common/Verses';
 import { siteU } from '../common/River';
 import {
@@ -13,8 +14,8 @@ import {
 } from '../common/Theme';
 import {
   openDrawer, switchTab, goList, goDetail, goArchive, goPottery,
-  goActivity, goCheckin, goRoute, goColor, goCourses, goQuiz,
-  goEngineer, goTopic, goSync
+  goActivity, goCheckin, goRoute, goQuiz,
+  goEngineer, goTopic, goSync, goStudio
 } from '../common/Nav';
 
 const SHAPES: string[] = ['pot', 'jar', 'ding', 'tile', 'stele', 'box', 'coin', 'kiln'];
@@ -186,8 +187,8 @@ function artOf(kind: string) {
   }
 }
 
-// 宫格按钮：纸底双线框 + 小器物 + 按压缩放。动效只做"按一下沉一点再弹回"，
-// 太重会抢内容，太轻又回到上一版那种寡淡的圆片。
+// 宫格按钮：无框写实风——器物直接立在纸面上，脚下一道柔和落影托住，
+// 不描边、不加底板，像参考图那样"图 + 名"两截干净地浮着。按下沉一点再弹回。
 @Component
 struct RelicTile {
   @Prop kind: string = '';
@@ -203,37 +204,40 @@ struct RelicTile {
         });
       }
     }, (): void => {
-      this.sc = 0.88;
+      this.sc = 0.9;
     });
     this.act();
   }
 
   build() {
-    Column({ space: 6 }) {
-      // 双线框：外圈淡、内圈实，像印章的边栏，比单线多一层"厚重"
-      Column() {
-        Stack() {
+    Column({ space: 5 }) {
+      Stack({ alignContent: Alignment.Bottom }) {
+        // 落影：一枚压扁的径向渐变椭圆，让器物像放在台面上而非贴纸
+        Column()
+          .width(34)
+          .height(9)
+          .radialGradient({
+            center: ['50%', '50%'], radius: 17,
+            colors: [['rgba(43,38,34,0.18)', 0], ['rgba(43,38,34,0)', 1]]
+          })
+        Column() {
           artOf(this.kind)
         }
-        .width(46)
-        .height(46)
-        .borderRadius(10)
-        .linearGradient({ angle: 135, colors: [['#F5EDDE', 0], ['#E9DBC4', 1]] })
-        .border({ width: 1, color: '#D9C9A8' })
+        .width(50)
+        .height(44)
+        .justifyContent(FlexAlign.Center)
+        .margin({ bottom: 5 })
       }
-      .width(54)
-      .height(54)
-      .borderRadius(13)
-      .border({ width: 1, color: 'rgba(217,201,168,0.55)' })
-      .justifyContent(FlexAlign.Center)
+      .width(52)
+      .height(50)
 
       Text(this.title)
         .fontSize(fs(11))
         .fontColor(INK)
         .maxLines(1)
     }
-    .width('25%')
-    .padding({ top: 4, bottom: 4 })
+    .width('20%')
+    .padding({ top: 6, bottom: 6 })
     .scale({ x: this.sc, y: this.sc })
     .onClick((): void => {
       this.press();
@@ -261,9 +265,16 @@ export struct HomeView {
   @State goodsN: number = 0;
   @State favN: number = 0;
   @State noteN: number = 0;
+  @State wSway: number = -7;
 
   aboutToAppear(): void {
     this.reload();
+    // 创意工坊卡里的中央文物缓摆，暗示进去是个能转的 3D 展台
+    animateTo({
+      duration: 5200, curve: Curve.EaseInOut, iterations: -1, playMode: PlayMode.Alternate
+    }, (): void => {
+      this.wSway = 7;
+    });
   }
 
   reload(): void {
@@ -341,12 +352,10 @@ export struct HomeView {
       { kind: 'seal', title: '河道打卡', act: (): void => { goCheckin(); } },
       { kind: 'route', title: '行程规划', act: (): void => { goRoute(); } },
       { kind: 'lantern', title: '沿河活动', act: (): void => { this.openFirstEvent(); } },
-      { kind: 'pot', title: '陶艺工坊', act: (): void => { goPottery(); } },
-      { kind: 'swatch', title: '颜色工坊', act: (): void => { goColor(''); } },
-      { kind: 'film', title: '教程影像', act: (): void => { goCourses(); } },
+      { kind: 'pot', title: '创意工坊', act: (): void => { goStudio(0); } },
       { kind: 'slips', title: '趣味自测', act: (): void => { goQuiz('home'); } },
-      { kind: 'gauge', title: '河工面板', act: (): void => { goEngineer(); } },
       { kind: 'net', title: '知识网络', act: (): void => { goTopic(); } },
+      { kind: 'gauge', title: '河工面板', act: (): void => { goEngineer(); } },
       { kind: 'sync', title: '同步面板', act: (): void => { goSync(); } },
       { kind: 'brush', title: '收藏笔记', act: (): void => { goArchive(1); } }
     ];
@@ -614,42 +623,53 @@ export struct HomeView {
     })
   }
 
-  // 创意工坊子卡：陶艺 / 颜色 / 教程三枚小印章，各自能点
+  // 创意工坊入口卡：整卡一个入口，卡里三件文物做微缩 3D 展台（中央件缓摆），
+  // 底色调成纸色让文物边缘自然融进卡面，点整卡进展台页
   @Builder
   workshopCard() {
-    Column({ space: 7 }) {
+    Column({ space: 6 }) {
       Text('创意工坊')
         .fontSize(fs(15))
         .fontColor(INK)
         .fontWeight(FontWeight.Bold)
         .letterSpacing(1)
-      Text('陶艺 · 颜色 · 教程')
+      Text('3D 展台 · 陶艺 · 颜色 · 教程')
         .fontSize(fs(9))
         .fontColor(SUB)
-      Row({ space: 9 }) {
-        Stack() { artOf('pot') }
-          .width(34).height(34).borderRadius(9)
-          .backgroundColor('rgba(255,255,255,0.65)')
-          .border({ width: 1, color: '#E0D2B8' })
-          .onClick((): void => { goPottery(); })
-        Stack() { artOf('swatch') }
-          .width(34).height(34).borderRadius(9)
-          .backgroundColor('rgba(255,255,255,0.65)')
-          .border({ width: 1, color: '#E0D2B8' })
-          .onClick((): void => { goColor(''); })
-        Stack() { artOf('film') }
-          .width(34).height(34).borderRadius(9)
-          .backgroundColor('rgba(255,255,255,0.65)')
-          .border({ width: 1, color: '#E0D2B8' })
-          .onClick((): void => { goCourses(); })
+      Stack({ alignContent: Alignment.Center }) {
+        // 展台净底：与文物图烘进去的纸色同值，边缘才融得干净
+        Column()
+          .width('100%')
+          .height(58)
+          .borderRadius(8)
+          .backgroundColor('#F5EFE4')
+        Image(coverRes('relic_qingtong'))
+          .width(30).height(36).objectFit(ImageFit.Contain)
+          .opacity(0.72).rotate({ x: 0, y: 1, z: 0, angle: 38 }).translate({ x: -25 })
+        Image(coverRes('relic_sancai'))
+          .width(30).height(36).objectFit(ImageFit.Contain)
+          .opacity(0.72).rotate({ x: 0, y: 1, z: 0, angle: -38 }).translate({ x: 25 })
+        Image(coverRes('relic_caitao'))
+          .width(48).height(52).objectFit(ImageFit.Contain)
+          .rotate({ x: 0, y: 1, z: 0, angle: this.wSway })
+          .zIndex(5)
+      }
+      .width('100%')
+      .height(58)
+      Row({ space: 4 }) {
+        Text('进展台').fontSize(fs(10)).fontColor(CLAY)
+        Text('›').fontSize(fs(11)).fontColor(CLAY)
       }
     }
     .alignItems(HorizontalAlign.Start)
     .layoutWeight(1.12)
     .padding(12)
     .borderRadius(12)
-    .backgroundColor('#F3EADB')
+    .linearGradient({ angle: 160, colors: [['#F8F1E3', 0], ['#EDE0C8', 1]] })
     .border({ width: 1, color: '#E0D2B8' })
+    .onClick((): void => {
+      goStudio(0);
+    })
   }
 
   // 档案大卡：标题点明「黄河数字档案」，双卡 + 行程行 + 我的档案行，卡顶压住海报下沿
@@ -910,6 +930,7 @@ export struct HomeView {
 
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
+      PatternBg()
       Column() {
         Scroll() {
           Column() {
