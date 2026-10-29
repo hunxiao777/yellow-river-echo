@@ -68,6 +68,18 @@ export function coverRes(name: string): Resource {
       return $r('app.media.era_song');
     case 'hero_river':
       return $r('app.media.hero_river');
+    case 'relic_caitao':
+      return $r('app.media.relic_caitao');
+    case 'relic_heitao':
+      return $r('app.media.relic_heitao');
+    case 'relic_qingtong':
+      return $r('app.media.relic_qingtong');
+    case 'relic_bianzhong':
+      return $r('app.media.relic_bianzhong');
+    case 'relic_sancai':
+      return $r('app.media.relic_sancai');
+    case 'relic_tianqing':
+      return $r('app.media.relic_tianqing');
     default:
       return $r('app.media.era_yangshao');
   }
