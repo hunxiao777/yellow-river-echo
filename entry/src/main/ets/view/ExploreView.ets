@@ -7,8 +7,22 @@ import { SiteCard } from './SiteCard';
 
 @Component
 export struct ExploreView {
-  @StorageLink('dataRev') rev: number = 0;
+  @StorageLink('dataRev') @Watch('reload') rev: number = 0;
   @State kw: string = '';
+  // 推荐位和「最近在读」都来自 MemoryStore / SiteRepo 这两个普通单例，
+  // ArkUI 看不到它们的变化；dataRev 一跳就抄成 @State，行与理由文案才跟着刷
+  @State recs: Suggestion[] = [];
+  @State recent: SiteInfo[] = [];
+
+  aboutToAppear(): void {
+    this.reload();
+  }
+
+  reload(): void {
+    let mem = MemoryStore.get();
+    this.recs = SiteRepo.get().recommend(mem.favIds(), mem.views, 4, '');
+    this.recent = this.recentSites();
+  }
 
   recentSites(): SiteInfo[] {
     let out: SiteInfo[] = [];
@@ -114,18 +128,18 @@ export struct ExploreView {
 
         this.secTitle('走了这么远', '按你的收藏顺线推荐')
         Column({ space: 8 }) {
-          ForEach(SiteRepo.get().recommend(MemoryStore.get().favIds(), MemoryStore.get().views, 4, ''),
+          ForEach(this.recs,
             (sg: Suggestion): void => {
               SiteCard({ site: sg.site, note: sg.reason })
                 .margin({ left: 14, right: 14 })
-            }, (sg: Suggestion): string => sg.site.id)
+            }, (sg: Suggestion): string => sg.site.id + '_' + this.rev)
         }
 
-        if (MemoryStore.get().views.length > 0) {
+        if (this.recent.length > 0) {
           this.secTitle('最近在读', '')
           Scroll() {
             Row({ space: 10 }) {
-              ForEach(this.recentSites(), (site: SiteInfo): void => {
+              ForEach(this.recent, (site: SiteInfo): void => {
                 Column({ space: 3 }) {
                   Image(coverRes(site.cover))
                     .width(86)

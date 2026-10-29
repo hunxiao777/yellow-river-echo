@@ -8,18 +8,23 @@ import { goNote } from '../common/Nav';
 
 @Component
 export struct NoteView {
-  @StorageLink('dataRev') @Watch('onRev') rev: number = 0;
+  @StorageLink('dataRev') @Watch('reload') rev: number = 0;
   @StorageLink('syncRev') syncRev: number = 0;
-  // rev 只在回调里自增 stamp：build 里读到 stamp 才建依赖，列表才会跟着数据刷新
-  @State stamp: number = 0;
+  // 笔记抄成 @State：MemoryStore 是普通单例，ArkUI 观察不到它里面的数组变化；
+  // dataRev 一跳就换上新数组引用，ForEach 才认这个变化、当场重排
+  @State notes: NoteRec[] = [];
   @State organize: boolean = false;
   @State sel: string[] = [];
   @State pickSite: boolean = false;
   @State mergeOpen: boolean = false;
   @State mergeText: string = '';
 
-  onRev(): void {
-    this.stamp += 1;
+  aboutToAppear(): void {
+    this.reload();
+  }
+
+  reload(): void {
+    this.notes = MemoryStore.get().notesActive();
   }
 
   syncBadge(n: NoteRec): string {
@@ -97,7 +102,7 @@ export struct NoteView {
         .width('100%')
         .padding({ left: 14, right: 14, top: 12 })
 
-        if (MemoryStore.get().notesActive().length === 0) {
+        if (this.notes.length === 0) {
           Column({ space: 6 }) {
             Text('还没有写过笔记').fontSize(15).fontColor(INK)
             Text('在遗址详情页点「写一笔」，现场的话先存本机').fontSize(12).fontColor(SUB)
@@ -105,7 +110,7 @@ export struct NoteView {
           .margin({ top: 60 })
         } else {
           List({ space: 8 }) {
-            ForEach(MemoryStore.get().notesActive(), (n: NoteRec): void => {
+            ForEach(this.notes, (n: NoteRec): void => {
               ListItem() {
                 Row({ space: 10 }) {
                   if (this.organize) {
@@ -167,7 +172,7 @@ export struct NoteView {
                   }
                 })
               }
-            }, (n: NoteRec, i: number): string => n.id + '_' + i + '_' + this.stamp)
+            }, (n: NoteRec, i: number): string => n.id + '_' + i + '_' + this.rev)
           }
           .layoutWeight(1)
           .scrollBar(BarState.Off)

@@ -10,24 +10,45 @@ import { params } from '../common/Nav';
 @Component
 struct ArchivePage {
   @State tab: number = 0;
-  @StorageLink('dataRev') rev: number = 0;
+  @StorageLink('dataRev') @Watch('syncCount') rev: number = 0;
+  // 角标读的是普通单例，ArkUI 观察不到；dataRev 一变就把数量抄进 @State
+  @State favN: number = 0;
+  @State noteN: number = 0;
 
   aboutToAppear(): void {
     let p = params();
     if (p !== undefined && p.tab !== undefined) {
       this.tab = p.tab;
     }
+    this.syncCount();
+  }
+
+  syncCount(): void {
+    this.favN = MemoryStore.get().favsActive().length;
+    this.noteN = MemoryStore.get().notesActive().length;
+  }
+
+  badgeOf(idx: number): string {
+    // 角标从 @State 里取，不能在 @Builder 的普通参数里传值：
+    // 传值是快照，favN 变了这一段不会跟着刷
+    if (idx === 1) {
+      return `${this.favN}`;
+    }
+    if (idx === 2) {
+      return `${this.noteN}`;
+    }
+    return '';
   }
 
   @Builder
-  seg(idx: number, title: string, badge: string) {
+  seg(idx: number, title: string) {
     Column({ space: 3 }) {
       Row({ space: 4 }) {
         Text(title).fontSize(15)
           .fontColor(this.tab === idx ? INK : SUB)
           .fontWeight(this.tab === idx ? FontWeight.Bold : FontWeight.Normal)
-        if (badge.length > 0) {
-          Text(badge).fontSize(10).fontColor(CLAY)
+        if (this.badgeOf(idx).length > 0) {
+          Text(this.badgeOf(idx)).fontSize(10).fontColor(CLAY)
         }
       }
       Divider().width(20).strokeWidth(2)
@@ -47,9 +68,9 @@ struct ArchivePage {
             router.back();
           })
         Row({ space: 18 }) {
-          this.seg(0, '探索', '')
-          this.seg(1, '收藏', `${MemoryStore.get().favsActive().length}`)
-          this.seg(2, '笔记', `${MemoryStore.get().notesActive().length}`)
+          this.seg(0, '探索')
+          this.seg(1, '收藏')
+          this.seg(2, '笔记')
         }
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)

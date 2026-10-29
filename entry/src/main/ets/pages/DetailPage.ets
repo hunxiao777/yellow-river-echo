@@ -18,10 +18,16 @@ interface SecCard {
 @Entry
 @Component
 struct DetailPage {
-  @StorageLink('dataRev') rev: number = 0;
+  @StorageLink('dataRev') @Watch('reload') rev: number = 0;
   @StorageLink('studioRev') @Watch('syncCheckin') studioRev: number = 0;
   @StorageLink('textScale') ts: number = 1;
   @State site: SiteInfo | undefined = undefined;
+  // 收藏/已读/笔记/标签都存在 MemoryStore（普通单例，ArkUI 观察不到），
+  // dataRev 一变就抄成 @State，按钮和列表才跟着实时变
+  @State favOn: boolean = false;
+  @State readOn: boolean = false;
+  @State notes: NoteRec[] = [];
+  @State tags: TagRec[] = [];
   @State sheetOpen: boolean = false;
   @State sheetPicked: string[] = [];
   @State scrollY: number = 0;
@@ -38,6 +44,18 @@ struct DetailPage {
         this.sealOn = StudioStore.get().siteChecked(this.site.id);
       }
     }
+    this.reload();
+  }
+
+  reload(): void {
+    let s = this.site;
+    if (s !== undefined) {
+      this.favOn = MemoryStore.get().isFav(s.id);
+      let pr = MemoryStore.get().progressOf(s.id);
+      this.readOn = pr !== undefined && pr.read;
+      this.notes = MemoryStore.get().notesOfSite(s.id);
+    }
+    this.tags = MemoryStore.get().tagsActive();
   }
 
   syncCheckin(): void {
@@ -260,11 +278,11 @@ struct DetailPage {
   @Builder
   actionBar() {
     Row({ space: 10 }) {
-      Button(MemoryStore.get().isFav(this.site!.id) ? '已收藏' : '收藏')
+      Button(this.favOn ? '已收藏' : '收藏')
         .fontSize(fs(13))
-        .backgroundColor(MemoryStore.get().isFav(this.site!.id) ? LOESS : CLAY)
+        .backgroundColor(this.favOn ? LOESS : CLAY)
         .onClick(async (): Promise<void> => {
-          if (MemoryStore.get().isFav(this.site!.id)) {
+          if (this.favOn) {
             await MemoryStore.get().removeFav(this.site!.id);
           } else {
             await MemoryStore.get().addFav(this.site!.id);
@@ -287,8 +305,7 @@ struct DetailPage {
           goNote(this.site!.id, '');
         })
       Blank()
-      Text(MemoryStore.get().progressOf(this.site!.id) !== undefined &&
-        MemoryStore.get().progressOf(this.site!.id)!.read ? '已读' : '未读')
+      Text(this.readOn ? '已读' : '未读')
         .fontSize(fs(12)).fontColor(SUB)
         .onClick(async (): Promise<void> => {
           let pr = MemoryStore.get().progressOf(this.site!.id);
@@ -374,12 +391,12 @@ struct DetailPage {
           }, (sec: SecCard): string => sec.t)
 
           ListItem() {
-            Text(`这里的笔记（${MemoryStore.get().notesOfSite(this.site.id).length}）`)
+            Text(`这里的笔记（${this.notes.length}）`)
               .fontSize(fs(15)).fontColor(INK).fontWeight(FontWeight.Medium)
               .width('100%').padding(4)
           }
 
-          ForEach(MemoryStore.get().notesOfSite(this.site.id), (n: NoteRec): void => {
+          ForEach(this.notes, (n: NoteRec): void => {
             ListItem() {
               Column({ space: 4 }) {
                 Text(n.text).fontSize(fs(13)).fontColor(INK).maxLines(3)
@@ -395,7 +412,7 @@ struct DetailPage {
                 goNote('', n.id);
               })
             }
-          }, (n: NoteRec): string => n.id)
+          }, (n: NoteRec): string => n.id + '_' + this.rev)
 
           ListItem() {
             Text('同一段河')
@@ -471,7 +488,7 @@ struct DetailPage {
           })
         Column({ space: 10 }) {
           Text('归类到标签').fontSize(fs(16)).fontColor(INK).fontWeight(FontWeight.Medium)
-          ForEach(MemoryStore.get().tagsActive(), (t: TagRec): void => {
+          ForEach(this.tags, (t: TagRec): void => {
             Row() {
               Text(t.name).fontSize(fs(14)).fontColor(INK).layoutWeight(1)
               Toggle({ type: ToggleType.Switch, isOn: this.sheetPicked.indexOf(t.id) >= 0 })
@@ -485,7 +502,7 @@ struct DetailPage {
                   }
                 })
             }.width('100%')
-          }, (t: TagRec): string => t.id)
+          }, (t: TagRec): string => t.id + '_' + this.rev)
           Button('保存归类')
             .backgroundColor(LOESS)
             .fontColor(Color.White)

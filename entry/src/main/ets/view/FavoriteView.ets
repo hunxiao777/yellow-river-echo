@@ -7,7 +7,11 @@ import { goDetail } from '../common/Nav';
 
 @Component
 export struct FavoriteView {
-  @StorageLink('dataRev') rev: number = 0;
+  @StorageLink('dataRev') @Watch('reload') rev: number = 0;
+  // 列表抄成 @State：MemoryStore 是普通单例，ArkUI 观察不到它内部的数组变化。
+  // dataRev 一涨就整份换新数组引用，ForEach 才认这个变化、当场重排
+  @State favs: FavRec[] = [];
+  @State tags: TagRec[] = [];
   @State filterTag: string = '';
   @State manage: boolean = false;
   @State tagInput: string = '';
@@ -15,8 +19,17 @@ export struct FavoriteView {
   @State sheetFav: string = '';
   @State sheetPicked: string[] = [];
 
+  aboutToAppear(): void {
+    this.reload();
+  }
+
+  reload(): void {
+    this.favs = MemoryStore.get().favsActive();
+    this.tags = MemoryStore.get().tagsActive();
+  }
+
   shownFavs(): FavRec[] {
-    let list = MemoryStore.get().favsActive();
+    let list = this.favs;
     if (this.filterTag.length > 0) {
       list = list.filter((f: FavRec): boolean => f.tagIds.indexOf(this.filterTag) >= 0);
     }
@@ -24,7 +37,7 @@ export struct FavoriteView {
   }
 
   tagCount(id: string): number {
-    return MemoryStore.get().favsActive()
+    return this.favs
       .filter((f: FavRec): boolean => f.tagIds.indexOf(id) >= 0).length;
   }
 
@@ -83,7 +96,7 @@ export struct FavoriteView {
                   this.tagInput = '';
                 })
             }
-            ForEach(MemoryStore.get().tagsActive(), (t: TagRec): void => {
+            ForEach(this.tags, (t: TagRec): void => {
               Row({ space: 10 }) {
                 Text(t.name).fontSize(14).fontColor(INK).layoutWeight(1)
                 Text(`${this.tagCount(t.id)} 条`).fontSize(12).fontColor(SUB)
@@ -98,7 +111,7 @@ export struct FavoriteView {
                   })
               }
               .width('100%')
-            }, (t: TagRec): string => t.id)
+            }, (t: TagRec): string => t.id + '_' + this.rev)
           }
           .padding(12)
           .backgroundColor($r('app.color.card_bg'))
@@ -117,7 +130,7 @@ export struct FavoriteView {
               .onClick((): void => {
                 this.filterTag = '';
               })
-            ForEach(MemoryStore.get().tagsActive(), (t: TagRec): void => {
+            ForEach(this.tags, (t: TagRec): void => {
               Text(t.name)
                 .fontSize(13)
                 .fontColor(this.filterTag === t.id ? Color.White : SUB)
@@ -127,7 +140,7 @@ export struct FavoriteView {
                 .onClick((): void => {
                   this.filterTag = this.filterTag === t.id ? '' : t.id;
                 })
-            }, (t: TagRec): string => t.id)
+            }, (t: TagRec): string => t.id + '_' + this.rev)
           }
           .padding({ left: 14, right: 14 })
         }
@@ -147,7 +160,7 @@ export struct FavoriteView {
               ListItem() {
                 this.favRow(f)
               }
-            }, (f: FavRec): string => f.siteId + '_' + f.tagIds.join(','))
+            }, (f: FavRec): string => f.siteId + '_' + f.tagIds.join(',') + '_' + this.rev)
           }
           .layoutWeight(1)
           .scrollBar(BarState.Off)
@@ -168,7 +181,7 @@ export struct FavoriteView {
           })
         Column({ space: 10 }) {
           Text('归类到标签').fontSize(16).fontColor(INK).fontWeight(FontWeight.Medium)
-          ForEach(MemoryStore.get().tagsActive(), (t: TagRec): void => {
+          ForEach(this.tags, (t: TagRec): void => {
             Row() {
               Text(t.name).fontSize(14).fontColor(INK).layoutWeight(1)
               Toggle({ type: ToggleType.Switch, isOn: this.sheetPicked.indexOf(t.id) >= 0 })
