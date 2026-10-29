@@ -1,24 +1,249 @@
 import { promptAction } from '@kit.ArkUI';
-import { Goods, EventInfo, Suggestion } from '../model/Models';
+import { Goods, EventInfo, Suggestion, SiteInfo } from '../model/Models';
 import { SiteRepo } from '../service/SiteRepo';
 import { ContentRepo } from '../service/ContentRepo';
 import { StudioStore } from '../service/StudioStore';
 import { MemoryStore } from '../service/MemoryStore';
 import { ArtCover } from './ArtCover';
 import { Verse, verseOf, verseSiteName } from '../common/Verses';
+import { siteU } from '../common/River';
 import {
-  INK, SUB, LOESS, CLAY, RIVER, LINE,
+  INK, SUB, LOESS, CLAY, RIVER, LINE, PAPER,
   coverRes, coverOf, moneyText, fs
 } from '../common/Theme';
 import {
   openDrawer, switchTab, goList, goDetail, goArchive, goPottery,
-  goActivity, goCheckin
+  goActivity, goCheckin, goRoute, goColor, goCourses, goQuiz,
+  goEngineer, goTopic, goSync
 } from '../common/Nav';
 
 const SHAPES: string[] = ['pot', 'jar', 'ding', 'tile', 'stele', 'box', 'coin', 'kiln'];
 
-// 首页四段（照参考图排布）：横幅轮播 → 四个主题按钮 → 为你推荐 → 文创市集。
-// 河道动效不在这页了：它搬去「河道打卡」页当可点的地图，详情页里也留了一条缩略的。
+interface TileRec {
+  kind: string;
+  title: string;
+  act: () => void;
+}
+
+// 十二枚功能印章的画法：全部用基础形叠出来，不引图片资源。
+// 每一枚都是"纸底 + 双线框 + 一件小器物"，按下会缩一下再弹回来。
+@Builder
+function artOf(kind: string) {
+  if (kind === 'scroll') {
+    Column() {
+      Column().width(32).height(5).borderRadius(2.5).backgroundColor(CLAY)
+      Column({ space: 3 }) {
+        Column().width(16).height(1.5).backgroundColor('#6B5B4A')
+        Column().width(16).height(1.5).backgroundColor('#6B5B4A')
+        Column().width(11).height(1.5).backgroundColor('#6B5B4A')
+      }
+      .width(24).height(18).backgroundColor(PAPER).border({ width: 1, color: LINE })
+      .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Start).padding({ left: 4 })
+      Column().width(32).height(5).borderRadius(2.5).backgroundColor(CLAY)
+    }
+  } else if (kind === 'seal') {
+    Column({ space: 1 }) {
+      Column().width(12).height(7).borderRadius({ topLeft: 3, topRight: 3 }).backgroundColor('#8A4531')
+      Stack() {
+        Column().width(26).height(24).borderRadius(4).backgroundColor(CLAY)
+        Column({ space: 2 }) {
+          Row({ space: 2 }) {
+            Column().width(8).height(8).borderRadius(1).backgroundColor('rgba(246,226,206,0.92)')
+            Column().width(8).height(8).borderRadius(1).backgroundColor('rgba(246,226,206,0.92)')
+          }
+          Row({ space: 2 }) {
+            Column().width(8).height(8).borderRadius(1).backgroundColor('rgba(246,226,206,0.92)')
+            Column().width(8).height(8).borderRadius(1).backgroundColor('rgba(246,226,206,0.92)')
+          }
+        }
+      }
+      .width(26).height(24)
+    }
+  } else if (kind === 'route') {
+    Stack() {
+      Column().width(34).height(2).backgroundColor('#D9C9A8')
+      Row() {
+        Column().width(8).height(8).borderRadius(4).backgroundColor(CLAY)
+        Blank()
+        Column().width(8).height(8).borderRadius(4).backgroundColor(PAPER).border({ width: 1.5, color: LOESS })
+        Blank()
+        Column().width(8).height(8).borderRadius(4).backgroundColor(PAPER).border({ width: 1.5, color: CLAY })
+      }
+      .width(34)
+    }
+    .width(36).height(12)
+  } else if (kind === 'lantern') {
+    Column() {
+      Column().width(10).height(3).borderRadius(1.5).backgroundColor(LOESS)
+      Stack() {
+        Column().width(24).height(19).borderRadius(9).backgroundColor(CLAY)
+        Row({ space: 4 }) {
+          Column().width(1).height(13).backgroundColor('rgba(246,226,206,0.55)')
+          Column().width(1).height(13).backgroundColor('rgba(246,226,206,0.55)')
+        }
+      }
+      .width(24).height(19)
+      Column().width(10).height(3).borderRadius(1.5).backgroundColor(LOESS)
+      Column().width(2).height(5).backgroundColor(LOESS)
+    }
+  } else if (kind === 'pot') {
+    Column() {
+      Column().width(12).height(3).borderRadius(1.5).backgroundColor(CLAY)
+      Column().width(7).height(4).backgroundColor(CLAY)
+      Stack({ alignContent: Alignment.Top }) {
+        Column().width(24).height(16)
+          .borderRadius({ bottomLeft: 11, bottomRight: 11, topLeft: 6, topRight: 6 })
+          .backgroundColor(CLAY)
+        Column().width(24).height(3).backgroundColor('rgba(246,226,206,0.5)').margin({ top: 6 })
+      }
+      .width(24).height(16)
+    }
+  } else if (kind === 'swatch') {
+    Row() {
+      Column().width(18).height(18).borderRadius(9).backgroundColor(CLAY).border({ width: 1.5, color: PAPER })
+      Column().width(18).height(18).borderRadius(9).backgroundColor(RIVER).border({ width: 1.5, color: PAPER })
+        .margin({ left: -6 })
+      Column().width(18).height(18).borderRadius(9).backgroundColor(LOESS).border({ width: 1.5, color: PAPER })
+        .margin({ left: -6 })
+    }
+  } else if (kind === 'film') {
+    Column({ space: 2 }) {
+      Row({ space: 3 }) {
+        Column().width(3).height(3).backgroundColor('#B9A88F')
+        Column().width(3).height(3).backgroundColor('#B9A88F')
+        Column().width(3).height(3).backgroundColor('#B9A88F')
+      }
+      Stack() {
+        Column().width(28).height(17).borderRadius(3).backgroundColor(INK)
+        Text('▶').fontSize(fs(8)).fontColor(PAPER)
+      }
+      .width(28).height(17)
+      Row({ space: 3 }) {
+        Column().width(3).height(3).backgroundColor('#B9A88F')
+        Column().width(3).height(3).backgroundColor('#B9A88F')
+        Column().width(3).height(3).backgroundColor('#B9A88F')
+      }
+    }
+  } else if (kind === 'slips') {
+    Row({ space: 2 }) {
+      Stack({ alignContent: Alignment.Top }) {
+        Column().width(5).height(24).borderRadius(2).backgroundColor(LOESS)
+        Column().width(5).height(2).backgroundColor(CLAY).margin({ top: 6 })
+      }.width(5).height(24)
+      Stack({ alignContent: Alignment.Top }) {
+        Column().width(5).height(26).borderRadius(2).backgroundColor('#C8A160')
+        Column().width(5).height(2).backgroundColor(CLAY).margin({ top: 7 })
+      }.width(5).height(26)
+      Stack({ alignContent: Alignment.Top }) {
+        Column().width(5).height(23).borderRadius(2).backgroundColor(LOESS)
+        Column().width(5).height(2).backgroundColor(CLAY).margin({ top: 5 })
+      }.width(5).height(23)
+      Stack({ alignContent: Alignment.Top }) {
+        Column().width(5).height(25).borderRadius(2).backgroundColor('#C8A160')
+        Column().width(5).height(2).backgroundColor(CLAY).margin({ top: 8 })
+      }.width(5).height(25)
+    }
+  } else if (kind === 'gauge') {
+    Stack({ alignContent: Alignment.Center }) {
+      Column().width(30).height(9).borderRadius({ topLeft: 5, topRight: 5 })
+        .backgroundColor('rgba(74,123,140,0.5)').margin({ top: 15 })
+      Column({ space: 3 }) {
+        Column().width(4).height(1.5).backgroundColor(INK)
+        Column().width(4).height(1.5).backgroundColor(INK)
+        Column().width(4).height(1.5).backgroundColor(INK)
+      }
+      .width(7).height(26).backgroundColor(PAPER).border({ width: 1, color: LINE })
+      .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Start).padding({ left: 1 })
+    }
+    .width(32).height(28)
+  } else if (kind === 'net') {
+    Stack() {
+      Column().width(30).height(1.5).backgroundColor('#D9C9A8').rotate({ angle: 45 })
+      Column().width(30).height(1.5).backgroundColor('#D9C9A8').rotate({ angle: -45 })
+      Column().width(5).height(5).borderRadius(2.5).backgroundColor(LOESS).offset({ x: -11, y: -11 })
+      Column().width(5).height(5).borderRadius(2.5).backgroundColor(LOESS).offset({ x: 11, y: -11 })
+      Column().width(5).height(5).borderRadius(2.5).backgroundColor(LOESS).offset({ x: -11, y: 11 })
+      Column().width(5).height(5).borderRadius(2.5).backgroundColor(LOESS).offset({ x: 11, y: 11 })
+      Column().width(9).height(9).borderRadius(4.5).backgroundColor(CLAY)
+    }
+    .width(32).height(32)
+  } else if (kind === 'sync') {
+    Stack() {
+      Column().width(14).height(20).borderRadius(3).backgroundColor(PAPER)
+        .border({ width: 1.5, color: CLAY }).offset({ x: -7 })
+      Column().width(14).height(20).borderRadius(3).backgroundColor('rgba(166,85,61,0.22)')
+        .border({ width: 1.5, color: CLAY }).offset({ x: 7 })
+      Text('⇄').fontSize(fs(9)).fontColor(CLAY)
+    }
+    .width(32).height(22)
+  } else {
+    Column() {
+      Column().width(6).height(4).borderRadius(1).backgroundColor(INK)
+      Column().width(5).height(15).backgroundColor('#6B4A32')
+      Column().width(5).height(8).borderRadius({ bottomLeft: 3, bottomRight: 3 }).backgroundColor(INK)
+    }
+    .rotate({ angle: 32 })
+  }
+}
+
+// 宫格按钮：纸底双线框 + 小器物 + 按压缩放。动效只做"按一下沉一点再弹回"，
+// 太重会抢内容，太轻又回到上一版那种寡淡的圆片。
+@Component
+struct RelicTile {
+  @Prop kind: string = '';
+  @Prop title: string = '';
+  act: () => void = (): void => {};
+  @State sc: number = 1;
+
+  press(): void {
+    animateTo({
+      duration: 90, curve: Curve.EaseOut, onFinish: (): void => {
+        animateTo({ duration: 160, curve: Curve.EaseIn }, (): void => {
+          this.sc = 1;
+        });
+      }
+    }, (): void => {
+      this.sc = 0.88;
+    });
+    this.act();
+  }
+
+  build() {
+    Column({ space: 6 }) {
+      // 双线框：外圈淡、内圈实，像印章的边栏，比单线多一层"厚重"
+      Column() {
+        Stack() {
+          artOf(this.kind)
+        }
+        .width(46)
+        .height(46)
+        .borderRadius(10)
+        .linearGradient({ angle: 135, colors: [['#F5EDDE', 0], ['#E9DBC4', 1]] })
+        .border({ width: 1, color: '#D9C9A8' })
+      }
+      .width(54)
+      .height(54)
+      .borderRadius(13)
+      .border({ width: 1, color: 'rgba(217,201,168,0.55)' })
+      .justifyContent(FlexAlign.Center)
+
+      Text(this.title)
+        .fontSize(fs(11))
+        .fontColor(INK)
+        .maxLines(1)
+    }
+    .width('25%')
+    .padding({ top: 4, bottom: 4 })
+    .scale({ x: this.sc, y: this.sc })
+    .onClick((): void => {
+      this.press();
+    })
+  }
+}
+
+// 首页照故宫式排布：通栏海报 → 「今日开河」双卡（实景打卡 / 创意工坊）+ 行程行
+// → 十二枚功能印章宫格 → 为你推荐 → 文创市集。被四段版收掉的入口（测验、课程、
+// 知识网络、同步、河工）全部在宫格里回来，另加行程与颜色两个新工坊。
 @Component
 export struct HomeView {
   @StorageLink('dataRev') @Watch('reload') dataRev: number = 0;
@@ -29,6 +254,9 @@ export struct HomeView {
   @State reco: Suggestion[] = [];
   @State hot: Goods[] = [];
   @State events: EventInfo[] = [];
+  @State heroIdx: number = 0;
+  @State today: string = '';
+  @State routeStops: SiteInfo[] = [];
 
   aboutToAppear(): void {
     this.reload();
@@ -39,6 +267,11 @@ export struct HomeView {
     this.reco = SiteRepo.get().recommend(MemoryStore.get().favIds(), MemoryStore.get().views, 4, '');
     this.hot = ContentRepo.get().hotGoods(4);
     this.events = ContentRepo.get().upcomingEvents(2);
+    let d = new Date();
+    this.today = `${d.getMonth() + 1}月${d.getDate()}日`;
+    let all = SiteRepo.get().sites.slice();
+    all.sort((a: SiteInfo, b: SiteInfo): number => siteU(a) - siteU(b));
+    this.routeStops = all.slice(0, 3);
   }
 
   shapeOf(id: string): string {
@@ -58,6 +291,10 @@ export struct HomeView {
       return '沿河馆舍的排期正在整理';
     }
     return `${this.events[0].date}｜${this.events[0].title}`;
+  }
+
+  firstStopName(): string {
+    return this.routeStops.length > 0 ? this.routeStops[0].name : '沿河遗存';
   }
 
   // 今日一句那一帧的底图：用诗句所属遗址的配图，换个日期换张图
@@ -90,26 +327,48 @@ export struct HomeView {
     goActivity(id);
   }
 
+  tiles(): TileRec[] {
+    return [
+      { kind: 'scroll', title: '遗址档案', act: (): void => { goArchive(0); } },
+      { kind: 'seal', title: '河道打卡', act: (): void => { goCheckin(); } },
+      { kind: 'route', title: '行程规划', act: (): void => { goRoute(); } },
+      { kind: 'lantern', title: '沿河活动', act: (): void => { this.openFirstEvent(); } },
+      { kind: 'pot', title: '陶艺工坊', act: (): void => { goPottery(); } },
+      { kind: 'swatch', title: '颜色工坊', act: (): void => { goColor(); } },
+      { kind: 'film', title: '教程影像', act: (): void => { goCourses(); } },
+      { kind: 'slips', title: '趣味自测', act: (): void => { goQuiz('home'); } },
+      { kind: 'gauge', title: '河工面板', act: (): void => { goEngineer(); } },
+      { kind: 'net', title: '知识网络', act: (): void => { goTopic(); } },
+      { kind: 'sync', title: '同步面板', act: (): void => { goSync(); } },
+      { kind: 'brush', title: '收藏笔记', act: (): void => { goArchive(1); } }
+    ];
+  }
+
+  // 顶栏叠在海报上：半透明圆片托住白色符号，海报的色彩能透上来
   @Builder
   topBar() {
     Row({ space: 8 }) {
       Text('☰')
-        .fontSize(fs(20))
-        .fontColor(INK)
-        .width(26)
+        .fontSize(fs(17))
+        .fontColor(Color.White)
+        .width(32)
+        .height(32)
+        .borderRadius(16)
+        .backgroundColor('rgba(43,38,34,0.38)')
+        .textAlign(TextAlign.Center)
         .onClick((): void => {
           openDrawer();
         })
 
       TextInput({ placeholder: '搜遗址、器物或纹样', text: this.kw })
-        .height(36)
+        .height(34)
         .fontSize(fs(13))
         .fontColor(INK)
         .placeholderColor(SUB)
         .placeholderFont({ size: fs(13) })
-        .backgroundColor($r('app.color.card_bg'))
-        .borderRadius(18)
-        .border({ width: 1, color: LINE })
+        .backgroundColor('rgba(245,239,228,0.92)')
+        .borderRadius(17)
+        .border({ width: 1, color: 'rgba(229,218,198,0.9)' })
         .enterKeyType(EnterKeyType.Search)
         .layoutWeight(1)
         .onChange((v: string): void => {
@@ -121,9 +380,13 @@ export struct HomeView {
 
       Stack({ alignContent: Alignment.TopEnd }) {
         Text('✉')
-          .fontSize(fs(19))
-          .fontColor(INK)
-          .margin({ top: 5, right: 6 })
+          .fontSize(fs(16))
+          .fontColor(Color.White)
+          .width(32)
+          .height(32)
+          .borderRadius(16)
+          .backgroundColor('rgba(43,38,34,0.38)')
+          .textAlign(TextAlign.Center)
         if (this.unread() > 0) {
           Text(`${this.unread()}`)
             .fontSize(fs(9))
@@ -133,18 +396,18 @@ export struct HomeView {
             .padding({ left: 4, right: 4, top: 1, bottom: 1 })
         }
       }
-      .width(30)
-      .height(30)
+      .width(32)
+      .height(32)
       .onClick((): void => {
         switchTab(2);
       })
     }
     .width('100%')
-    .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-    .backgroundColor($r('app.color.page_bg'))
+    .padding({ left: 12, right: 12, top: 8, bottom: 6 })
+    .hitTestBehavior(HitTestMode.Transparent)
   }
 
-  // 横幅上压一层由透到暗的渐变：白字直接压在示意图上会糊，垫一层才立得住
+  // 海报上压一层由透到暗的渐变：白字直接压在示意图上会糊，垫一层才立得住
   @Builder
   scrim() {
     Column()
@@ -152,7 +415,8 @@ export struct HomeView {
       .height('100%')
       .linearGradient({
         angle: 180,
-        colors: [['rgba(43,38,34,0)', 0.30], ['rgba(43,38,34,0.30)', 0.62], ['rgba(43,38,34,0.68)', 1]]
+        colors: [['rgba(43,38,34,0.16)', 0], ['rgba(43,38,34,0)', 0.34],
+          ['rgba(43,38,34,0.34)', 0.66], ['rgba(43,38,34,0.72)', 1]]
       })
       .hitTestBehavior(HitTestMode.Transparent)
   }
@@ -167,10 +431,10 @@ export struct HomeView {
       this.scrim()
       Column({ space: 3 }) {
         Text(title)
-          .fontSize(fs(17))
+          .fontSize(fs(19))
           .fontColor(Color.White)
           .fontWeight(FontWeight.Bold)
-          .letterSpacing(1)
+          .letterSpacing(2)
         Text(lead)
           .fontSize(fs(11))
           .fontColor('#EFE6D6')
@@ -179,14 +443,14 @@ export struct HomeView {
       }
       .alignItems(HorizontalAlign.Start)
       .width('100%')
-      .padding({ left: 14, right: 14, top: 14, bottom: 26 })
+      .padding({ left: 16, right: 60, top: 14, bottom: 42 })
     }
     .width('100%')
     .height('100%')
     .onClick(act)
   }
 
-  // 今日一句收进横幅第二帧：首页少一张卡，诗句反而更醒目
+  // 今日一句收进海报第二帧：首页少一张卡，诗句反而更醒目
   @Builder
   verseFrame() {
     Stack({ alignContent: Alignment.BottomStart }) {
@@ -211,10 +475,10 @@ export struct HomeView {
             .padding({ left: 5, right: 5, top: 1, bottom: 1 })
         }
         Text(this.verse!.text)
-          .fontSize(fs(15))
+          .fontSize(fs(16))
           .fontColor(Color.White)
           .fontWeight(FontWeight.Medium)
-          .lineHeight(fs(23))
+          .lineHeight(fs(24))
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         Row({ space: 6 }) {
@@ -226,7 +490,7 @@ export struct HomeView {
       }
       .alignItems(HorizontalAlign.Start)
       .width('100%')
-      .padding({ left: 14, right: 14, top: 14, bottom: 26 })
+      .padding({ left: 16, right: 60, top: 14, bottom: 42 })
     }
     .width('100%')
     .height('100%')
@@ -235,79 +499,216 @@ export struct HomeView {
     })
   }
 
+  // 通栏海报：四帧轮播，右下角一枚 n/4 的页码片，照参考图那个位置
   @Builder
-  banner() {
-    Swiper() {
-      this.promo('黄河记忆', '把这条河装进口袋 · 20 处沿河遗存', 'hero_river', (): void => {
-        goArchive(0);
-      })
-      if (this.verse !== undefined) {
-        this.verseFrame()
+  hero() {
+    Stack({ alignContent: Alignment.BottomEnd }) {
+      Swiper() {
+        this.promo('黄河记忆', '把这条河装进口袋 · 20 处沿河遗存', 'hero_river', (): void => {
+          goArchive(0);
+        })
+        if (this.verse !== undefined) {
+          this.verseFrame()
+        }
+        this.promo('彩陶工坊', '挑一件器形，描一组纹样', 'era_yangshao', (): void => {
+          goPottery();
+        })
+        this.promo('沿河排期', this.eventLead(), 'era_hantang', (): void => {
+          this.openFirstEvent();
+        })
       }
-      this.promo('彩陶工坊', '挑一件器形，描一组纹样', 'era_yangshao', (): void => {
-        goPottery();
+      .width('100%')
+      .height('100%')
+      .autoPlay(true)
+      .interval(4600)
+      .loop(true)
+      .cachedCount(2)
+      .onChange((i: number): void => {
+        this.heroIdx = i;
       })
-      this.promo('沿河排期', this.eventLead(), 'era_hantang', (): void => {
-        this.openFirstEvent();
-      })
+
+      Text(`${this.heroIdx + 1}/4`)
+        .fontSize(fs(10))
+        .fontColor('#F0E7D8')
+        .backgroundColor('rgba(43,38,34,0.55)')
+        .borderRadius(10)
+        .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+        .margin({ right: 14, bottom: 40 })
+        .hitTestBehavior(HitTestMode.None)
     }
     .width('100%')
-    .height(178)
-    .autoPlay(true)
-    .interval(4600)
-    .loop(true)
-    .cachedCount(2)
-    .indicator(new DotIndicator()
-      .itemWidth(5)
-      .itemHeight(5)
-      .selectedItemWidth(15)
-      .selectedItemHeight(5)
-      .color('rgba(255,255,255,0.45)')
-      .selectedColor('#FFFFFF'))
-    .borderRadius(16)
+    .height(286)
     .clip(true)
   }
 
+  // 「今日开河」卡右上角的小楼阁：三层檐叠出来，给卡片一个视觉锚点
   @Builder
-  quick(icon: string, title: string, act: () => void) {
-    Column({ space: 7 }) {
-      Text(icon)
-        .fontSize(fs(19))
-        .fontColor(CLAY)
-        .width(46)
-        .height(46)
-        .borderRadius(23)
-        .backgroundColor('#F1E7D5')
-        .textAlign(TextAlign.Center)
-      Text(title)
-        .fontSize(fs(11))
-        .fontColor(INK)
+  pavilion() {
+    Column() {
+      Column().width(26).height(8).borderRadius({ topLeft: 7, topRight: 7 }).backgroundColor(CLAY)
+      Column().width(16).height(7).backgroundColor('#F0E7D8')
+      Column().width(44).height(8).borderRadius({ topLeft: 7, topRight: 7 }).backgroundColor('#B05E43')
+      Column().width(30).height(9).backgroundColor('#F0E7D8')
+      Column().width(52).height(4).borderRadius(2).backgroundColor(LOESS)
     }
-    .layoutWeight(1)
-    .onClick(act)
+    .opacity(0.9)
   }
 
-  // 四个主题按钮，照参考图那一行：档案 / DIY / 签到 / 活动
+  // 实景打卡子卡：卡里直接画一条三站的顺线，点整卡进河道打卡页
   @Builder
-  quickRow() {
-    Row() {
-      this.quick('◫', '档案', (): void => {
-        goArchive(0);
-      })
-      this.quick('⌣', 'DIY', (): void => {
-        goPottery();
-      })
-      this.quick('◎', '签到', (): void => {
-        goCheckin();
-      })
-      this.quick('⚑', '活动', (): void => {
-        this.openFirstEvent();
+  checkinCard() {
+    Column({ space: 7 }) {
+      Text('实景打卡')
+        .fontSize(fs(15))
+        .fontColor(Color.White)
+        .fontWeight(FontWeight.Bold)
+        .letterSpacing(1)
+      Text('路线规划 · 地方介绍')
+        .fontSize(fs(9))
+        .fontColor('rgba(246,230,214,0.85)')
+      Stack() {
+        Column().width('82%').height(1.5).backgroundColor('rgba(255,255,255,0.4)')
+        Row() {
+          Column().width(7).height(7).borderRadius(4).backgroundColor(Color.White)
+          Blank()
+          Column().width(7).height(7).borderRadius(4).backgroundColor('rgba(255,255,255,0.35)')
+            .border({ width: 1.2, color: Color.White })
+          Blank()
+          Column().width(7).height(7).borderRadius(4).backgroundColor('rgba(255,255,255,0.35)')
+            .border({ width: 1.2, color: Color.White })
+        }
+        .width('82%')
+      }
+      .width('100%')
+      .height(14)
+      .padding({ top: 2, bottom: 2 })
+
+      Text(`${this.firstStopName()} ›`)
+        .fontSize(fs(10))
+        .fontColor('#F6E6D6')
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+    }
+    .alignItems(HorizontalAlign.Start)
+    .layoutWeight(1)
+    .padding(12)
+    .borderRadius(12)
+    .linearGradient({ angle: 160, colors: [['#B05E43', 0], ['#8E4530', 1]] })
+    .onClick((): void => {
+      goCheckin();
+    })
+  }
+
+  // 创意工坊子卡：陶艺 / 颜色 / 教程三枚小印章，各自能点
+  @Builder
+  workshopCard() {
+    Column({ space: 7 }) {
+      Text('创意工坊')
+        .fontSize(fs(15))
+        .fontColor(INK)
+        .fontWeight(FontWeight.Bold)
+        .letterSpacing(1)
+      Text('陶艺 · 颜色 · 教程')
+        .fontSize(fs(9))
+        .fontColor(SUB)
+      Row({ space: 9 }) {
+        Stack() { artOf('pot') }
+          .width(34).height(34).borderRadius(9)
+          .backgroundColor('rgba(255,255,255,0.65)')
+          .border({ width: 1, color: '#E0D2B8' })
+          .onClick((): void => { goPottery(); })
+        Stack() { artOf('swatch') }
+          .width(34).height(34).borderRadius(9)
+          .backgroundColor('rgba(255,255,255,0.65)')
+          .border({ width: 1, color: '#E0D2B8' })
+          .onClick((): void => { goColor(); })
+        Stack() { artOf('film') }
+          .width(34).height(34).borderRadius(9)
+          .backgroundColor('rgba(255,255,255,0.65)')
+          .border({ width: 1, color: '#E0D2B8' })
+          .onClick((): void => { goCourses(); })
+      }
+    }
+    .alignItems(HorizontalAlign.Start)
+    .layoutWeight(1.12)
+    .padding(12)
+    .borderRadius(12)
+    .backgroundColor('#F3EADB')
+    .border({ width: 1, color: '#E0D2B8' })
+  }
+
+  // 「今日开馆」式大卡：双卡 + 一行行程入口，卡顶压住海报下沿
+  @Builder
+  todayCard() {
+    Column({ space: 11 }) {
+      Row() {
+        Column({ space: 2 }) {
+          Text('今日开河')
+            .fontSize(fs(19))
+            .fontColor(INK)
+            .fontWeight(FontWeight.Bold)
+            .letterSpacing(3)
+          Text(this.today)
+            .fontSize(fs(11))
+            .fontColor(SUB)
+        }
+        .alignItems(HorizontalAlign.Start)
+        Blank()
+        this.pavilion()
+      }
+      .width('100%')
+
+      Row({ space: 10 }) {
+        this.checkinCard()
+        this.workshopCard()
+      }
+      .width('100%')
+
+      Row({ space: 8 }) {
+        Stack() {
+          Column().width(14).height(1.5).backgroundColor(CLAY)
+          Row() {
+            Column().width(5).height(5).borderRadius(2.5).backgroundColor(CLAY)
+            Blank()
+            Column().width(5).height(5).borderRadius(2.5).backgroundColor(PAPER).border({ width: 1, color: CLAY })
+          }
+          .width(14)
+        }
+        .width(16).height(8)
+        Text('规划我的行程')
+          .fontSize(fs(12))
+          .fontColor(INK)
+          .fontWeight(FontWeight.Medium)
+        Blank()
+        Text('›')
+          .fontSize(fs(13))
+          .fontColor(SUB)
+      }
+      .width('100%')
+      .padding({ left: 10, right: 10, top: 9, bottom: 9 })
+      .borderRadius(10)
+      .backgroundColor('#EFE6D5')
+      .onClick((): void => {
+        goRoute();
       })
     }
     .width('100%')
-    .padding({ top: 12, bottom: 12 })
+    .padding(14)
     .backgroundColor($r('app.color.card_bg'))
-    .borderRadius(14)
+    .borderRadius(16)
+    .margin({ top: -26 })
+    .shadow({ radius: 14, color: 'rgba(43,38,34,0.14)', offsetY: -4 })
+  }
+
+  @Builder
+  tileGrid() {
+    Flex({ wrap: FlexWrap.Wrap }) {
+      ForEach(this.tiles(), (t: TileRec): void => {
+        RelicTile({ kind: t.kind, title: t.title, act: t.act })
+      }, (t: TileRec): string => t.kind)
+    }
+    .width('100%')
+    .padding({ top: 6, bottom: 2 })
   }
 
   @Builder
@@ -407,7 +808,7 @@ export struct HomeView {
     .alignItems(HorizontalAlign.Start)
   }
 
-  // 文创市集：对应参考图的「推荐店铺」。商品没有实拍图，用程序化封面顶上
+  // 文创市集：商品没有实拍图，用程序化封面顶上
   @Builder
   shopCard(g: Goods, i: number) {
     Column({ space: 5 }) {
@@ -467,30 +868,39 @@ export struct HomeView {
   }
 
   build() {
-    Column() {
-      this.topBar()
+    Stack({ alignContent: Alignment.TopStart }) {
+      Column() {
+        Scroll() {
+          Column() {
+            this.hero()
 
-      Scroll() {
-        Column({ space: 14 }) {
-          this.banner()
-          this.quickRow()
-          this.recoGrid()
-          this.shopGrid()
+            Column({ space: 14 }) {
+              this.todayCard()
+              this.tileGrid()
+              this.recoGrid()
+              this.shopGrid()
 
-          Text('遗址档案文字来自公开资料整理；配图为 AI 生成示意图，非现场照片；今日一句中除两条唐诗外均为拟咏；文创与活动为概念演示数据，全程离线。')
-            .fontSize(fs(10))
-            .fontColor(SUB)
+              Text('遗址档案文字来自公开资料整理；配图为 AI 生成示意图，非现场照片；今日一句中除两条唐诗外均为拟咏；文创、活动与色卡为概念演示数据，全程离线。')
+                .fontSize(fs(10))
+                .fontColor(SUB)
+                .width('100%')
+                .textAlign(TextAlign.Center)
+                .margin({ top: 4 })
+            }
             .width('100%')
-            .textAlign(TextAlign.Center)
-            .margin({ top: 4 })
+            .padding({ left: 14, right: 14, bottom: 20 })
+            .alignItems(HorizontalAlign.Start)
+          }
+          .width('100%')
         }
-        .width('100%')
-        .padding({ left: 14, right: 14, top: 4, bottom: 20 })
-        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+        .align(Alignment.Top)
       }
-      .layoutWeight(1)
-      .scrollBar(BarState.Off)
-      .align(Alignment.Top)
+      .width('100%')
+      .height('100%')
+
+      this.topBar()
     }
     .width('100%')
     .height('100%')
