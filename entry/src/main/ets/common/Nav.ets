@@ -67,6 +67,16 @@ export function goCheckin(): void {
   router.pushUrl({ url: 'pages/CheckinPage' });
 }
 
+// 首页「规划我的行程」：选年代/城市，把遗址顺河排成一条线
+export function goRoute(): void {
+  router.pushUrl({ url: 'pages/RoutePage' });
+}
+
+// 首页「颜色工坊」：一个颜色对应一类文物
+export function goColor(): void {
+  router.pushUrl({ url: 'pages/ColorPage' });
+}
+
 // 彩蛋：连点头像 5 次后出现的「河工面板」，把同步状态机和各表行数摊开看
 export function goEngineer(): void {
   router.pushUrl({ url: 'pages/EngineerPage' });

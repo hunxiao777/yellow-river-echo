@@ -17,6 +17,8 @@
     "pages/TopicPage",
     "pages/EngineerPage",
     "pages/QuizPage",
-    "pages/CheckinPage"
+    "pages/CheckinPage",
+    "pages/RoutePage",
+    "pages/ColorPage"
   ]
 }
