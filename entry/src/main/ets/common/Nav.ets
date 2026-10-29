@@ -85,6 +85,19 @@ export function goStudio(tab: number): void {
   router.pushUrl({ url: 'pages/StudioPage', params: p });
 }
 
+// 地图导览：ArkWeb 承载的手绘导览。type 取 map / travel / model / footprints，
+// 缺省 map；地图页内保留发现·建筑·展览·打卡·餐饮·文创·卫生间·游客服务八类筛选
+export function goExperience(type: string): void {
+  let p: RouteParam = { type: type };
+  router.pushUrl({ url: 'pages/ExperiencePage', params: p });
+}
+
+// 地图标记里的真实全景（云上龙门 / 开封铁塔），需联网
+export function goPanorama(id: string): void {
+  let p: RouteParam = { id: id };
+  router.pushUrl({ url: 'pages/PanoramaPage', params: p });
+}
+
 // 彩蛋：连点头像 5 次后出现的「河工面板」，把同步状态机和各表行数摊开看
 export function goEngineer(): void {
   router.pushUrl({ url: 'pages/EngineerPage' });

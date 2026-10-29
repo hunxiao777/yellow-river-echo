@@ -1,0 +1,34 @@
+header{padding:10px 15px;height:62px;border-bottom:1px solid #e7deca;background:#fffdf7}
+header h1{font-size:22px;letter-spacing:2px}header button{padding:8px 12px}
+.atlas-shell{background:#f6f0e3}.tabs{padding:8px 12px;gap:3px;scrollbar-width:none;border-bottom:1px solid #eee5d5}
+.tabs::-webkit-scrollbar{display:none}.tabs button{padding:9px 15px;font-size:15px;min-height:38px}
+.atlas-search{display:flex;gap:8px;padding:9px 15px;background:#fffdf7;align-items:center}
+.atlas-search select{width:80px;padding:9px 7px;font-size:13px;border:0;background:#eee7d7}
+.atlas-search input{flex:1;min-width:0;padding:8px 12px;font-size:13px;border:0;background:#f2eee4}
+.atlas-search button{padding:4px;width:33px;height:33px;font-size:27px;background:transparent;color:#806637}
+.atlas-map{height:calc(100dvh - 172px);min-height:500px;background:#eee4cd}
+.atlas-map svg{display:block;position:absolute;inset:0;user-select:none}
+.atlas-map .badge{font-size:10px;max-width:74%;padding:5px 8px;border-radius:20px;background:#fffdf4dd;color:#74634d;pointer-events:none;z-index:3}
+.atlas-title{position:absolute;top:48px;left:17px;pointer-events:none;display:grid;gap:4px;color:#55472c;text-shadow:0 1px 4px #fff9e2}
+.atlas-title b{font:24px Georgia,serif;letter-spacing:4px}.atlas-title small{font-size:9px;letter-spacing:3px;color:#8b733e}.atlas-title span{font-size:10px;letter-spacing:2px}
+.atlas-map .tools{top:54px;right:11px;gap:10px}.atlas-map .tools button{width:45px;height:45px;background:#fffdf3f2;border:1px solid #d5c9ac;font-size:11px;box-shadow:0 3px 10px #3a3c2725;color:#587967}
+.zoom-tools{position:absolute;left:13px;bottom:52px;display:grid;z-index:3;border-radius:23px;overflow:hidden;box-shadow:0 3px 12px #31352430}
+.zoom-tools button{border-radius:0;width:39px;height:39px;padding:0;background:#fffdf5;color:#81683d;font-size:20px;border-bottom:1px solid #e9dfcb}
+.atlas-map .routeBtn{width:74px;height:74px;font-size:18px;line-height:1.2;padding:0;bottom:24px;left:auto;right:14px;transform:none;background:#9c804e;z-index:3}
+.map-caption{position:absolute;left:14px;bottom:14px;background:#fffdf1e8;border-radius:15px;padding:6px 11px;font-size:11px;color:#706049;pointer-events:none}
+.atlas-map .pin{outline:none}.atlas-map .pin:hover .pin-pop,.atlas-map .pin:focus-visible .pin-pop{filter:drop-shadow(0 0 12px #b3914c)}
+.pin-pop{animation:markerPop .54s cubic-bezier(.16,.85,.24,1.2) both;transform-origin:0 0}
+@keyframes markerPop{0%{opacity:0;transform:translateY(35px) scale(.42)}70%{opacity:1;transform:translateY(-7px) scale(1.07)}100%{opacity:1;transform:translateY(0) scale(1)}}
+.sheet>section{animation:sheetRise .25s ease-out;box-shadow:0 -10px 40px #362e2220}.sheet p{line-height:1.8;font-size:14px}
+@keyframes sheetRise{from{transform:translateY(40px);opacity:.3}to{transform:translateY(0);opacity:1}}
+.poi-heading h2{margin:8px 0 16px}.poi-heading small{letter-spacing:1px}
+.pano-open,.pano-link{display:block;text-align:center;background:#307b77;color:#fff;padding:15px 18px;border-radius:26px;width:100%;text-decoration:none}
+.pano-unavailable{background:#eee8d9;border-radius:12px;padding:12px;color:#897957;font-size:12px!important}
+details{margin-top:18px;padding-top:14px;border-top:1px solid #ddd2bc;color:#91816b;font-size:12px}.source-url{word-break:break-all;font-size:10px}
+.saved-place{display:block;background:#fffaf0;color:#64523c;border:1px solid #e1d4b8;border-radius:12px;width:100%;text-align:left;margin:10px 0}
+.discover-strip{display:flex;gap:12px;padding:14px 16px}.discover-strip button{display:grid;gap:7px;flex:1;text-align:left;background:#e9dfc9;color:#675232;border-radius:15px;padding:16px}.discover-strip span{font-size:11px}.empty-map{font-size:12px;text-align:center;color:#8e7960;padding:10px}
+.atlas-shell #results:empty{display:none}
+.footprint-map{height:46vh;min-height:330px;width:100%;border-radius:18px;background:#10272d;display:block;margin-top:18px}
+.footprint-map .lit-halo{animation:lightBreath 2.6s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:center}
+@keyframes lightBreath{from{opacity:.35;transform:scale(.85)}to{opacity:.8;transform:scale(1.15)}}
+@media(prefers-reduced-motion:reduce){.pin-pop,.sheet>section{animation:none!important}#mapScene{transition:none!important}}

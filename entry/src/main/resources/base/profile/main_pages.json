@@ -20,6 +20,8 @@
     "pages/CheckinPage",
     "pages/RoutePage",
     "pages/ColorPage",
-    "pages/StudioPage"
+    "pages/StudioPage",
+    "pages/ExperiencePage",
+    "pages/PanoramaPage"
   ]
 }
