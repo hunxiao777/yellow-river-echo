@@ -4,7 +4,7 @@ import { StudioStore } from '../service/StudioStore';
 import { SyncService } from '../service/SyncService';
 import { SiteRepo } from '../service/SiteRepo';
 import { Post, PostComment } from '../model/Models';
-import { INK, SUB, CLAY, RIVER, agoText, likeText, paletteOf, eraPalette } from '../common/Theme';
+import { INK, SUB, CLAY, agoText, likeText, paletteOf, eraPalette, coverRes } from '../common/Theme';
 import { openDrawer, goDetail, goSync } from '../common/Nav';
 
 // 社区页：推荐流 + 本机提醒。动态与作者都是随包演示数据。
@@ -123,131 +123,156 @@ export struct SocialView {
     .borderRadius(8)
   }
 
+  // 双列瀑布流：图高按 id 散开，两列才会错落成阶梯而不是一排排等高格子
+  coverH(id: string): number {
+    let n = 0;
+    for (let i = 0; i < id.length; i++) {
+      n += id.charCodeAt(i);
+    }
+    let hs: number[] = [216, 158, 196, 174, 208, 146];
+    return hs[n % hs.length];
+  }
+
+  // 瀑布流卡片：图在上、文字压在下，作者和点赞收在最后一行
   @Builder
   postCard(p: Post) {
-    Column({ space: 8 }) {
-      Row({ space: 10 }) {
-        Column() {
-          Text(p.author.substring(0, 1))
-            .fontSize(15)
-            .fontColor(paletteOf(this.avatarKey(p.siteId)).ink)
-            .fontWeight(FontWeight.Bold)
-        }
-        .width(38)
-        .height(38)
-        .borderRadius(19)
-        .justifyContent(FlexAlign.Center)
-        .backgroundColor(paletteOf(this.avatarKey(p.siteId)).deep)
+    Column() {
+      Stack({ alignContent: Alignment.BottomStart }) {
+        Image(coverRes(p.img))
+          .width('100%')
+          .height(this.coverH(p.id))
+          .objectFit(ImageFit.Cover)
 
-        Column({ space: 3 }) {
-          Row({ space: 6 }) {
-            Text(p.author).fontSize(14).fontColor(INK).fontWeight(FontWeight.Medium)
-            Text(p.role).fontSize(10).fontColor(SUB)
+        if (this.siteName(p.siteId).length > 0) {
+          Row({ space: 3 }) {
+            Text('⌖').fontSize(9).fontColor('#F3E7D4')
+            Text(this.siteName(p.siteId))
+              .fontSize(10)
+              .fontColor(Color.White)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
           }
-          Row({ space: 6 }) {
-            Text(agoText(p.at)).fontSize(11).fontColor(SUB)
-            if (p.kind === '问答') {
-              Text(p.kind)
-                .fontSize(10).fontColor(CLAY)
-                .padding({ left: 5, right: 5, top: 1, bottom: 1 })
-                .border({ width: 1, color: CLAY })
-                .borderRadius(6)
-            } else {
-              Text(p.kind)
-                .fontSize(10).fontColor(SUB)
-                .padding({ left: 5, right: 5, top: 1, bottom: 1 })
-                .backgroundColor('#F0E8D8')
-                .borderRadius(6)
-            }
-          }
+          .padding({ left: 6, right: 8, top: 2, bottom: 2 })
+          .margin({ left: 7, bottom: 7 })
+          .backgroundColor('rgba(43,38,34,0.46)')
+          .borderRadius(8)
+          .onClick((): void => {
+            goDetail(p.siteId);
+          })
         }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
+
+        if (p.kind !== '图文') {
+          Row() {
+            Text(p.kind)
+              .fontSize(9)
+              .fontColor(Color.White)
+              .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+              .backgroundColor(p.kind === '问答' ? 'rgba(176,94,67,0.9)' : 'rgba(74,123,140,0.9)')
+              .borderRadius({ topLeft: 0, topRight: 0, bottomLeft: 8, bottomRight: 0 })
+          }
+          .width('100%')
+          .height(this.coverH(p.id))
+          .padding({ top: 7 })
+          .justifyContent(FlexAlign.End)
+          .alignItems(VerticalAlign.Top)
+          .hitTestBehavior(HitTestMode.Transparent)
+        }
       }
       .width('100%')
 
-      Column({ space: 4 }) {
+      Column({ space: 6 }) {
         Text(p.text)
-          .fontSize(13)
+          .fontSize(12)
           .fontColor(INK)
-          .lineHeight(21)
+          .lineHeight(18)
           .width('100%')
-          .maxLines(this.isOpen(p.id) ? 20 : 3)
+          .maxLines(this.isOpen(p.id) ? 10 : 2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
-        if (!this.isOpen(p.id) && p.text.length > 48) {
+
+        if (!this.isOpen(p.id) && p.text.length > 34) {
           Text('全文')
-            .fontSize(12)
+            .fontSize(11)
             .fontColor(CLAY)
             .onClick((): void => {
               this.openIds = this.flip(this.openIds, p.id);
               StudioStore.get().markPostRead(p.id);
             })
         }
+
+        if (this.showCmt(p.id)) {
+          Column({ space: 5 }) {
+            ForEach(p.comments, (c: PostComment): void => {
+              this.commentRow(c)
+            }, (c: PostComment, idx: number): string => `${p.id}_c${idx}`)
+            if (p.comments.length === 0) {
+              Text('还没有人回话').fontSize(10).fontColor(SUB)
+            }
+          }
+          .width('100%')
+        }
+
+        Row({ space: 5 }) {
+          Column() {
+            Text(p.author.substring(0, 1))
+              .fontSize(10)
+              .fontColor(paletteOf(this.avatarKey(p.siteId)).ink)
+              .fontWeight(FontWeight.Bold)
+          }
+          .width(18)
+          .height(18)
+          .borderRadius(9)
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor(paletteOf(this.avatarKey(p.siteId)).deep)
+
+          Text(p.author)
+            .fontSize(11)
+            .fontColor(SUB)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
+
+          Text(this.myLikes.indexOf('p_' + p.id) >= 0 ?
+            `♥ ${likeText(p.likes + 1)}` : `♡ ${likeText(p.likes)}`)
+            .fontSize(11)
+            .fontColor(this.myLikes.indexOf('p_' + p.id) >= 0 ? CLAY : SUB)
+            .onClick((): void => {
+              StudioStore.get().toggleLike('p_' + p.id);
+            })
+        }
+        .width('100%')
+
+        Row({ space: 8 }) {
+          Text(agoText(p.at))
+            .fontSize(10)
+            .fontColor(SUB)
+          Text(`评论 ${p.comments.length}`)
+            .fontSize(10)
+            .fontColor(this.showCmt(p.id) ? INK : SUB)
+            .onClick((): void => {
+              this.cmtIds = this.flip(this.cmtIds, p.id);
+              StudioStore.get().markPostRead(p.id);
+            })
+          Blank()
+          Text(this.myFollows.indexOf(p.author) >= 0 ? '已关注' : '+ 关注')
+            .fontSize(10)
+            .fontColor(this.myFollows.indexOf(p.author) >= 0 ? SUB : CLAY)
+            .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+            .border({ width: 1, color: this.myFollows.indexOf(p.author) >= 0 ? '#D9CDB6' : CLAY })
+            .borderRadius(9)
+            .onClick((): void => {
+              StudioStore.get().toggleFollow(p.author);
+            })
+        }
+        .width('100%')
       }
       .width('100%')
       .alignItems(HorizontalAlign.Start)
-
-      if (this.siteName(p.siteId).length > 0) {
-        Row({ space: 4 }) {
-          Text('关联遗址').fontSize(10).fontColor(SUB)
-          Text(this.siteName(p.siteId))
-            .fontSize(11)
-            .fontColor(RIVER)
-            .padding({ left: 8, right: 8, top: 3, bottom: 3 })
-            .border({ width: 1, color: '#CFC4AE' })
-            .borderRadius(9)
-        }
-        .onClick((): void => {
-          goDetail(p.siteId);
-        })
-      }
-
-      Row({ space: 16 }) {
-        Text(this.myLikes.indexOf('p_' + p.id) >= 0 ?
-          `♥ ${likeText(p.likes + 1)}` : `♡ ${likeText(p.likes)}`)
-          .fontSize(12)
-          .fontColor(this.myLikes.indexOf('p_' + p.id) >= 0 ? CLAY : SUB)
-          .onClick((): void => {
-            StudioStore.get().toggleLike('p_' + p.id);
-          })
-        Text(`评论 ${p.comments.length}`)
-          .fontSize(12)
-          .fontColor(this.showCmt(p.id) ? INK : SUB)
-          .onClick((): void => {
-            this.cmtIds = this.flip(this.cmtIds, p.id);
-            StudioStore.get().markPostRead(p.id);
-          })
-        Blank()
-        Text(this.myFollows.indexOf(p.author) >= 0 ? '已关注' : '+ 关注')
-          .fontSize(12)
-          .fontColor(this.myFollows.indexOf(p.author) >= 0 ? SUB : CLAY)
-          .padding({ left: 10, right: 10, top: 3, bottom: 3 })
-          .border({ width: 1, color: this.myFollows.indexOf(p.author) >= 0 ? '#D9CDB6' : CLAY })
-          .borderRadius(11)
-          .onClick((): void => {
-            StudioStore.get().toggleFollow(p.author);
-          })
-      }
-      .width('100%')
-
-      if (this.showCmt(p.id)) {
-        Column({ space: 6 }) {
-          ForEach(p.comments, (c: PostComment): void => {
-            this.commentRow(c)
-          }, (c: PostComment, idx: number): string => `${p.id}_c${idx}`)
-          if (p.comments.length === 0) {
-            Text('还没有人回话').fontSize(11).fontColor(SUB)
-          }
-        }
-        .width('100%')
-        .alignItems(HorizontalAlign.Start)
-      }
+      .padding({ left: 8, right: 8, top: 8, bottom: 9 })
     }
     .width('100%')
-    .alignItems(HorizontalAlign.Start)
-    .padding(12)
     .backgroundColor($r('app.color.card_bg'))
     .borderRadius(12)
+    .clip(true)
     .onClick((): void => {
       StudioStore.get().markPostRead(p.id);
     })
@@ -375,23 +400,27 @@ export struct SocialView {
           .layoutWeight(1)
           .justifyContent(FlexAlign.Center)
         } else {
-          List({ space: 10 }) {
+          // 小红书式双列瀑布流：图先占住卡片上半，文字和作者在下半，两列各自错落往下排
+          WaterFlow() {
             ForEach(this.shown(), (p: Post): void => {
-              ListItem() {
+              FlowItem() {
                 this.postCard(p)
               }
             }, (p: Post): string => this.rowKey(p))
-
-            ListItem() {
-              Text('社区动态与活动为演示数据，非真实用户产生')
-                .fontSize(11).fontColor(SUB)
-                .width('100%')
-                .padding({ top: 6, bottom: 18 })
-            }
           }
+          .columnsTemplate('1fr 1fr')
+          .columnsGap(9)
+          .rowsGap(9)
           .layoutWeight(1)
           .scrollBar(BarState.Off)
-          .padding({ left: 14, right: 14 })
+          .padding({ left: 12, right: 12, top: 2 })
+
+          Text('社区动态与活动为演示数据，非真实用户产生')
+            .fontSize(10)
+            .fontColor(SUB)
+            .width('100%')
+            .textAlign(TextAlign.Center)
+            .padding({ top: 6, bottom: 10 })
         }
       } else {
         Scroll() {

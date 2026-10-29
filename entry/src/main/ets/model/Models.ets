@@ -167,6 +167,7 @@ export interface Post {
   author: string;
   role: string;
   kind: string;
+  img: string;
   text: string;
   siteId: string;
   topic: string;
