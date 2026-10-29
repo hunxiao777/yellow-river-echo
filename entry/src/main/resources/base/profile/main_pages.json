@@ -16,6 +16,7 @@
     "pages/SyncPage",
     "pages/TopicPage",
     "pages/EngineerPage",
-    "pages/QuizPage"
+    "pages/QuizPage",
+    "pages/CheckinPage"
   ]
 }

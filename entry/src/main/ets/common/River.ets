@@ -61,6 +61,26 @@ function hashOf(s: string): number {
   return n;
 }
 
+export interface DotPos {
+  x: number;
+  y: number;
+}
+
+// 遗址在河道带里的落点（单位 vp）。RiverRibbon 按它画点，打卡页按它做点击命中，
+// 两边共用一份几何，否则"点得中的地方"和"看得见的点"会错开。
+export function siteDot(s: SiteInfo, w: number, h: number): DotPos {
+  let hsh = hashOf(s.id);
+  let u = siteU(s) + ((hsh % 5) - 2) * 0.006;
+  let x = u * w;
+  let y = riverY(u) * h + siteLane(s) * h + ((hsh % 3) - 1) * 4;
+  if (y < 5) {
+    y = 5;
+  } else if (y > h - 5) {
+    y = h - 5;
+  }
+  return { x: x, y: y };
+}
+
 @Component
 export struct RiverRibbon {
   @Prop activeId: string = '';
@@ -160,15 +180,9 @@ export struct RiverRibbon {
     }
     let checked = StudioStore.get().checkedSiteIds();
     for (let s of SiteRepo.get().sites) {
-      let hsh = hashOf(s.id);
-      let u = siteU(s) + ((hsh % 5) - 2) * 0.006;
-      let x = u * w;
-      let y = riverY(u) * h + siteLane(s) * h + ((hsh % 3) - 1) * 4;
-      if (y < 5) {
-        y = 5;
-      } else if (y > h - 5) {
-        y = h - 5;
-      }
+      let p = siteDot(s, w, h);
+      let x = p.x;
+      let y = p.y;
       let on = checked.indexOf(s.id) >= 0;
       let active = s.id === this.activeId;
       if (on) {

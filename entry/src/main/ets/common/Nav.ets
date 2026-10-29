@@ -62,6 +62,11 @@ export function goSync(): void {
   router.pushUrl({ url: 'pages/SyncPage' });
 }
 
+// 首页「签到」：河道示意图上点一个点盖一个章
+export function goCheckin(): void {
+  router.pushUrl({ url: 'pages/CheckinPage' });
+}
+
 // 彩蛋：连点头像 5 次后出现的「河工面板」，把同步状态机和各表行数摊开看
 export function goEngineer(): void {
   router.pushUrl({ url: 'pages/EngineerPage' });
