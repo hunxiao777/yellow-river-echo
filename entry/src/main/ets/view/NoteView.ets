@@ -8,13 +8,19 @@ import { goNote } from '../common/Nav';
 
 @Component
 export struct NoteView {
-  @StorageLink('dataRev') rev: number = 0;
+  @StorageLink('dataRev') @Watch('onRev') rev: number = 0;
   @StorageLink('syncRev') syncRev: number = 0;
+  // rev 只在回调里自增 stamp：build 里读到 stamp 才建依赖，列表才会跟着数据刷新
+  @State stamp: number = 0;
   @State organize: boolean = false;
   @State sel: string[] = [];
   @State pickSite: boolean = false;
   @State mergeOpen: boolean = false;
   @State mergeText: string = '';
+
+  onRev(): void {
+    this.stamp += 1;
+  }
 
   syncBadge(n: NoteRec): string {
     let s = SyncService.get();
@@ -134,6 +140,22 @@ export struct NoteView {
                   }
                   .alignItems(HorizontalAlign.Start)
                   .layoutWeight(1)
+                  if (this.organize) {
+                    Column({ space: 12 }) {
+                      Text('↑')
+                        .fontSize(14)
+                        .fontColor(SUB)
+                        .onClick(async (): Promise<void> => {
+                          await MemoryStore.get().moveNote(n.id, -1);
+                        })
+                      Text('↓')
+                        .fontSize(14)
+                        .fontColor(SUB)
+                        .onClick(async (): Promise<void> => {
+                          await MemoryStore.get().moveNote(n.id, 1);
+                        })
+                    }
+                  }
                 }
                 .width('100%')
                 .padding(12)
@@ -145,7 +167,7 @@ export struct NoteView {
                   }
                 })
               }
-            }, (n: NoteRec): string => n.id + '_' + n.updatedAt)
+            }, (n: NoteRec, i: number): string => n.id + '_' + i + '_' + this.stamp)
           }
           .layoutWeight(1)
           .scrollBar(BarState.Off)
@@ -154,7 +176,7 @@ export struct NoteView {
 
         if (this.organize) {
           Row({ space: 10 }) {
-            Text(`已选 ${this.sel.length} 篇，限同一遗址`).fontSize(12).fontColor(SUB).layoutWeight(1)
+            Text(`已选 ${this.sel.length} 篇 · 限同一遗址 · 箭头可调顺序`).fontSize(12).fontColor(SUB).layoutWeight(1)
             Button('合并')
               .enabled(this.canMerge())
               .backgroundColor(LOESS)

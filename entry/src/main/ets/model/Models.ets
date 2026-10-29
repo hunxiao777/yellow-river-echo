@@ -61,6 +61,8 @@ export interface NoteRec {
   version: number;
   deviceId: string;
   deleted: boolean;
+  // 手动排序戳：整理模式里上下移动时重盖，缺省回落到 updatedAt
+  ord?: number;
   // 由多篇笔记合并而来时记录来源，原文仍保留
   srcIds?: string[];
 }

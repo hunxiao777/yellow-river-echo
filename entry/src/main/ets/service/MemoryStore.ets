@@ -49,7 +49,41 @@ export class MemoryStore {
       }
       await this.persist('tags', this.tags);
     }
+    if ((this.p.getSync('seeded_mem_v1', 0) as number) === 0) {
+      await this.seedDemo();
+      await this.p.put('seeded_mem_v1', 1);
+    }
     MemoryStore.bumpRev();
+  }
+
+  // 首启铺几条带「演示」字样的收藏和笔记，标签分类、整理排序这些界面才有实物可看
+  private async seedDemo(): Promise<void> {
+    let want = this.tagsActive().find((t: TagRec): boolean => t.name === '待实地探访');
+    let been = this.tagsActive().find((t: TagRec): boolean => t.name === '已去过');
+    let study = this.tagsActive().find((t: TagRec): boolean => t.name === '研究资料');
+    let now = Date.now();
+    let f1: FavRec = { siteId: 's01', tagIds: want === undefined ? [] : [want.id],
+      createdAt: now - 86400000, updatedAt: now - 86400000, deleted: false };
+    let f2: FavRec = { siteId: 's05', tagIds: been === undefined ? [] : [been.id],
+      createdAt: now - 43200000, updatedAt: now - 43200000, deleted: false };
+    let f3: FavRec = { siteId: 's04', tagIds: study === undefined ? [] : [study.id],
+      createdAt: now - 3600000, updatedAt: now - 3600000, deleted: false };
+    this.favs.push(f1, f2, f3);
+    let n1: NoteRec = { id: 'nt_demo_1', siteId: 's01',
+      text: '（演示）仰韶村先看窖穴剖面，再对彩陶盆残片，顺序别反。',
+      createdAt: now - 86400000, updatedAt: now - 86400000, version: 1,
+      deviceId: this.deviceSn, deleted: false, ord: now - 86400000 };
+    let n2: NoteRec = { id: 'nt_demo_2', siteId: 's04',
+      text: '（演示）二里头绿松石龙形器在二层展柜，牌释记得抄编号。',
+      createdAt: now - 43200000, updatedAt: now - 43200000, version: 1,
+      deviceId: this.deviceSn, deleted: false, ord: now - 43200000 };
+    let n3: NoteRec = { id: 'nt_demo_3', siteId: 's02',
+      text: '（演示）北阳平大房子基址比想象中大，返程留足时间。',
+      createdAt: now - 3600000, updatedAt: now - 3600000, version: 1,
+      deviceId: this.deviceSn, deleted: false, ord: now - 3600000 };
+    this.notes.push(n1, n2, n3);
+    await this.persist('favs', this.favs);
+    await this.persist('notes', this.notes);
   }
 
   private readArr<T>(key: string): T[] {
@@ -237,14 +271,38 @@ export class MemoryStore {
 
   // ---- 笔记 ----
 
+  static ordOf(n: NoteRec): number {
+    return n.ord !== undefined ? n.ord : n.updatedAt;
+  }
+
   notesActive(): NoteRec[] {
     let out = this.notes.filter((n: NoteRec): boolean => !n.deleted);
-    out.sort((a: NoteRec, b: NoteRec): number => b.updatedAt - a.updatedAt);
+    out.sort((a: NoteRec, b: NoteRec): number => MemoryStore.ordOf(b) - MemoryStore.ordOf(a));
     return out;
   }
 
   notesOfSite(siteId: string): NoteRec[] {
     return this.notesActive().filter((n: NoteRec): boolean => n.siteId === siteId);
+  }
+
+  // 整理模式上下移：按新顺序重盖 ord，不动 updatedAt，免得被当成内容改动
+  async moveNote(id: string, delta: number): Promise<void> {
+    let act = this.notesActive();
+    let i = act.findIndex((n: NoteRec): boolean => n.id === id);
+    let j = i + delta;
+    if (i < 0 || j < 0 || j >= act.length) {
+      return;
+    }
+    let t = act[i];
+    act[i] = act[j];
+    act[j] = t;
+    let base = Date.now() + act.length;
+    for (let k = 0; k < act.length; k++) {
+      act[k].ord = base - k;
+    }
+    await this.persist('notes', this.notes);
+    this.emit('note', id, act[j]);
+    MemoryStore.bumpRev();
   }
 
   noteOf(id: string): NoteRec | undefined {
@@ -257,7 +315,8 @@ export class MemoryStore {
       return null;
     }
     let rec: NoteRec = { id: 'nt_' + Date.now() + '_' + this.deviceSn, siteId: siteId, text: body,
-      createdAt: Date.now(), updatedAt: Date.now(), version: 1, deviceId: this.deviceSn, deleted: false };
+      createdAt: Date.now(), updatedAt: Date.now(), version: 1, deviceId: this.deviceSn,
+      deleted: false, ord: Date.now() };
     if (srcIds.length > 0) {
       rec.srcIds = srcIds;
     }
