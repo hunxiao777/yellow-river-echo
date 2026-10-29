@@ -13,10 +13,9 @@ import {
 } from '../common/Theme';
 import {
   openDrawer, switchTab, goList, goDetail, goArchive, goPottery,
-  goActivity, goCheckin, goRoute, goQuiz,
-  goEngineer, goTopic, goSync, goStudio
+  goActivity, goCheckin, goRoute, goColor, goCourses, goQuiz,
+  goEngineer, goTopic, goSync
 } from '../common/Nav';
-import { PatternBg } from './PatternBg';
 
 const SHAPES: string[] = ['pot', 'jar', 'ding', 'tile', 'stele', 'box', 'coin', 'kiln'];
 
@@ -26,82 +25,171 @@ interface TileRec {
   act: () => void;
 }
 
-// 无边手绘图标：不垫底、不描框，只有两笔——一层淡赭铺色、一层褐线勾边，
-// 线都带一点手抖的弯度，照参考图那种"直接画在纸上"的样子。
-const ICON_STROKE: Map<string, string> = new Map<string, string>([
-  ['archive', 'M11 8 Q22 6.5 33 8 M11 36 Q22 37.5 33 36 M14 8 Q13 22 14 36 M30 8 Q31 22 30 36 ' +
-    'M18 15 Q22 14.5 26 15 M18 20 Q22 20.5 26 20 M18 25 Q20.5 25.5 23 25'],
-  ['checkin', 'M18 20 Q17 10 22 9 Q27 10 26 20 Q26 23 30 25 L14 25 Q18 23 18 20 ' +
-    'M12 25 Q22 23.5 32 25 L32 31 Q22 32.5 12 31 Z M16 35 Q22 34 28 35'],
-  ['route', 'M9 33 Q16 32 18 26 Q20 20 26 20 Q32 20 33 14 Q33.5 11 36 10 ' +
-    'M5.5 33 a3.5 3.5 0 1 0 7 0 a3.5 3.5 0 1 0 -7 0 M33 10 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0'],
-  ['event', 'M22 9 Q31 9 31 20 Q31 31 22 31 Q13 31 13 20 Q13 9 22 9 M17 7.5 Q22 6.5 27 7.5 ' +
-    'M17 32.5 Q22 33.5 27 32.5 M17.5 11 Q15.5 20 17.5 29 M26.5 11 Q28.5 20 26.5 29 ' +
-    'M22 9 Q21.6 20 22 31 M22 33.5 Q22 35.5 22 37'],
-  ['studio', 'M17 8 Q22 7 27 8 M18 8 Q18 12 14 14 Q8 18 8 24 Q8 34 22 34 Q36 34 36 24 Q36 18 30 14 Q26 12 26 8 ' +
-    'M11 24 Q14.5 26.5 18 24 Q21.5 21.5 25 24 Q28.5 26.5 32 24'],
-  ['quiz', 'M11 9 Q33 8 34 10 Q35 12 34 24 Q34 27 31 27 L21 27 L15 33 L15.5 27 L12 27 Q9 27 9 24 Q9 12 10 10 Q10.5 9 11 9 ' +
-    'M18.5 15 Q19 11.5 22.5 12 Q26 12.5 25 15.5 Q24.3 17.5 22 18.5 L22 21 M22 24 L22 24.6'],
-  ['gauge', 'M9 30 Q9.5 17 22 16.5 Q34.5 17 35 30 M22 30 L28.5 22 M22 16.5 L22 19.5 ' +
-    'M12.5 21 L14.5 23 M31.5 21 L29.5 23 M7 30 Q22 28.5 37 30'],
-  ['net', 'M9 12 a3.5 3.5 0 1 0 7 0 a3.5 3.5 0 1 0 -7 0 M30 9 a3.5 3.5 0 1 0 7 0 a3.5 3.5 0 1 0 -7 0 ' +
-    'M18 31 a3.5 3.5 0 1 0 7 0 a3.5 3.5 0 1 0 -7 0 M32 27 a3 3 0 1 0 6 0 a3 3 0 1 0 -6 0 ' +
-    'M14 15 L19 28 M16 11 L30 10 M25 30 L32 28'],
-  ['sync', 'M12 19 Q14 11 22 10.5 Q29 11 31.5 16 M31.5 10.5 L31.5 16 L25.5 16 ' +
-    'M32 25 Q30 33 22 33.5 Q15 33 12.5 28 M12.5 33.5 L12.5 28 L18.5 28'],
-  ['notes', 'M30 8 Q34 10 33 13 L19 30 Q16 33 13.5 31 Q11.5 29 14 26 L30 8 M13 32 L10.5 37 L16 34.5']
-]);
-
-const ICON_FILL: Map<string, string> = new Map<string, string>([
-  ['archive', 'M14 8 L30 8 L30 36 L14 36 Z'],
-  ['checkin', 'M12 25 L32 25 L32 31 L12 31 Z'],
-  ['route', 'M5.5 33 a3.5 3.5 0 1 0 7 0 a3.5 3.5 0 1 0 -7 0 Z'],
-  ['event', 'M22 9 Q31 9 31 20 Q31 31 22 31 Q13 31 13 20 Q13 9 22 9 Z'],
-  ['studio', 'M14 14 Q8 18 8 24 Q8 34 22 34 Q36 34 36 24 Q36 18 30 14 Q26 12 26 8 L18 8 Q18 12 14 14 Z'],
-  ['quiz', 'M11 9 Q33 8 34 10 Q35 12 34 24 Q34 27 31 27 L21 27 L15 33 L15.5 27 L12 27 Q9 27 9 24 Q9 12 10 10 Q10.5 9 11 9 Z'],
-  ['gauge', 'M9 30 Q9.5 17 22 16.5 Q34.5 17 35 30 Z'],
-  ['net', 'M18 31 a3.5 3.5 0 1 0 7 0 a3.5 3.5 0 1 0 -7 0 Z'],
-  ['notes', 'M17 23 L21 27 L19 30 Q16 33 13.5 31 Q11.5 29 14 26 Z']
-]);
-
-const ICON_TINT: Map<string, string> = new Map<string, string>([
-  ['archive', 'rgba(200,161,96,0.18)'],
-  ['checkin', 'rgba(166,85,61,0.28)'],
-  ['route', 'rgba(166,85,61,0.45)'],
-  ['event', 'rgba(200,161,96,0.22)'],
-  ['studio', 'rgba(166,85,61,0.16)'],
-  ['quiz', 'rgba(200,161,96,0.14)'],
-  ['gauge', 'rgba(74,123,140,0.16)'],
-  ['net', 'rgba(166,85,61,0.3)'],
-  ['notes', 'rgba(43,38,34,0.22)']
-]);
-
+// 十二枚功能印章的画法：全部用基础形叠出来，不引图片资源。
+// 每一枚都是"纸底 + 双线框 + 一件小器物"，按下会缩一下再弹回来。
 @Builder
-function inkIcon(kind: string) {
-  Stack() {
-    if (ICON_FILL.has(kind)) {
-      Path()
-        .width(44)
-        .height(44)
-        .commands(ICON_FILL.get(kind) as string)
-        .fill(ICON_TINT.get(kind) as string)
-        .stroke(Color.Transparent)
+function artOf(kind: string) {
+  if (kind === 'scroll') {
+    Column() {
+      Column().width(32).height(5).borderRadius(2.5).backgroundColor(CLAY)
+      Column({ space: 3 }) {
+        Column().width(16).height(1.5).backgroundColor('#6B5B4A')
+        Column().width(16).height(1.5).backgroundColor('#6B5B4A')
+        Column().width(11).height(1.5).backgroundColor('#6B5B4A')
+      }
+      .width(24).height(18).backgroundColor(PAPER).border({ width: 1, color: LINE })
+      .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Start).padding({ left: 4 })
+      Column().width(32).height(5).borderRadius(2.5).backgroundColor(CLAY)
     }
-    Path()
-      .width(44)
-      .height(44)
-      .commands(ICON_STROKE.get(kind) as string)
-      .stroke('#8F6B44')
-      .strokeWidth(1.7)
-      .fill(Color.Transparent)
+  } else if (kind === 'seal') {
+    Column({ space: 1 }) {
+      Column().width(12).height(7).borderRadius({ topLeft: 3, topRight: 3 }).backgroundColor('#8A4531')
+      Stack() {
+        Column().width(26).height(24).borderRadius(4).backgroundColor(CLAY)
+        Column({ space: 2 }) {
+          Row({ space: 2 }) {
+            Column().width(8).height(8).borderRadius(1).backgroundColor('rgba(246,226,206,0.92)')
+            Column().width(8).height(8).borderRadius(1).backgroundColor('rgba(246,226,206,0.92)')
+          }
+          Row({ space: 2 }) {
+            Column().width(8).height(8).borderRadius(1).backgroundColor('rgba(246,226,206,0.92)')
+            Column().width(8).height(8).borderRadius(1).backgroundColor('rgba(246,226,206,0.92)')
+          }
+        }
+      }
+      .width(26).height(24)
+    }
+  } else if (kind === 'route') {
+    Stack() {
+      Column().width(34).height(2).backgroundColor('#D9C9A8')
+      Row() {
+        Column().width(8).height(8).borderRadius(4).backgroundColor(CLAY)
+        Blank()
+        Column().width(8).height(8).borderRadius(4).backgroundColor(PAPER).border({ width: 1.5, color: LOESS })
+        Blank()
+        Column().width(8).height(8).borderRadius(4).backgroundColor(PAPER).border({ width: 1.5, color: CLAY })
+      }
+      .width(34)
+    }
+    .width(36).height(12)
+  } else if (kind === 'lantern') {
+    Column() {
+      Column().width(10).height(3).borderRadius(1.5).backgroundColor(LOESS)
+      Stack() {
+        Column().width(24).height(19).borderRadius(9).backgroundColor(CLAY)
+        Row({ space: 4 }) {
+          Column().width(1).height(13).backgroundColor('rgba(246,226,206,0.55)')
+          Column().width(1).height(13).backgroundColor('rgba(246,226,206,0.55)')
+        }
+      }
+      .width(24).height(19)
+      Column().width(10).height(3).borderRadius(1.5).backgroundColor(LOESS)
+      Column().width(2).height(5).backgroundColor(LOESS)
+    }
+  } else if (kind === 'pot') {
+    Column() {
+      Column().width(12).height(3).borderRadius(1.5).backgroundColor(CLAY)
+      Column().width(7).height(4).backgroundColor(CLAY)
+      Stack({ alignContent: Alignment.Top }) {
+        Column().width(24).height(16)
+          .borderRadius({ bottomLeft: 11, bottomRight: 11, topLeft: 6, topRight: 6 })
+          .backgroundColor(CLAY)
+        Column().width(24).height(3).backgroundColor('rgba(246,226,206,0.5)').margin({ top: 6 })
+      }
+      .width(24).height(16)
+    }
+  } else if (kind === 'swatch') {
+    Row() {
+      Column().width(18).height(18).borderRadius(9).backgroundColor(CLAY).border({ width: 1.5, color: PAPER })
+      Column().width(18).height(18).borderRadius(9).backgroundColor(RIVER).border({ width: 1.5, color: PAPER })
+        .margin({ left: -6 })
+      Column().width(18).height(18).borderRadius(9).backgroundColor(LOESS).border({ width: 1.5, color: PAPER })
+        .margin({ left: -6 })
+    }
+  } else if (kind === 'film') {
+    Column({ space: 2 }) {
+      Row({ space: 3 }) {
+        Column().width(3).height(3).backgroundColor('#B9A88F')
+        Column().width(3).height(3).backgroundColor('#B9A88F')
+        Column().width(3).height(3).backgroundColor('#B9A88F')
+      }
+      Stack() {
+        Column().width(28).height(17).borderRadius(3).backgroundColor(INK)
+        Text('▶').fontSize(fs(8)).fontColor(PAPER)
+      }
+      .width(28).height(17)
+      Row({ space: 3 }) {
+        Column().width(3).height(3).backgroundColor('#B9A88F')
+        Column().width(3).height(3).backgroundColor('#B9A88F')
+        Column().width(3).height(3).backgroundColor('#B9A88F')
+      }
+    }
+  } else if (kind === 'slips') {
+    Row({ space: 2 }) {
+      Stack({ alignContent: Alignment.Top }) {
+        Column().width(5).height(24).borderRadius(2).backgroundColor(LOESS)
+        Column().width(5).height(2).backgroundColor(CLAY).margin({ top: 6 })
+      }.width(5).height(24)
+      Stack({ alignContent: Alignment.Top }) {
+        Column().width(5).height(26).borderRadius(2).backgroundColor('#C8A160')
+        Column().width(5).height(2).backgroundColor(CLAY).margin({ top: 7 })
+      }.width(5).height(26)
+      Stack({ alignContent: Alignment.Top }) {
+        Column().width(5).height(23).borderRadius(2).backgroundColor(LOESS)
+        Column().width(5).height(2).backgroundColor(CLAY).margin({ top: 5 })
+      }.width(5).height(23)
+      Stack({ alignContent: Alignment.Top }) {
+        Column().width(5).height(25).borderRadius(2).backgroundColor('#C8A160')
+        Column().width(5).height(2).backgroundColor(CLAY).margin({ top: 8 })
+      }.width(5).height(25)
+    }
+  } else if (kind === 'gauge') {
+    Stack({ alignContent: Alignment.Center }) {
+      Column().width(30).height(9).borderRadius({ topLeft: 5, topRight: 5 })
+        .backgroundColor('rgba(74,123,140,0.5)').margin({ top: 15 })
+      Column({ space: 3 }) {
+        Column().width(4).height(1.5).backgroundColor(INK)
+        Column().width(4).height(1.5).backgroundColor(INK)
+        Column().width(4).height(1.5).backgroundColor(INK)
+      }
+      .width(7).height(26).backgroundColor(PAPER).border({ width: 1, color: LINE })
+      .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Start).padding({ left: 1 })
+    }
+    .width(32).height(28)
+  } else if (kind === 'net') {
+    Stack() {
+      Column().width(30).height(1.5).backgroundColor('#D9C9A8').rotate({ angle: 45 })
+      Column().width(30).height(1.5).backgroundColor('#D9C9A8').rotate({ angle: -45 })
+      Column().width(5).height(5).borderRadius(2.5).backgroundColor(LOESS).offset({ x: -11, y: -11 })
+      Column().width(5).height(5).borderRadius(2.5).backgroundColor(LOESS).offset({ x: 11, y: -11 })
+      Column().width(5).height(5).borderRadius(2.5).backgroundColor(LOESS).offset({ x: -11, y: 11 })
+      Column().width(5).height(5).borderRadius(2.5).backgroundColor(LOESS).offset({ x: 11, y: 11 })
+      Column().width(9).height(9).borderRadius(4.5).backgroundColor(CLAY)
+    }
+    .width(32).height(32)
+  } else if (kind === 'sync') {
+    Stack() {
+      Column().width(14).height(20).borderRadius(3).backgroundColor(PAPER)
+        .border({ width: 1.5, color: CLAY }).offset({ x: -7 })
+      Column().width(14).height(20).borderRadius(3).backgroundColor('rgba(166,85,61,0.22)')
+        .border({ width: 1.5, color: CLAY }).offset({ x: 7 })
+      Text('⇄').fontSize(fs(9)).fontColor(CLAY)
+    }
+    .width(32).height(22)
+  } else {
+    Column() {
+      Column().width(6).height(4).borderRadius(1).backgroundColor(INK)
+      Column().width(5).height(15).backgroundColor('#6B4A32')
+      Column().width(5).height(8).borderRadius({ bottomLeft: 3, bottomRight: 3 }).backgroundColor(INK)
+    }
+    .rotate({ angle: 32 })
   }
-  .width(44)
-  .height(44)
 }
 
-// 宫格按钮：图标直接落在纸面上，无边无框，按下缩一下再弹回。
+// 宫格按钮：纸底双线框 + 小器物 + 按压缩放。动效只做"按一下沉一点再弹回"，
+// 太重会抢内容，太轻又回到上一版那种寡淡的圆片。
 @Component
-struct InkTile {
+struct RelicTile {
   @Prop kind: string = '';
   @Prop title: string = '';
   act: () => void = (): void => {};
@@ -121,15 +209,31 @@ struct InkTile {
   }
 
   build() {
-    Column({ space: 4 }) {
-      inkIcon(this.kind)
+    Column({ space: 6 }) {
+      // 双线框：外圈淡、内圈实，像印章的边栏，比单线多一层"厚重"
+      Column() {
+        Stack() {
+          artOf(this.kind)
+        }
+        .width(46)
+        .height(46)
+        .borderRadius(10)
+        .linearGradient({ angle: 135, colors: [['#F5EDDE', 0], ['#E9DBC4', 1]] })
+        .border({ width: 1, color: '#D9C9A8' })
+      }
+      .width(54)
+      .height(54)
+      .borderRadius(13)
+      .border({ width: 1, color: 'rgba(217,201,168,0.55)' })
+      .justifyContent(FlexAlign.Center)
+
       Text(this.title)
-        .fontSize(fs(10.5))
+        .fontSize(fs(11))
         .fontColor(INK)
         .maxLines(1)
     }
-    .width('20%')
-    .padding({ top: 6, bottom: 6 })
+    .width('25%')
+    .padding({ top: 4, bottom: 4 })
     .scale({ x: this.sc, y: this.sc })
     .onClick((): void => {
       this.press();
@@ -137,9 +241,9 @@ struct InkTile {
   }
 }
 
-// 首页照故宫式排布：通栏海报 → 「今日开河」双卡（实景打卡 / 创意工坊）+ 行程行
-// → 十枚无边手绘图标宫格 → 为你推荐 → 文创市集。陶艺 / 颜色 / 教程三个工坊
-// 收进「创意工坊」单独模块，首页只留一枚入口；纸面底下垫一层慢漂的水纹。
+// 首页照故宫式排布：通栏海报 → 「黄河数字档案」大卡（实景打卡 / 创意工坊双卡 + 行程行 + 我的档案行）
+// → 十二枚功能印章宫格 → 为你推荐 → 文创市集。被四段版收掉的入口（测验、课程、
+// 知识网络、同步、河工）全部在宫格里回来，另加行程与颜色两个新工坊。
 @Component
 export struct HomeView {
   @StorageLink('dataRev') @Watch('reload') dataRev: number = 0;
@@ -153,6 +257,10 @@ export struct HomeView {
   @State heroIdx: number = 0;
   @State today: string = '';
   @State routeStops: SiteInfo[] = [];
+  @State siteN: number = 0;
+  @State goodsN: number = 0;
+  @State favN: number = 0;
+  @State noteN: number = 0;
 
   aboutToAppear(): void {
     this.reload();
@@ -168,6 +276,10 @@ export struct HomeView {
     let all = SiteRepo.get().sites.slice();
     all.sort((a: SiteInfo, b: SiteInfo): number => siteU(a) - siteU(b));
     this.routeStops = all.slice(0, 3);
+    this.siteN = SiteRepo.get().sites.length;
+    this.goodsN = ContentRepo.get().goods.length;
+    this.favN = MemoryStore.get().favsActive().length;
+    this.noteN = MemoryStore.get().notesActive().length;
   }
 
   shapeOf(id: string): string {
@@ -225,16 +337,18 @@ export struct HomeView {
 
   tiles(): TileRec[] {
     return [
-      { kind: 'archive', title: '遗址档案', act: (): void => { goArchive(0); } },
-      { kind: 'checkin', title: '河道打卡', act: (): void => { goCheckin(); } },
+      { kind: 'scroll', title: '遗址档案', act: (): void => { goArchive(0); } },
+      { kind: 'seal', title: '河道打卡', act: (): void => { goCheckin(); } },
       { kind: 'route', title: '行程规划', act: (): void => { goRoute(); } },
-      { kind: 'event', title: '沿河活动', act: (): void => { this.openFirstEvent(); } },
-      { kind: 'studio', title: '创意工坊', act: (): void => { goStudio(0); } },
-      { kind: 'quiz', title: '趣味自测', act: (): void => { goQuiz('home'); } },
+      { kind: 'lantern', title: '沿河活动', act: (): void => { this.openFirstEvent(); } },
+      { kind: 'pot', title: '陶艺工坊', act: (): void => { goPottery(); } },
+      { kind: 'swatch', title: '颜色工坊', act: (): void => { goColor(''); } },
+      { kind: 'film', title: '教程影像', act: (): void => { goCourses(); } },
+      { kind: 'slips', title: '趣味自测', act: (): void => { goQuiz('home'); } },
       { kind: 'gauge', title: '河工面板', act: (): void => { goEngineer(); } },
       { kind: 'net', title: '知识网络', act: (): void => { goTopic(); } },
       { kind: 'sync', title: '同步面板', act: (): void => { goSync(); } },
-      { kind: 'notes', title: '收藏笔记', act: (): void => { goArchive(1); } }
+      { kind: 'brush', title: '收藏笔记', act: (): void => { goArchive(1); } }
     ];
   }
 
@@ -435,17 +549,24 @@ export struct HomeView {
     .clip(true)
   }
 
-  // 「今日开河」卡右上角的小楼阁：三层檐叠出来，给卡片一个视觉锚点
+  // 档案卡右上角的视觉锚点：一束简牍＋一道编绳＋一枚陶印，扣「数字档案」题
   @Builder
-  pavilion() {
-    Column() {
-      Column().width(26).height(8).borderRadius({ topLeft: 7, topRight: 7 }).backgroundColor(CLAY)
-      Column().width(16).height(7).backgroundColor('#F0E7D8')
-      Column().width(44).height(8).borderRadius({ topLeft: 7, topRight: 7 }).backgroundColor('#B05E43')
-      Column().width(30).height(9).backgroundColor('#F0E7D8')
-      Column().width(52).height(4).borderRadius(2).backgroundColor(LOESS)
+  archiveArt() {
+    Stack({ alignContent: Alignment.BottomEnd }) {
+      Stack({ alignContent: Alignment.Center }) {
+        Row({ space: 4 }) {
+          Column().width(6).height(30).borderRadius(3).backgroundColor('#D9C9A8')
+          Column().width(6).height(30).borderRadius(3).backgroundColor('#CBB488')
+          Column().width(6).height(30).borderRadius(3).backgroundColor('#D9C9A8')
+          Column().width(6).height(30).borderRadius(3).backgroundColor('#CBB488')
+        }
+        Column().width(38).height(3).borderRadius(1.5).backgroundColor(CLAY)
+      }
+      .width(40).height(32)
+      Column().width(15).height(15).borderRadius(4).backgroundColor(CLAY)
     }
-    .opacity(0.9)
+    .width(44).height(36)
+    .opacity(0.92)
   }
 
   // 实景打卡子卡：卡里直接画一条三站的顺线，点整卡进河道打卡页
@@ -493,61 +614,35 @@ export struct HomeView {
     })
   }
 
-  // 创意工坊子卡：一张侧身的文物小照当门面，点整卡进工坊模块
+  // 创意工坊子卡：陶艺 / 颜色 / 教程三枚小印章，各自能点
   @Builder
   workshopCard() {
-    Column({ space: 6 }) {
-      Row() {
-        Text('创意工坊')
-          .fontSize(fs(15))
-          .fontColor(INK)
-          .fontWeight(FontWeight.Bold)
-          .letterSpacing(1)
-        Blank()
-        Text('›')
-          .fontSize(fs(13))
-          .fontColor(SUB)
-      }
-      .width('100%')
-
+    Column({ space: 7 }) {
+      Text('创意工坊')
+        .fontSize(fs(15))
+        .fontColor(INK)
+        .fontWeight(FontWeight.Bold)
+        .letterSpacing(1)
       Text('陶艺 · 颜色 · 教程')
         .fontSize(fs(9))
         .fontColor(SUB)
-
       Row({ space: 9 }) {
-        Stack() {
-          Image(coverRes('era_yangshao'))
-            .width(64)
-            .height(46)
-            .objectFit(ImageFit.Cover)
-            .borderRadius(7)
-            .rotate({ x: 0, y: 1, z: 0, angle: -16 })
-          Column()
-            .width(46)
-            .height(6)
-            .borderRadius(3)
-            .backgroundColor('rgba(43,38,34,0.2)')
-            .blur(4)
-            .margin({ top: 46 })
-        }
-        .width(64)
-        .height(54)
-
-        Column({ space: 3 }) {
-          Text('陶艺 · 借器形纹样')
-            .fontSize(fs(9))
-            .fontColor(SUB)
-          Text('颜色 · 六色六器')
-            .fontSize(fs(9))
-            .fontColor(SUB)
-          Text('教程 · 手作讲读影像')
-            .fontSize(fs(9))
-            .fontColor(SUB)
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
+        Stack() { artOf('pot') }
+          .width(34).height(34).borderRadius(9)
+          .backgroundColor('rgba(255,255,255,0.65)')
+          .border({ width: 1, color: '#E0D2B8' })
+          .onClick((): void => { goPottery(); })
+        Stack() { artOf('swatch') }
+          .width(34).height(34).borderRadius(9)
+          .backgroundColor('rgba(255,255,255,0.65)')
+          .border({ width: 1, color: '#E0D2B8' })
+          .onClick((): void => { goColor(''); })
+        Stack() { artOf('film') }
+          .width(34).height(34).borderRadius(9)
+          .backgroundColor('rgba(255,255,255,0.65)')
+          .border({ width: 1, color: '#E0D2B8' })
+          .onClick((): void => { goCourses(); })
       }
-      .width('100%')
     }
     .alignItems(HorizontalAlign.Start)
     .layoutWeight(1.12)
@@ -555,29 +650,29 @@ export struct HomeView {
     .borderRadius(12)
     .backgroundColor('#F3EADB')
     .border({ width: 1, color: '#E0D2B8' })
-    .onClick((): void => {
-      goStudio(0);
-    })
   }
 
-  // 「今日开馆」式大卡：双卡 + 一行行程入口，卡顶压住海报下沿
+  // 档案大卡：标题点明「黄河数字档案」，双卡 + 行程行 + 我的档案行，卡顶压住海报下沿
   @Builder
   todayCard() {
     Column({ space: 11 }) {
       Row() {
         Column({ space: 2 }) {
-          Text('今日开河')
+          Text('黄河数字档案')
             .fontSize(fs(19))
             .fontColor(INK)
             .fontWeight(FontWeight.Bold)
-            .letterSpacing(3)
-          Text(this.today)
+            .letterSpacing(2)
+          Text(`${this.today} · 全量离线在机`)
             .fontSize(fs(11))
             .fontColor(SUB)
+          Text(`遗址 ${this.siteN} 处 · 文创 ${this.goodsN} 件 · 收藏 ${this.favN} · 笔记 ${this.noteN}`)
+            .fontSize(fs(10))
+            .fontColor(LOESS)
         }
         .alignItems(HorizontalAlign.Start)
         Blank()
-        this.pavilion()
+        this.archiveArt()
       }
       .width('100%')
 
@@ -614,6 +709,29 @@ export struct HomeView {
       .onClick((): void => {
         goRoute();
       })
+
+      Row({ space: 8 }) {
+        Stack({ alignContent: Alignment.Center }) {
+          Column().width(14).height(14).borderRadius(4).backgroundColor(CLAY)
+          Column().width(6).height(6).borderRadius(1.5).backgroundColor(PAPER)
+        }
+        .width(16).height(16)
+        Text('我的档案 · 收藏与笔记')
+          .fontSize(fs(12))
+          .fontColor(INK)
+          .fontWeight(FontWeight.Medium)
+        Blank()
+        Text(`${this.favN} 藏 · ${this.noteN} 笔 ›`)
+          .fontSize(fs(11))
+          .fontColor(SUB)
+      }
+      .width('100%')
+      .padding({ left: 10, right: 10, top: 9, bottom: 9 })
+      .borderRadius(10)
+      .backgroundColor('#EFE6D5')
+      .onClick((): void => {
+        goArchive(1);
+      })
     }
     .width('100%')
     .padding(14)
@@ -627,7 +745,7 @@ export struct HomeView {
   tileGrid() {
     Flex({ wrap: FlexWrap.Wrap }) {
       ForEach(this.tiles(), (t: TileRec): void => {
-        InkTile({ kind: t.kind, title: t.title, act: t.act })
+        RelicTile({ kind: t.kind, title: t.title, act: t.act })
       }, (t: TileRec): string => t.kind)
     }
     .width('100%')
@@ -792,8 +910,6 @@ export struct HomeView {
 
   build() {
     Stack({ alignContent: Alignment.TopStart }) {
-      PatternBg()
-
       Column() {
         Scroll() {
           Column() {
