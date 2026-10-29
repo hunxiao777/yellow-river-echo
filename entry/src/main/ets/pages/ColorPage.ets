@@ -3,7 +3,7 @@ import { Goods } from '../model/Models';
 import { ContentRepo } from '../service/ContentRepo';
 import { ArtCover } from '../view/ArtCover';
 import { INK, SUB, LOESS, CLAY, LINE, paletteOf, Palette, fs } from '../common/Theme';
-import { goGoods } from '../common/Nav';
+import { goGoods, params } from '../common/Nav';
 
 // 颜色工坊：一个颜色对应一类文物。色名是演示口径的称呼（仰韶红、宋天青…），
 // 对应的文物从文创演示数据里按 palette 取，点芯片能跳到那件文物。
@@ -29,6 +29,14 @@ const SHAPES: string[] = ['pot', 'jar', 'ding', 'tile', 'stele', 'box', 'coin', 
 @Component
 struct ColorPage {
   @State sel: string = 'yangshao';
+
+  aboutToAppear(): void {
+    // 从创意工坊展台带色进来时，落地先选中那一色
+    let p = params();
+    if (p !== undefined && p.colorKey !== undefined && p.colorKey.length > 0) {
+      this.sel = p.colorKey;
+    }
+  }
 
   goodsOf(key: string): Goods[] {
     let out: Goods[] = [];

@@ -12,6 +12,7 @@ export interface RouteParam {
   courseId?: string;
   eventId?: string;
   tab?: number;
+  colorKey?: string;
   from?: string;
 }
 
@@ -72,9 +73,16 @@ export function goRoute(): void {
   router.pushUrl({ url: 'pages/RoutePage' });
 }
 
-// 首页「颜色工坊」：一个颜色对应一类文物
-export function goColor(): void {
-  router.pushUrl({ url: 'pages/ColorPage' });
+// 首页「颜色工坊」：一个颜色对应一类文物；colorKey 带上时落地先选中那一色
+export function goColor(colorKey: string): void {
+  let p: RouteParam = { colorKey: colorKey };
+  router.pushUrl({ url: 'pages/ColorPage', params: p });
+}
+
+// 「创意工坊」单独模块：tab 0 陶艺 / 1 颜色 / 2 教程
+export function goStudio(tab: number): void {
+  let p: RouteParam = { tab: tab };
+  router.pushUrl({ url: 'pages/StudioPage', params: p });
 }
 
 // 彩蛋：连点头像 5 次后出现的「河工面板」，把同步状态机和各表行数摊开看

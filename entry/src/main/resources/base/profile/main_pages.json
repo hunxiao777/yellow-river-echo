@@ -19,6 +19,7 @@
     "pages/QuizPage",
     "pages/CheckinPage",
     "pages/RoutePage",
-    "pages/ColorPage"
+    "pages/ColorPage",
+    "pages/StudioPage"
   ]
 }
