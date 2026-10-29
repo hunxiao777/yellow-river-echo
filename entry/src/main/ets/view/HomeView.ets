@@ -15,7 +15,7 @@ import {
 import {
   openDrawer, switchTab, goList, goDetail, goArchive, goPottery,
   goActivity, goCheckin, goRoute, goQuiz,
-  goEngineer, goTopic, goSync, goStudio
+  goEngineer, goTopic, goSync, goStudio, goExperience
 } from '../common/Nav';
 
 const SHAPES: string[] = ['pot', 'jar', 'ding', 'tile', 'stele', 'box', 'coin', 'kiln'];
@@ -266,6 +266,7 @@ export struct HomeView {
   @State favN: number = 0;
   @State noteN: number = 0;
   @State wSway: number = -7;
+  @State mapFloat: boolean = false;
 
   aboutToAppear(): void {
     this.reload();
@@ -274,6 +275,12 @@ export struct HomeView {
       duration: 5200, curve: Curve.EaseInOut, iterations: -1, playMode: PlayMode.Alternate
     }, (): void => {
       this.wSway = 7;
+    });
+    // 地图窗里的红标轻轻浮，像导览图上正在定位的那一下
+    animateTo({
+      duration: 3000, curve: Curve.EaseInOut, iterations: -1, playMode: PlayMode.Alternate
+    }, (): void => {
+      this.mapFloat = true;
     });
   }
 
@@ -578,48 +585,47 @@ export struct HomeView {
     .opacity(0.92)
   }
 
-  // 实景打卡子卡：卡里直接画一条三站的顺线，点整卡进河道打卡页
+  // 地图导览子卡：卡里开一扇「地图窗」，露一段手绘导览图 + 一枚浮动的红标，
+  // 点整卡进 ArkWeb 手绘地图（发现/建筑/展览/打卡/餐饮/文创/卫生间/游客服务全在里头）
   @Builder
-  checkinCard() {
+  mapCard() {
     Column({ space: 7 }) {
-      Text('实景打卡')
+      Text('地图导览')
         .fontSize(fs(15))
         .fontColor(Color.White)
         .fontWeight(FontWeight.Bold)
         .letterSpacing(1)
-      Text('路线规划 · 地方介绍')
+      Text('八类地点 · 手绘离线导览')
         .fontSize(fs(9))
-        .fontColor('rgba(246,230,214,0.85)')
-      Stack() {
-        Column().width('82%').height(1.5).backgroundColor('rgba(255,255,255,0.4)')
-        Row() {
-          Column().width(7).height(7).borderRadius(4).backgroundColor(Color.White)
-          Blank()
-          Column().width(7).height(7).borderRadius(4).backgroundColor('rgba(255,255,255,0.35)')
-            .border({ width: 1.2, color: Color.White })
-          Blank()
-          Column().width(7).height(7).borderRadius(4).backgroundColor('rgba(255,255,255,0.35)')
-            .border({ width: 1.2, color: Color.White })
-        }
-        .width('82%')
+        .fontColor('rgba(233,242,240,0.85)')
+      Stack({ alignContent: Alignment.Center }) {
+        Image($rawfile('experience/atlas.png'))
+          .width('100%')
+          .height(52)
+          .objectFit(ImageFit.Cover)
+          .borderRadius(8)
+          .translate({ y: this.mapFloat ? -3 : 3 })
+        Text('●')
+          .fontSize(fs(15))
+          .fontColor('#A93135')
+          .translate({ x: 26, y: this.mapFloat ? -16 : -8 })
       }
       .width('100%')
-      .height(14)
-      .padding({ top: 2, bottom: 2 })
+      .height(52)
+      .clip(true)
+      .border({ width: 1, color: 'rgba(255,255,255,0.35)' })
 
-      Text(`${this.firstStopName()} ›`)
+      Text('打开导览 ›')
         .fontSize(fs(10))
-        .fontColor('#F6E6D6')
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .fontColor('#E9F2F0')
     }
     .alignItems(HorizontalAlign.Start)
     .layoutWeight(1)
     .padding(12)
     .borderRadius(12)
-    .linearGradient({ angle: 160, colors: [['#B05E43', 0], ['#8E4530', 1]] })
+    .linearGradient({ angle: 160, colors: [['#4E7E86', 0], ['#2F5A63', 1]] })
     .onClick((): void => {
-      goCheckin();
+      goExperience('map');
     })
   }
 
@@ -697,7 +703,7 @@ export struct HomeView {
       .width('100%')
 
       Row({ space: 10 }) {
-        this.checkinCard()
+        this.mapCard()
         this.workshopCard()
       }
       .width('100%')
