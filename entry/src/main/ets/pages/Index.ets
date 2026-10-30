@@ -250,7 +250,7 @@ struct Index {
           this.drawerRow('↧', '备份与恢复', '在「我的」里', (): void => {
             this.tab = 3;
           })
-          Text('黄河记忆 1.1 · 数据只存本机与同账号可信设备')
+          Text('黄河续响平台 1.1 · 数据只存本机与同账号可信设备')
             .fontSize(fs(10)).fontColor(SUB)
             .margin({ top: 14, bottom: 18 })
         }
@@ -335,7 +335,7 @@ struct Index {
       Column() {
         if (!this.ready) {
           Column({ space: 12 }) {
-            Text('黄河记忆').fontSize(24).fontColor(LOESS).fontWeight(FontWeight.Bold)
+            Text('黄河续响平台').fontSize(24).fontColor(LOESS).fontWeight(FontWeight.Bold)
             Text('正在整理河岸的旧时光…').fontSize(12).fontColor(SUB)
           }
           .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)

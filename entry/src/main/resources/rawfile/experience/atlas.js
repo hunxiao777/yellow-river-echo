@@ -48,7 +48,7 @@ function mapPage() {
   app.innerHTML = `<div class="atlas-shell"><nav class="tabs" aria-label="地图分类">${cats.map(c=>`<button class="${c===category?'active':''}" onclick="switchCategory('${c}')">${c}</button>`).join('')}</nav>
     <div class="atlas-search"><select aria-label="选择城市" onchange="city=this.value;selectedRoute=-1;resetAtlas()">${['全部',...cities].map(c=>`<option ${c===city?'selected':''}>${c}</option>`).join('')}</select><input id="search" placeholder="寻一处文化地标" onkeydown="if(event.key==='Enter')searchPOI()"><button aria-label="搜索地点" onclick="searchPOI()">⌕</button></div>
     <div class="map atlas-map" id="map"><div class="badge">手绘文化长卷 · 艺术布局，非导航${selectedRoute>=0?' · '+routes[selectedRoute].name:''}</div>${svgMap()}
-      <div class="atlas-title"><small>沿 河 而 行</small><b>黄河续响</b><span>五城 · 一脉文明</span></div>
+      <div class="atlas-title"><small>沿 河 而 行</small><b>黄河续响平台</b><span>五城 · 一脉文明</span></div>
       <div class="tools"><button onclick="atlasIntro()">简介</button><button onclick="flatMap=!flatMap;mapPage()">${flatMap?'手绘':'淡化'}</button><button onclick="show('footprints')">足迹</button><button onclick="saved()">收藏</button></div>
       <div class="zoom-tools"><button aria-label="放大地图" onclick="zoom(1.3)">＋</button><button aria-label="缩小地图" onclick="zoom(1/1.3)">－</button><button aria-label="复位地图" onclick="resetAtlas()">⌖</button></div>
       <button class="routeBtn" onclick="routeList()">游览<br>路线</button>

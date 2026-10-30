@@ -58,7 +58,7 @@ export struct ExploreView {
             .height(180)
             .objectFit(ImageFit.Cover)
           Column({ space: 2 }) {
-            Text('黄河记忆').fontSize(24).fontColor(Color.White).fontWeight(FontWeight.Bold)
+            Text('黄河续响平台').fontSize(24).fontColor(Color.White).fontWeight(FontWeight.Bold)
             Text('河南段沿线文化遗址 · 随身数字档案')
               .fontSize(12).fontColor('#E8E0D2')
           }

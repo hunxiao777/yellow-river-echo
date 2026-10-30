@@ -110,7 +110,7 @@ export class SiteRepo {
       for (let id of picks) {
         let s = this.idMap.get(id);
         if (s !== undefined) {
-          out.push({ site: s, reason: '黄河记忆·精选入门', score: 0 });
+          out.push({ site: s, reason: '黄河续响平台·精选入门', score: 0 });
         }
       }
       return out.slice(0, limit);

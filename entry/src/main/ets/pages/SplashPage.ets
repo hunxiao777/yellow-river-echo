@@ -147,7 +147,7 @@ struct SplashPage {
         })
 
       Column({ space: 10 }) {
-        Text('黄河记忆')
+        Text('黄河续响平台')
           .fontSize(40)
           .fontColor(INK)
           .fontWeight(FontWeight.Bold)
