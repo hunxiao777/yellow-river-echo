@@ -42,6 +42,7 @@ struct AssistantPage {
   private streamErr: string = '';
   private streamCites: Citation[] = [];
   private askQ: string = '';
+  private wasAborted: boolean = false;
   private closing: boolean = false;
   private lastFollow: number = 0;
 
@@ -111,9 +112,12 @@ struct AssistantPage {
     this.streamDone = false;
     this.streamErr = '';
     this.streamCites = [];
+    this.wasAborted = false;
     this.closing = false;
     if (pushUser) {
-      store.pushTurn({ role: 'user', text: q, at: Date.now(), citations: [], failed: false });
+      store.pushTurn({
+        role: 'user', text: q, at: Date.now(), citations: [], failed: false, isAborted: false
+      });
     }
     this.turns = store.turns.slice();
     this.busy = true;
@@ -130,6 +134,7 @@ struct AssistantPage {
         this.handle = null;
         this.streamDone = true;
         this.streamCites = citations;
+        this.wasAborted = aborted;
         if (aborted) {
           this.fastForward();
         }
@@ -196,7 +201,8 @@ struct AssistantPage {
     let text = this.cleanTarget;
     if (text.length > 0) {
       store.pushTurn({
-        role: 'ai', text: text, at: Date.now(), citations: this.streamCites, failed: false
+        role: 'ai', text: text, at: Date.now(), citations: this.streamCites,
+        failed: false, isAborted: this.wasAborted
       });
       this.turns = store.turns.slice();
     }
@@ -445,6 +451,12 @@ struct AssistantPage {
           .fontColor(t.failed ? CLAY : INK)
           .lineHeight(fs(21))
           .copyOption(CopyOptions.LocalDevice)
+        if (t.isAborted === true) {
+          Text('· 回答已中断')
+            .fontSize(fs(10))
+            .fontColor(SUB)
+            .margin({ top: 3 })
+        }
         if (t.citations.length > 0) {
           Flex({ wrap: FlexWrap.Wrap }) {
             ForEach(t.citations, (c: Citation): void => {

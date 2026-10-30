@@ -42,6 +42,10 @@ export class AiStore {
       if (t.citations === undefined) {
         t.citations = [];
       }
+      // 旧记录没有这个字段，补成 false，避免界面判断 undefined
+      if (t.isAborted === undefined) {
+        t.isAborted = false;
+      }
       for (let c of t.citations) {
         if (c.name.endsWith('.md')) {
           c.name = c.name.substring(0, c.name.length - 3);

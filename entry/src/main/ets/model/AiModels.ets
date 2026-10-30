@@ -14,6 +14,7 @@ export interface ChatTurn {
   at: number;
   citations: Citation[];
   failed: boolean;
+  isAborted: boolean; // 用户点停或连接中断，只用来区分展示与排错
 }
 
 export interface DifyInputs {
