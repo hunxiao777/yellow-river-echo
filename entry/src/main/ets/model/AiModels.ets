@@ -50,3 +50,12 @@ export interface DifyError {
   message?: string;
   status?: number;
 }
+
+// response_mode: streaming 时每一行 data: 反序列化后的形状
+export interface DifyStreamEvent {
+  event?: string;
+  answer?: string;
+  conversation_id?: string;
+  message?: string;
+  metadata?: DifyMeta;
+}

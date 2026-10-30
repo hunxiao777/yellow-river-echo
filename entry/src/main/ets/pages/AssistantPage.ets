@@ -1,8 +1,9 @@
 import { router } from '@kit.ArkUI';
 import { ChatTurn, Citation } from '../model/AiModels';
 import { AiStore } from '../service/AiStore';
-import { AiService, AiReply } from '../service/AiService';
+import { AiService, StreamHandle } from '../service/AiService';
 import { AiContext } from '../service/AiContext';
+import { cleanAiText, cleanPartial } from '../common/Markdown';
 import { INK, SUB, LOESS, CLAY, LINE, RIVER, fs } from '../common/Theme';
 import { goDetail } from '../common/Nav';
 
@@ -11,6 +12,9 @@ const TIPS: string[] = [
   '二里头为什么被称为最早的中国？',
   '我收藏里哪几处值得先去？'
 ];
+
+// 打字机的节拍：50ms 合并一次增量，既不会一格一格卡顿，也不至于整段跳出
+const TYPE_MS: number = 50;
 
 @Entry
 @Component
@@ -26,12 +30,33 @@ struct AssistantPage {
   @State err: string = '';
   @State lastQ: string = '';
   @State clearAsk: boolean = false;
+  @State live: string = '';
+  @State liveOn: boolean = false;
   private scroller: Scroller = new Scroller();
+  private handle: StreamHandle | null = null;
+  private timer: number = -1;
+  private rawTarget: string = '';
+  private cleanTarget: string = '';
+  private shown: number = 0;
+  private streamDone: boolean = false;
+  private streamErr: string = '';
+  private streamCites: Citation[] = [];
+  private askQ: string = '';
+  private closing: boolean = false;
+  private lastFollow: number = 0;
 
   aboutToAppear(): void {
     this.reload();
     if (!AiStore.get().configured()) {
       this.cfgOpen = true;
+    }
+  }
+
+  aboutToDisappear(): void {
+    this.stopTimer();
+    if (this.handle !== null) {
+      this.handle.stop();
+      this.handle = null;
     }
   }
 
@@ -50,39 +75,150 @@ struct AssistantPage {
     }, 60);
   }
 
-  async send(): Promise<void> {
+  // 流式期间每 50ms 都会触发，滚动按 150ms 节流，避免和打字抢帧
+  follow(): void {
+    let now = Date.now();
+    if (now - this.lastFollow < 150) {
+      return;
+    }
+    this.lastFollow = now;
+    this.scroller.scrollEdge(Edge.Bottom);
+  }
+
+  send(): void {
     let q = this.input.trim();
     if (q.length === 0 || this.busy) {
       return;
     }
-    let store = AiStore.get();
-    if (!store.configured()) {
+    if (!AiStore.get().configured()) {
       this.cfgOpen = true;
       this.err = '先填好 Dify 地址和 App Key 再提问';
       return;
     }
     this.input = '';
+    this.run(q, true);
+  }
+
+  run(q: string, pushUser: boolean): void {
+    let store = AiStore.get();
     this.err = '';
     this.clearAsk = false;
-    store.pushTurn({ role: 'user', text: q, at: Date.now(), citations: [], failed: false });
-    this.turns = store.turns.slice();
-    this.busy = true;
-    this.toBottom();
-
-    let ctx = AiContext.build(q);
-    let res: AiReply = await AiService.get().ask(q, ctx);
-    this.busy = false;
-    if (res.ok) {
-      this.lastQ = '';
-      store.pushTurn({
-        role: 'ai', text: res.answer, at: Date.now(), citations: res.citations, failed: false
-      });
-    } else {
-      this.err = res.error;
-      this.lastQ = q;
+    this.askQ = q;
+    this.rawTarget = '';
+    this.cleanTarget = '';
+    this.shown = 0;
+    this.live = '';
+    this.streamDone = false;
+    this.streamErr = '';
+    this.streamCites = [];
+    this.closing = false;
+    if (pushUser) {
+      store.pushTurn({ role: 'user', text: q, at: Date.now(), citations: [], failed: false });
     }
     this.turns = store.turns.slice();
+    this.busy = true;
+    this.liveOn = true;
     this.toBottom();
+    this.startTimer();
+
+    let ctx = AiContext.build(q);
+    this.handle = AiService.get().start(q, ctx, {
+      onChunk: (raw: string): void => {
+        this.rawTarget = raw;
+      },
+      onDone: (citations: Citation[], aborted: boolean): void => {
+        this.handle = null;
+        this.streamDone = true;
+        this.streamCites = citations;
+        if (aborted) {
+          this.fastForward();
+        }
+      },
+      onError: (msg: string): void => {
+        this.handle = null;
+        this.streamDone = true;
+        this.streamErr = msg;
+      }
+    });
+  }
+
+  startTimer(): void {
+    this.stopTimer();
+    this.timer = setInterval((): void => {
+      this.pump();
+    }, TYPE_MS);
+  }
+
+  stopTimer(): void {
+    if (this.timer >= 0) {
+      clearInterval(this.timer);
+      this.timer = -1;
+    }
+  }
+
+  // 每次节拍都按最新原文重算可见文本：流没结束时半行保守清洗，结束后走正式清洗
+  pump(): void {
+    if (!this.liveOn || this.closing) {
+      this.stopTimer();
+      return;
+    }
+    this.cleanTarget = this.streamDone ? cleanAiText(this.rawTarget) : cleanPartial(this.rawTarget);
+    if (this.shown < this.cleanTarget.length) {
+      let remain = this.cleanTarget.length - this.shown;
+      // 差距越大步进越大，避免模型吐得快时打字机永远追不上
+      let step = Math.max(2, Math.ceil(remain / 6));
+      this.shown = Math.min(this.cleanTarget.length, this.shown + step);
+      this.live = this.cleanTarget.substring(0, this.shown);
+      this.follow();
+    }
+    if (this.streamDone && this.shown >= this.cleanTarget.length) {
+      this.finish();
+    }
+  }
+
+  // 用户按停止：已收到的内容一次性补齐，立刻收尾，不留定时器也不留连接
+  fastForward(): void {
+    this.cleanTarget = cleanAiText(this.rawTarget);
+    this.shown = this.cleanTarget.length;
+    this.live = this.cleanTarget;
+    this.finish();
+  }
+
+  finish(): void {
+    if (this.closing) {
+      return;
+    }
+    this.closing = true;
+    this.stopTimer();
+    this.busy = false;
+    this.liveOn = false;
+    let store = AiStore.get();
+    let text = this.cleanTarget;
+    if (text.length > 0) {
+      store.pushTurn({
+        role: 'ai', text: text, at: Date.now(), citations: this.streamCites, failed: false
+      });
+      this.turns = store.turns.slice();
+    }
+    if (this.streamErr.length > 0) {
+      this.err = text.length > 0 ? this.streamErr + '（回答已中断）' : this.streamErr;
+      this.lastQ = this.askQ;
+    } else if (text.length === 0) {
+      this.err = '模型没有返回内容，稍后再试';
+      this.lastQ = this.askQ;
+    }
+    this.live = '';
+    this.rawTarget = '';
+    this.toBottom();
+  }
+
+  stop(): void {
+    if (this.handle !== null) {
+      this.handle.stop();
+      return;
+    }
+    this.streamDone = true;
+    this.fastForward();
   }
 
   async saveCfg(): Promise<void> {
@@ -96,6 +232,9 @@ struct AssistantPage {
   }
 
   askTip(s: string): void {
+    if (this.busy) {
+      return;
+    }
     this.input = s;
     this.send();
   }
@@ -105,9 +244,8 @@ struct AssistantPage {
     if (q.length === 0 || this.busy) {
       return;
     }
-    this.input = q;
     this.lastQ = '';
-    this.send();
+    this.run(q, false);
   }
 
   @Builder
@@ -327,6 +465,32 @@ struct AssistantPage {
   }
 
   @Builder
+  liveBubble() {
+    Column({ space: 2 }) {
+      if (this.live.length > 0) {
+        Text(this.live)
+          .fontSize(fs(13))
+          .fontColor(INK)
+          .lineHeight(fs(21))
+      }
+      if (this.live.length === 0) {
+        Text('河小导正在翻档案…')
+          .fontSize(fs(11))
+          .fontColor(SUB)
+      } else if (!this.streamDone) {
+        Text('▍')
+          .fontSize(fs(12))
+          .fontColor(CLAY)
+      }
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding(12)
+    .backgroundColor($r('app.color.card_bg'))
+    .borderRadius({ topLeft: 4, topRight: 14, bottomLeft: 14, bottomRight: 14 })
+  }
+
+  @Builder
   emptyState() {
     Column({ space: 12 }) {
       Stack() {
@@ -387,12 +551,9 @@ struct AssistantPage {
           this.emptyState()
         }
       }
-      if (this.busy) {
+      if (this.liveOn) {
         ListItem() {
-          Text('河小导正在翻档案…')
-            .fontSize(fs(11))
-            .fontColor(SUB)
-            .padding({ left: 2, top: 2, bottom: 2 })
+          this.liveBubble()
         }
       }
       if (this.err.length > 0) {
@@ -446,19 +607,32 @@ struct AssistantPage {
           .onSubmit((): void => {
             this.send();
           })
-        Text(this.busy ? '…' : '问')
-          .fontSize(fs(13))
-          .fontColor(Color.White)
-          .textAlign(TextAlign.Center)
-          .width(42)
-          .height(42)
-          .borderRadius(21)
-          .backgroundColor(this.busy ? SUB : CLAY)
-          .onClick((): void => {
-            if (!this.busy) {
+        if (this.busy) {
+          Text('停')
+            .fontSize(fs(13))
+            .fontColor(CLAY)
+            .textAlign(TextAlign.Center)
+            .width(42)
+            .height(42)
+            .borderRadius(21)
+            .border({ width: 1, color: CLAY })
+            .backgroundColor('#FBF6EC')
+            .onClick((): void => {
+              this.stop();
+            })
+        } else {
+          Text('问')
+            .fontSize(fs(13))
+            .fontColor(Color.White)
+            .textAlign(TextAlign.Center)
+            .width(42)
+            .height(42)
+            .borderRadius(21)
+            .backgroundColor(CLAY)
+            .onClick((): void => {
               this.send();
-            }
-          })
+            })
+        }
       }
       .width('100%')
       Text('回答由 Dify 上的模型生成，请以站内档案为准。')
