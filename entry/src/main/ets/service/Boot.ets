@@ -4,6 +4,7 @@ import { ContentRepo } from './ContentRepo';
 import { MemoryStore } from './MemoryStore';
 import { StudioStore } from './StudioStore';
 import { SyncService } from './SyncService';
+import { AiStore } from './AiStore';
 
 // 启动链：只跑一次，Splash 期间把它跑完，后面的页面默认数据已就绪。
 export class Boot {
@@ -23,6 +24,7 @@ export class Boot {
     await ContentRepo.get().load(ctx);
     await MemoryStore.get().init(ctx);
     await StudioStore.get().init(ctx);
+    await AiStore.get().init(ctx);
     await SyncService.get().init(ctx, bn);
     Boot.done = true;
   }

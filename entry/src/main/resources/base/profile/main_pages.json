@@ -4,6 +4,7 @@
     "pages/GuidePage",
     "pages/LoginPage",
     "pages/Index",
+    "pages/AssistantPage",
     "pages/ArchivePage",
     "pages/ListPage",
     "pages/DetailPage",

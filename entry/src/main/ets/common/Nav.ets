@@ -16,6 +16,10 @@ export interface RouteParam {
   from?: string;
 }
 
+export function goAssistant(): void {
+  router.pushUrl({ url: 'pages/AssistantPage' });
+}
+
 export function goDetail(id: string): void {
   let p: RouteParam = { id: id };
   router.pushUrl({ url: 'pages/DetailPage', params: p });

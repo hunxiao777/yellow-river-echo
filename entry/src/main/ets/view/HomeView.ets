@@ -15,7 +15,7 @@ import {
 import {
   openDrawer, switchTab, goList, goDetail, goArchive, goPottery,
   goActivity, goCheckin, goRoute, goQuiz,
-  goEngineer, goTopic, goSync, goStudio, goExperience
+  goEngineer, goTopic, goSync, goStudio, goExperience, goAssistant
 } from '../common/Nav';
 
 const SHAPES: string[] = ['pot', 'jar', 'ding', 'tile', 'stele', 'box', 'coin', 'kiln'];
@@ -402,6 +402,19 @@ export struct HomeView {
           this.doSearch();
         })
 
+      Text('问')
+        .fontSize(fs(13))
+        .fontColor(Color.White)
+        .fontWeight(FontWeight.Medium)
+        .width(32)
+        .height(32)
+        .borderRadius(16)
+        .backgroundColor(CLAY)
+        .textAlign(TextAlign.Center)
+        .onClick((): void => {
+          goAssistant();
+        })
+
       Stack({ alignContent: Alignment.TopEnd }) {
         Text('✉')
           .fontSize(fs(16))
@@ -528,7 +541,7 @@ export struct HomeView {
   hero() {
     Stack({ alignContent: Alignment.BottomEnd }) {
       Swiper() {
-        this.promo('黄河记忆', '把这条河装进口袋 · 20 处沿河遗存', 'hero_river', (): void => {
+        this.promo('黄河续响平台', '把这条河装进口袋 · 20 处沿河遗存', 'hero_river', (): void => {
           goArchive(0);
         })
         if (this.verse !== undefined) {
@@ -948,7 +961,7 @@ export struct HomeView {
               this.recoGrid()
               this.shopGrid()
 
-              Text('遗址档案文字来自公开资料整理；配图为 AI 生成示意图，非现场照片；今日一句中除两条唐诗外均为拟咏；文创、活动与色卡为概念演示数据，全程离线。')
+              Text('遗址档案文字来自公开资料整理；配图为 AI 生成示意图，非现场照片；今日一句中除两条唐诗外均为拟咏；文创、活动与色卡为概念演示数据；除河小导需联网外，档案与互动全程离线。')
                 .fontSize(fs(10))
                 .fontColor(SUB)
                 .width('100%')
