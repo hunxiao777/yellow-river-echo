@@ -4,6 +4,7 @@ import { AiStore } from '../service/AiStore';
 import { AiService, StreamHandle } from '../service/AiService';
 import { AiContext } from '../service/AiContext';
 import { cleanAiText, cleanPartial } from '../common/Markdown';
+import { errCopyOf } from '../common/AssistantCopy';
 import { INK, SUB, LOESS, CLAY, LINE, RIVER, fs } from '../common/Theme';
 import { goDetail, goTopicSection } from '../common/Nav';
 
@@ -575,14 +576,30 @@ struct AssistantPage {
       }
       if (this.err.length > 0) {
         ListItem() {
-          Row({ space: 8 }) {
-            Text(this.err)
-              .fontSize(fs(11))
-              .fontColor(CLAY)
-              .lineHeight(fs(17))
-              .layoutWeight(1)
+          Row({ space: 9 }) {
+            Image($rawfile('assistant/mascot_think.png'))
+              .width(32)
+              .height(32)
+              .objectFit(ImageFit.Contain)
+            Column({ space: 2 }) {
+              Text(errCopyOf(this.err).line)
+                .fontSize(fs(12))
+                .fontColor(INK)
+                .lineHeight(fs(18))
+                .width('100%')
+              if (errCopyOf(this.err).sub.length > 0) {
+                Text(errCopyOf(this.err).sub)
+                  .fontSize(fs(9))
+                  .fontColor(SUB)
+                  .maxLines(1)
+                  .textOverflow({ overflow: TextOverflow.Ellipsis })
+                  .width('100%')
+              }
+            }
+            .layoutWeight(1)
+            .alignItems(HorizontalAlign.Start)
             if (this.lastQ.length > 0) {
-              Text('重试')
+              Text('再问一次')
                 .fontSize(fs(11))
                 .fontColor(CLAY)
                 .fontWeight(FontWeight.Medium)

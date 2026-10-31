@@ -47,6 +47,9 @@ class ExperienceBridge {
 struct ExperiencePage {
   private controller: webview.WebviewController = new webview.WebviewController();
   private bridge: ExperienceBridge = new ExperienceBridge(getContext(this) as common.UIAbilityContext);
+  // 地图页里的悬浮球也要跟着网页滚动收一收
+  private fabSignalAt: number = 0;
+  private lastScrollY: number = -1;
   // A single intercepted origin keeps ES modules, GLB fetches and storage consistent.
   private origin: string = 'https://huanghe.example/experience/';
   private localResource(url: string): WebResourceResponse | null {
@@ -78,6 +81,17 @@ struct ExperiencePage {
         .onInterceptRequest((event): WebResourceResponse =>
           this.localResource(event.request.getRequestUrl()) as WebResourceResponse)
         .javaScriptProxy({ object: this.bridge, name: 'Native', methodList: ['back', 'journey', 'panorama', 'saveImage', 'shareImage'], controller: this.controller })
+        .onScroll((ev: OnScrollEvent): void => {
+          // Web 给的是绝对位置，只有真的动了才发信号；80ms 一次足够
+          let now = Date.now();
+          if (ev.yOffset === this.lastScrollY || now - this.fabSignalAt < 80) {
+            this.lastScrollY = ev.yOffset;
+            return;
+          }
+          this.lastScrollY = ev.yOffset;
+          this.fabSignalAt = now;
+          AppStorage.setOrCreate('fabScrollAt', now);
+        })
         .onPageEnd((): void => {
           let m = params().type ?? 'map';
           if (!['map', 'travel', 'model', 'footprints'].includes(m)) { m = 'map'; }

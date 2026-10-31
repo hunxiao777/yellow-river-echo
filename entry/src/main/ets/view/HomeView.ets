@@ -267,6 +267,8 @@ export struct HomeView {
   @State noteN: number = 0;
   @State wSway: number = -7;
   @State mapFloat: boolean = false;
+  // 给右下角悬浮河小导发滚动信号：滚起来先收进边里，别压着内容
+  private fabSignalAt: number = 0;
 
   aboutToAppear(): void {
     this.reload();
@@ -978,6 +980,18 @@ export struct HomeView {
         .layoutWeight(1)
         .scrollBar(BarState.Off)
         .align(Alignment.Top)
+        .onDidScroll((xOffset: number, yOffset: number, scrollState: ScrollState): void => {
+          if (yOffset === 0) {
+            return;
+          }
+          // 每帧都写 AppStorage 没必要，80ms 一次足够让悬浮球判定"还在滚"
+          let now = Date.now();
+          if (now - this.fabSignalAt < 80) {
+            return;
+          }
+          this.fabSignalAt = now;
+          AppStorage.setOrCreate('fabScrollAt', now);
+        })
       }
       .width('100%')
       .height('100%')
