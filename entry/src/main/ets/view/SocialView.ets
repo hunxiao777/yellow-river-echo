@@ -343,12 +343,6 @@ export struct SocialView {
             goSync();
           })
       }
-
-      Text('社区动态与活动为演示数据，非真实用户产生')
-        .fontSize(11)
-        .fontColor(SUB)
-        .width('100%')
-        .margin({ top: 4 })
     }
     .width('100%')
     .padding({ left: 14, right: 14 })
@@ -413,14 +407,7 @@ export struct SocialView {
           .rowsGap(9)
           .layoutWeight(1)
           .scrollBar(BarState.Off)
-          .padding({ left: 12, right: 12, top: 2 })
-
-          Text('社区动态与活动为演示数据，非真实用户产生')
-            .fontSize(10)
-            .fontColor(SUB)
-            .width('100%')
-            .textAlign(TextAlign.Center)
-            .padding({ top: 6, bottom: 10 })
+          .padding({ left: 12, right: 12, top: 2, bottom: 10 })
         }
       } else {
         Scroll() {

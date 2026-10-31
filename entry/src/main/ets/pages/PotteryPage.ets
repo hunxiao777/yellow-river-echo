@@ -105,7 +105,6 @@ struct PotteryPage {
           })
         Column({ space: 2 }) {
           Text('彩陶工坊').fontSize(18).fontColor(INK).fontWeight(FontWeight.Bold)
-          Text('纹样取自仰韶—马家窑系彩陶常见母题，仅作演示').fontSize(11).fontColor(SUB)
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)

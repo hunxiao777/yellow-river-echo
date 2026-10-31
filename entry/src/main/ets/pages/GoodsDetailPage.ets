@@ -300,12 +300,6 @@ struct GoodsDetailPage {
             }
             .width('100%')
             .alignItems(HorizontalAlign.Start)
-
-            Text('概念演示页面，不接支付；商品数据只随包展示。')
-              .fontSize(10)
-              .fontColor(SUB)
-              .width('100%')
-              .textAlign(TextAlign.Center)
           }
           .width('100%')
           .padding({ left: 14, right: 14, top: 12, bottom: 16 })
@@ -337,7 +331,7 @@ struct GoodsDetailPage {
             .backgroundColor(CLAY)
             .layoutWeight(1)
             .onClick((): void => {
-              promptAction.showToast({ message: '概念演示，不接支付' });
+              promptAction.showToast({ message: '支付通道开通中，可先加入清单' });
             })
         }
         .width('100%')

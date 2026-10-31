@@ -23,7 +23,7 @@ const SHOW: ExhibitRec[] = [
   { img: 'relic_tianqing', key: 'song' }
 ];
 const CATS: string[] = ['全部', '手作', '讲读', '影像'];
-const CAT_NAMES: string[] = ['全部', '手作演示', '讲读', '影像'];
+const CAT_NAMES: string[] = ['全部', '手作', '讲读', '影像'];
 
 @Entry
 @Component
@@ -133,12 +133,6 @@ export struct StudioPage {
           } else {
             this.coursePick()
           }
-          Text('文物图为 AI 生成的博物馆示意，非馆藏实拍；教程为手绘分镜演示。')
-            .fontSize(fs(9))
-            .fontColor(SUB)
-            .width('100%')
-            .textAlign(TextAlign.Center)
-            .padding({ bottom: 18 })
         }
         .width('100%')
       }

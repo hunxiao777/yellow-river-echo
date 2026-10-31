@@ -45,7 +45,6 @@ struct CoursePage {
           })
         Column({ space: 2 }) {
           Text('课程影像').fontSize(18).fontColor(INK).fontWeight(FontWeight.Bold)
-          Text('手绘分镜演示，非实拍视频').fontSize(11).fontColor(SUB)
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)

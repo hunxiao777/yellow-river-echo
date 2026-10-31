@@ -952,7 +952,7 @@ export struct HomeView {
   @Builder
   shopGrid() {
     Column({ space: 8 }) {
-      this.head('文创市集', `${ContentRepo.get().goods.length} 件·演示数据`, (): void => {
+      this.head('文创市集', `${ContentRepo.get().goods.length} 件`, (): void => {
         switchTab(1);
       })
       Flex({ wrap: FlexWrap.Wrap }) {
@@ -979,13 +979,6 @@ export struct HomeView {
               this.tileGrid()
               this.recoGrid()
               this.shopGrid()
-
-              Text('遗址档案文字来自公开资料整理；配图为 AI 生成示意图，非现场照片；今日一句中除两条唐诗外均为拟咏；文创、活动与色卡为概念演示数据；除河小导需联网外，档案与互动全程离线。')
-                .fontSize(fs(10))
-                .fontColor(SUB)
-                .width('100%')
-                .textAlign(TextAlign.Center)
-                .margin({ top: 4 })
             }
             .width('100%')
             // 留出右下角悬浮河小导的位置，滚到底时页脚不会被它压住

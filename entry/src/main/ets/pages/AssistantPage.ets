@@ -669,11 +669,6 @@ struct AssistantPage {
         }
       }
       .width('100%')
-      Text('回答由 Dify 上的模型生成，请以站内档案为准。')
-        .fontSize(fs(9))
-        .fontColor(SUB)
-        .width('100%')
-        .textAlign(TextAlign.Center)
     }
     .width('100%')
     .padding({ left: 14, right: 14, top: 8, bottom: 10 })

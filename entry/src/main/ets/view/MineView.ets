@@ -564,7 +564,7 @@ export struct MineView {
           .backgroundColor($r('app.color.card_bg'))
           .borderRadius(12)
 
-          Text('黄河续响平台 · 演示数据说明：文创商品、社区动态、活动均为概念演示；遗址档案内容整理自公开资料。')
+          Text('黄河续响平台')
             .fontSize(10).fontColor(SUB).textAlign(TextAlign.Center)
             .margin({ top: 8, bottom: 18 })
         }

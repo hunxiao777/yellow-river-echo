@@ -377,7 +377,6 @@ struct PlayerPage {
         Column({ space: 2 }) {
           Text(this.coverText())
             .fontSize(17).fontColor(INK).fontWeight(FontWeight.Bold)
-          Text('手绘分镜演示，非实拍视频').fontSize(11).fontColor(SUB)
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
@@ -469,8 +468,6 @@ struct PlayerPage {
                   .fontSize(19).fontColor(INK).fontWeight(FontWeight.Bold).width('100%')
                 Text(this.stepBody())
                   .fontSize(14).fontColor(INK).lineHeight(23).width('100%')
-                Text('这一段是手绘分镜示意图，不是实拍视频')
-                  .fontSize(10).fontColor(SUB).width('100%')
               }
               .width('100%')
               .alignItems(HorizontalAlign.Start)

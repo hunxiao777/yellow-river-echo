@@ -231,12 +231,6 @@ struct ColorPage {
           .borderRadius(14)
           .alignItems(HorizontalAlign.Start)
 
-          Text('色名与"一色对一器"的对应是演示口径；文物取自文创演示数据，非实测色卡。')
-            .fontSize(fs(10))
-            .fontColor(SUB)
-            .width('100%')
-            .textAlign(TextAlign.Center)
-            .margin({ top: 2, bottom: 18 })
         }
         .width('100%')
         .padding({ left: 14, right: 14 })

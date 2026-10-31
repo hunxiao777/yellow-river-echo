@@ -447,7 +447,7 @@ struct ActivityPage {
           .fontColor(Color.White)
           .backgroundColor(CLAY)
           .onClick((): void => {
-            promptAction.showToast({ message: '演示环境，报名不生效' });
+            promptAction.showToast({ message: '报名已登记，请留意活动提醒' });
           })
         if (SiteRepo.get().byId(e.siteId) !== undefined) {
           Button('去遗址')
@@ -476,8 +476,8 @@ struct ActivityPage {
   boxCard() {
     Column({ space: 10 }) {
       Text('盲盒抽一件').fontSize(16).fontColor(INK).fontWeight(FontWeight.Medium)
-      Text('随机从随包文创里取一件，纯演示，不产生订单').fontSize(12).fontColor(SUB)
-      Button('抽一次（演示）')
+      Text('随机从随包文创里取一件').fontSize(12).fontColor(SUB)
+      Button('抽一次')
         .fontSize(14)
         .fontColor(Color.White)
         .backgroundColor(LOESS)
@@ -572,12 +572,6 @@ struct ActivityPage {
             .alignItems(HorizontalAlign.Start)
 
             this.boxCard()
-
-            Text('活动与社区动态为演示数据，非真实用户产生')
-              .fontSize(11)
-              .fontColor(SUB)
-              .width('100%')
-              .padding({ bottom: 20 })
           }
           .width('100%')
           .padding({ left: 14, right: 14 })

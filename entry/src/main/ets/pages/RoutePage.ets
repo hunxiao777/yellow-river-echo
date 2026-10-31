@@ -288,13 +288,6 @@ struct RoutePage {
             }, (s: SiteInfo): string => 'stop_' + s.id)
           }
           .width('100%')
-
-          Text('顺序按河道示意图的年代轴排布，不是真实里程；盖章记录只存本机。')
-            .fontSize(fs(10))
-            .fontColor(SUB)
-            .width('100%')
-            .textAlign(TextAlign.Center)
-            .margin({ top: 2, bottom: 18 })
         }
         .width('100%')
         .padding({ left: 14, right: 14 })

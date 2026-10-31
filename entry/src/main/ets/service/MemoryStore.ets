@@ -70,15 +70,15 @@ export class MemoryStore {
       createdAt: now - 3600000, updatedAt: now - 3600000, deleted: false };
     this.favs.push(f1, f2, f3);
     let n1: NoteRec = { id: 'nt_demo_1', siteId: 's01',
-      text: '（演示）仰韶村先看窖穴剖面，再对彩陶盆残片，顺序别反。',
+      text: '仰韶村先看窖穴剖面，再对彩陶盆残片，顺序别反。',
       createdAt: now - 86400000, updatedAt: now - 86400000, version: 1,
       deviceId: this.deviceSn, deleted: false, ord: now - 86400000 };
     let n2: NoteRec = { id: 'nt_demo_2', siteId: 's04',
-      text: '（演示）二里头绿松石龙形器在二层展柜，牌释记得抄编号。',
+      text: '二里头绿松石龙形器在二层展柜，牌释记得抄编号。',
       createdAt: now - 43200000, updatedAt: now - 43200000, version: 1,
       deviceId: this.deviceSn, deleted: false, ord: now - 43200000 };
     let n3: NoteRec = { id: 'nt_demo_3', siteId: 's02',
-      text: '（演示）北阳平大房子基址比想象中大，返程留足时间。',
+      text: '北阳平大房子基址比想象中大，返程留足时间。',
       createdAt: now - 3600000, updatedAt: now - 3600000, version: 1,
       deviceId: this.deviceSn, deleted: false, ord: now - 3600000 };
     this.notes.push(n1, n2, n3);

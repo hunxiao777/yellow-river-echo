@@ -934,10 +934,6 @@ export struct FloatingAssistant {
         this.errView()
       }
       this.inputBar()
-      Text('回答由 Dify 上的模型生成，请以站内档案为准。')
-        .fontSize(fs(9))
-        .fontColor(SUB)
-        .margin({ top: 2, bottom: 2 })
     }
     .width('100%')
     .height('100%')

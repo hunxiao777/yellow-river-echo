@@ -227,20 +227,6 @@ struct DetailPage {
           .width('100%').height(200).objectFit(ImageFit.Cover)
           .translate({ y: this.scrollY * 0.4 })
 
-        // 配图是 AI 生成的示意图，不是现场照片：标注钉在图上，不只写在页脚
-        Column() {
-          Text('AI 生成示意图')
-            .fontSize(fs(9)).fontColor('#F0E7D8')
-            .backgroundColor('rgba(43,38,34,0.42)')
-            .padding({ left: 7, right: 7, top: 3, bottom: 3 })
-            .borderRadius(8)
-        }
-        .width('100%').height('100%')
-        .alignItems(HorizontalAlign.End)
-        .justifyContent(FlexAlign.Start)
-        .padding(12)
-        .hitTestBehavior(HitTestMode.Transparent)
-
         Column({ space: 4 }) {
           Text(this.site!.name)
             .fontSize(fs(22)).fontColor(Color.White).fontWeight(FontWeight.Bold)
@@ -377,7 +363,7 @@ struct DetailPage {
 
           ListItem() {
             RiverRibbon({ bandHeight: 66, showDots: true, activeId: this.site.id,
-              note: '你在干流上的位置。横轴是年代，纵向偏移是城市自西向东；示意排布，非真实经纬。' })
+              note: '你在干流上的位置。横轴是年代，纵向偏移是城市自西向东。' })
           }
 
           ForEach(this.secs(), (sec: SecCard, idx: number): void => {

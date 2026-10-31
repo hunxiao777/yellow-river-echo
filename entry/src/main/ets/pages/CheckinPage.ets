@@ -309,11 +309,6 @@ struct CheckinPage {
           }
           .width('100%')
           .alignItems(HorizontalAlign.Start)
-
-          Text('河道走向按真实经纬手工标定，是示意地图、不是测绘成果；打卡只存本机，不进分布式队列；实景照片来自 Wikimedia Commons 黄河乾坤湾（CC0 授权），卡片配图为 AI 生成示意图。')
-            .fontSize(fs(10)).fontColor(SUB)
-            .width('100%').textAlign(TextAlign.Center)
-            .margin({ top: 2, bottom: 18 })
         }
         .width('100%')
         .padding({ left: 14, right: 14 })
