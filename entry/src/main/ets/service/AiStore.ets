@@ -16,6 +16,8 @@ export class AiStore {
   personalOn: boolean = false;
   conversationId: string = '';
   turns: ChatTurn[] = [];
+  // 游客是否已经用过助手：没用过时，首页「问」挂红点、悬浮球挂引导气泡
+  askSeen: boolean = false;
 
   private p: preferences.Preferences | null = null;
   private rev: number = 0;
@@ -28,6 +30,8 @@ export class AiStore {
     this.baseUrl = (this.p.getSync('baseUrl', this.baseUrl) as string).trim();
     this.appKey = (this.p.getSync('appKey', '') as string).trim();
     this.personalOn = (this.p.getSync('personalOn', false) as boolean) === true;
+    this.askSeen = (this.p.getSync('askSeen', false) as boolean) === true;
+    AppStorage.setOrCreate('assistantSeen', this.askSeen);
     this.conversationId = this.p.getSync('conversationId', '') as string;
     let raw = this.p.getSync('turns', '[]') as string;
     try {
@@ -118,6 +122,25 @@ export class AiStore {
     this.bump();
   }
 
+  // 第一次打开助手卡片就把引导（红点、气泡）收掉，装得再多次也不再打扰
+  markAskSeen(): void {
+    if (this.askSeen) {
+      return;
+    }
+    this.askSeen = true;
+    AppStorage.setOrCreate('assistantSeen', true);
+    if (this.p === null) {
+      return;
+    }
+    this.p.put('askSeen', true).then((): void => {
+      if (this.p !== null) {
+        this.p.flush();
+      }
+    }).catch((e: Error): void => {
+      console.warn('askSeen save: ' + e.message);
+    });
+  }
+
   async setConversation(id: string): Promise<void> {
     this.conversationId = id;
     await this.persist();
@@ -159,6 +182,7 @@ export class AiStore {
     await this.p.put('baseUrl', this.baseUrl);
     await this.p.put('appKey', this.appKey);
     await this.p.put('personalOn', this.personalOn);
+    await this.p.put('askSeen', this.askSeen);
     await this.p.put('conversationId', this.conversationId);
     await this.p.put('turns', JSON.stringify(this.turns));
     await this.p.flush();

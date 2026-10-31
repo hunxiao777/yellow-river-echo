@@ -21,6 +21,22 @@ export function goAssistant(): void {
   router.pushUrl({ url: 'pages/AssistantPage' });
 }
 
+// 半屏助手卡片的唯一开关：首页右上角「问」和右下角悬浮球改的是同一个状态，
+// 弹出的是同一个 FloatingAssistant，所以从哪儿进都看得到同一份记录。
+export function openAssistantSheet(): void {
+  AppStorage.setOrCreate('assistantSheet', true);
+}
+
+export function closeAssistantSheet(): void {
+  AppStorage.setOrCreate('assistantSheet', false);
+}
+
+// 首页和地图页各挂了一个悬浮助手实例，同一时刻只让"当前页"那个弹卡片。
+export function claimAssistant(tag: string): void {
+  AppStorage.setOrCreate('assistantOwner', tag);
+  AppStorage.setOrCreate('assistantSheet', false);
+}
+
 export function goDetail(id: string): void {
   let p: RouteParam = { id: id };
   router.pushUrl({ url: 'pages/DetailPage', params: p });

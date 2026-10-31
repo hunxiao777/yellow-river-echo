@@ -22,18 +22,31 @@ const IDLE_MS: number = 3600;      // 多久不碰就自动收进边里
 const SCROLL_BACK_MS: number = 780; // 滚动停下来多久弹回
 const STEP: number = 6;            // 补间每帧走的距离
 const TOP_KEEP: number = 96;       // 拖动时离顶部留白，别钻进状态栏
+const GUIDE_W: number = 150;       // 引导气泡定宽，位置才算得准
+const GUIDE_H: number = 32;
+const GUIDE_MS: number = 5600;     // 第一次挂出来的气泡，多久自己收掉
+const FOCUS_DELAY: number = 430;   // 卡片铺好再让输入框抢焦点，太早会落空
 
 // 全局悬浮的河小导：可拖动、松手吸附左右边，空闲和滚动时往边上收。
-// 点击弹出半屏气泡，气泡里的问答同样走 AiService，并把消息写回 AiStore；
-// 「去全屏」只做跳转，conversation_id 本来就在 AiStore 里，全屏页接着聊。
+// 半屏卡片是否展开只看一个状态：AppStorage 的 assistantSheet，
+// 首页右上角「问」和这颗球写的都是它，弹出来的也都是这一个组件，
+// 所以不管从哪儿进，看到的都是同一份 AiStore 记录。
+// 气泡里的「去全屏」只做跳转，conversation_id 本来就在 AiStore 里，全屏页接着聊。
 @Component
 export struct FloatingAssistant {
   @Prop bottomGap: number = 24;
+  // 挂在哪个页面。首页和地图页各一个实例，同一时刻只有"当前页"那个能弹卡片
+  @Prop tag: string = 'home';
+  // 半屏卡片唯一的开关：两个入口都写它
+  @StorageLink('assistantSheet') open: boolean = false;
+  @StorageLink('assistantOwner') @Watch('onOwnerChange') ownerTag: string = 'home';
+  // 首次引导：还没用过助手时，球旁边挂一句话
+  @StorageLink('assistantSeen') seen: boolean = false;
+  @State guide: boolean = false;
   // 全屏页聊完回来，气泡也要跟着刷新，而不是各自记一份
   @StorageLink('aiRev') @Watch('syncTurns') aiRev: number = 0;
   // 页面滚动信号：HomeView 的 Scroll 和地图页的 Web 都往这里盖时间戳
   @StorageLink('fabScrollAt') @Watch('onScrollSignal') fabScrollAt: number = 0;
-  @State open: boolean = false;
   @State breath: number = 1;
   @State msgs: ChatTurn[] = [];
   @State live: string = '';
@@ -63,6 +76,10 @@ export struct FloatingAssistant {
   private idleTimer: number = -1;
   private scrollTimer: number = -1;
   private clearTimer: number = -1;
+  private guideTimer: number = -1;
+  // 只有真正把自己的卡片展示过的那个实例，才允许在关闭时改全局状态
+  private showing: boolean = false;
+  private autoFocused: boolean = false;
   private idleTuck: boolean = false;
   private scrollHide: boolean = false;
   private dragTx: number = 0;
@@ -84,6 +101,14 @@ export struct FloatingAssistant {
     this.tgtTx = this.tx;
     this.tgtTy = this.ty;
     this.touch();
+    // 第一次还没用过助手时，球边上一句话引导；用过就再也不出现（askSeen 落在 preferences）
+    this.guide = !this.seen && this.mine();
+    if (this.guide) {
+      this.guideTimer = setTimeout((): void => {
+        this.guide = false;
+        this.guideTimer = -1;
+      }, GUIDE_MS);
+    }
     // 呼吸动效用定时器推，而不是 animateTo：模拟器把系统动画时长关掉时
     // animateTo 会一步跳到终点，截图里看不出"在呼吸"，这里用正弦波自己走
     this.breathT0 = Date.now();
@@ -101,7 +126,38 @@ export struct FloatingAssistant {
     }
   }
 
+  // 当前是不是"这一页"的助手：首页和地图页各有一个实例，卡片只能由当前页那个弹
+  private mine(): boolean {
+    return this.ownerTag === this.tag;
+  }
+
+  // 两个入口（首页「问」/ 悬浮球）最终都落到这一个判断上
+  private sheetOn(): boolean {
+    return this.mine() && this.open;
+  }
+
+  onOwnerChange(): void {
+    if (!this.mine()) {
+      this.guide = false;
+      return;
+    }
+    if (!this.seen && !this.open) {
+      this.guide = true;
+      if (this.guideTimer >= 0) {
+        clearTimeout(this.guideTimer);
+      }
+      this.guideTimer = setTimeout((): void => {
+        this.guide = false;
+        this.guideTimer = -1;
+      }, GUIDE_MS);
+    }
+  }
+
   aboutToDisappear(): void {
+    if (this.guideTimer >= 0) {
+      clearTimeout(this.guideTimer);
+      this.guideTimer = -1;
+    }
     if (this.breathTimer >= 0) {
       clearInterval(this.breathTimer);
       this.breathTimer = -1;
@@ -194,7 +250,7 @@ export struct FloatingAssistant {
   }
 
   private tuckTarget(): number {
-    if (this.open || this.busy) {
+    if (this.sheetOn() || this.busy) {
       return 0;
     }
     if (this.scrollHide) {
@@ -267,6 +323,11 @@ export struct FloatingAssistant {
       this.idleTuck = true;
       this.refreshTuck();
     }, IDLE_MS);
+  }
+
+  private fabAlpha(): number {
+    let a = this.tuck > 0 ? Math.max(0.5, 1 - this.tuck / 60) : 1;
+    return this.sheetOn() ? a * 0.55 : a;
   }
 
   private fabShiftX(): number {
@@ -377,8 +438,9 @@ export struct FloatingAssistant {
       this.err = '回答已中断';
       this.lastQ = this.curQ;
     } else {
-      this.err = '模型没有返回内容，稍后再试';
-      this.lastQ = '';
+      // 空回答也可能是上游被限流后被 Dify 吞掉，照样留「再问一次」
+      this.err = AiService.ERR_EMPTY;
+      this.lastQ = this.curQ;
     }
     this.follow(true);
   }
@@ -404,12 +466,38 @@ export struct FloatingAssistant {
   }
 
   private openSheet(): void {
+    // 卡片只由当前页的实例弹，压在底下的首页实例不跟着弹第二张
+    if (!this.mine()) {
+      return;
+    }
     this.open = true;
+    this.guide = false;
+    // 用过一次，红点和引导气泡就都收掉
+    if (!this.seen) {
+      this.seen = true;
+      AiStore.get().markAskSeen();
+    }
     this.touch();
     // 气泡是懒构建的，等它铺好再贴到底部，直接调 scroller 会落空
     setTimeout((): void => {
       this.follow(true);
     }, 320);
+    // 第一次帮他把光标送进输入框、顺带弹起键盘，省一次点击；之后不再抢。
+    // 卡片是懒构建 + 有展开动画，一次 requestFocus 会落空，所以拿到 true 才停
+    if (!this.autoFocused) {
+      this.autoFocused = true;
+      this.tryFocus(3);
+    }
+  }
+
+  private tryFocus(left: number): void {
+    setTimeout((): void => {
+      let ok = focusControl.requestFocus('fabInput');
+      console.info('fabInput focus=' + ok + ' left=' + left);
+      if (!ok && left > 0) {
+        this.tryFocus(left - 1);
+      }
+    }, FOCUS_DELAY);
   }
 
   // 气泡里的「清空历史」：把在流的连接一起掐掉，否则清完还在往外吐字
@@ -458,7 +546,9 @@ export struct FloatingAssistant {
     .margin({ right: INSET, bottom: this.bottomGap })
     // 拖动 + 贴边：位移走 translate，不重新布局，收边时整颗球往所在边滑一半出去
     .translate({ x: this.fabShiftX(), y: this.ty })
-    .opacity(this.tuck > 0 ? Math.max(0.5, 1 - this.tuck / 60) : 1)
+    // 卡片展开时球缩一点、淡一点，表示"我在工作，不用你点了"；收起自动恢复
+    .scale(this.sheetOn() ? { x: 0.86, y: 0.86 } : { x: 1, y: 1 })
+    .opacity(this.fabAlpha())
     // 整层是 Transparent 让页面照常可点，但按钮本身要把事件吃掉，
     // 否则地图页点悬浮球会连底下的「游览路线」一起触发
     .hitTestBehavior(HitTestMode.Block)
@@ -483,15 +573,24 @@ export struct FloatingAssistant {
     })
     // 气泡仍挂在球上：bindSheet 取的是布局位置，translate 不会把气泡拽偏，
     // 挂在满屏容器上反而会让气泡的点击被 Transparent 的命中测试分走
-    .bindSheet(this.open, this.sheetView(), {
+    .bindSheet(this.sheetOn(), this.sheetView(), {
       height: 500,
       dragBar: false,
       showClose: false,
       backgroundColor: $r('app.color.card_bg'),
       keyboardAvoidMode: SheetKeyboardAvoidMode.TRANSLATE_AND_RESIZE,
+      onAppear: (): void => {
+        this.showing = true;
+      },
       onDisappear: (): void => {
-        this.open = false;
-        this.refreshTuck();
+        // 只有真的弹过卡片的那个实例写回状态：压在底下的首页实例别把地图页刚开的卡片关掉
+        if (this.showing) {
+          this.showing = false;
+          if (this.mine()) {
+            this.open = false;
+          }
+          this.refreshTuck();
+        }
       }
     })
   }
@@ -776,6 +875,7 @@ export struct FloatingAssistant {
   inputBar() {
     Row({ space: 8 }) {
       TextInput({ text: this.input, placeholder: '问遗址、器物或路线…' })
+        .key('fabInput')
         .layoutWeight(1)
         .height(42)
         .borderRadius(21)
@@ -843,12 +943,53 @@ export struct FloatingAssistant {
     .height('100%')
     .padding({ left: 14, right: 14, bottom: 8 })
     .backgroundColor($r('app.color.card_bg'))
+    // 头部那条小把手是画出来的（系统 dragBar 关了），下滑收起自己动手：
+    // 往下拖过 60vp 就收卡片；消息区里的竖向拖动仍归 Scroll，两边不打架
+    .gesture(
+      PanGesture({ direction: PanDirection.Vertical, distance: 24 })
+        .onActionEnd((event: GestureEvent): void => {
+          if (event.offsetY > 60) {
+            this.open = false;
+          }
+        })
+    )
+  }
+
+  // 第一次还没用过助手时挂在球旁边的一句话；点它等同于点球，用过就不再出现
+  @Builder
+  guideBubble() {
+    Text('有不懂的随时问我哦')
+      .fontSize(fs(12))
+      .fontColor(INK)
+      .textAlign(TextAlign.Center)
+      .width(GUIDE_W)
+      .height(GUIDE_H)
+      .borderRadius(16)
+      .backgroundColor($r('app.color.card_bg'))
+      .border({ width: 1, color: 'rgba(166,85,61,0.35)' })
+      .shadow({ radius: 8, color: 'rgba(43,38,34,0.16)', offsetY: 2 })
+      .position(this.guidePos())
+      .hitTestBehavior(HitTestMode.Block)
+      .transition(TransitionEffect.OPACITY.animation({ duration: 200 }))
+      .onClick((): void => {
+        this.openSheet();
+      })
+  }
+
+  private guidePos(): Position {
+    let ballX = this.stageW - INSET - FAB_W + this.fabShiftX();
+    let x = this.side === 'left' ? ballX + 8 : ballX + FAB_W - GUIDE_W - 4;
+    let y = this.stageH - this.bottomGap - FAB_W + this.ty - GUIDE_H - 8;
+    return { x: x, y: y };
   }
 
   build() {
     // 满屏透明容器负责“绝对定位”，只有气泡按钮本身接收点击，空白处让给下层页面
     Stack({ alignContent: Alignment.BottomEnd }) {
       this.fab()
+      if (this.guide && this.mine() && !this.sheetOn()) {
+        this.guideBubble()
+      }
     }
     .width('100%')
     .height('100%')

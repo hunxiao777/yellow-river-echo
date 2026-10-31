@@ -4,7 +4,7 @@ import { common } from '@kit.AbilityKit';
 import { util } from '@kit.ArkTS';
 import { fileIo as fs, fileUri, picker } from '@kit.CoreFileKit';
 import { systemShare } from '@kit.ShareKit';
-import { params } from '../common/Nav';
+import { params, claimAssistant } from '../common/Nav';
 import { FloatingAssistant } from '../view/FloatingAssistant';
 
 class ExperienceBridge {
@@ -45,6 +45,15 @@ class ExperienceBridge {
 @Entry
 @Component
 struct ExperiencePage {
+  aboutToAppear(): void {
+    // 进地图页就把悬浮助手交给这一页的实例，压在底下的首页实例不再弹卡片
+    claimAssistant('map');
+  }
+
+  aboutToDisappear(): void {
+    claimAssistant('home');
+  }
+
   private controller: webview.WebviewController = new webview.WebviewController();
   private bridge: ExperienceBridge = new ExperienceBridge(getContext(this) as common.UIAbilityContext);
   // 地图页里的悬浮球也要跟着网页滚动收一收
@@ -104,7 +113,7 @@ struct ExperiencePage {
       }.width('100%').height('100%')
 
       // 地图页右下角悬浮；地图底部中间有「路线」大按钮，这里留 20vp 靠右不打架
-      FloatingAssistant({ bottomGap: 20 })
+      FloatingAssistant({ bottomGap: 20, tag: 'map' })
     }.width('100%').height('100%')
   }
 }

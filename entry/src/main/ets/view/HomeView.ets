@@ -15,7 +15,7 @@ import {
 import {
   openDrawer, switchTab, goList, goDetail, goArchive, goPottery,
   goActivity, goCheckin, goRoute, goQuiz,
-  goEngineer, goTopic, goSync, goStudio, goExperience, goAssistant
+  goEngineer, goTopic, goSync, goStudio, goExperience, openAssistantSheet
 } from '../common/Nav';
 
 const SHAPES: string[] = ['pot', 'jar', 'ding', 'tile', 'stele', 'box', 'coin', 'kiln'];
@@ -267,6 +267,8 @@ export struct HomeView {
   @State noteN: number = 0;
   @State wSway: number = -7;
   @State mapFloat: boolean = false;
+  // 「问」按钮的红点：没用过助手才挂，用过永久收掉
+  @StorageLink('assistantSeen') askSeen: boolean = false;
   // 给右下角悬浮河小导发滚动信号：滚起来先收进边里，别压着内容
   private fabSignalAt: number = 0;
 
@@ -404,18 +406,33 @@ export struct HomeView {
           this.doSearch();
         })
 
-      Text('问')
-        .fontSize(fs(13))
-        .fontColor(Color.White)
-        .fontWeight(FontWeight.Medium)
-        .width(32)
-        .height(32)
-        .borderRadius(16)
-        .backgroundColor(CLAY)
-        .textAlign(TextAlign.Center)
-        .onClick((): void => {
-          goAssistant();
-        })
+      Stack({ alignContent: Alignment.TopEnd }) {
+        Text('问')
+          .fontSize(fs(13))
+          .fontColor(Color.White)
+          .fontWeight(FontWeight.Medium)
+          .width(32)
+          .height(32)
+          .borderRadius(16)
+          .backgroundColor(CLAY)
+          .textAlign(TextAlign.Center)
+        // 右上角这颗和右下角的球是同一个开关：assistantSheet 一置真，弹的都是同一个 FloatingAssistant
+          .onClick((): void => {
+            openAssistantSheet();
+          })
+        if (!this.askSeen) {
+          // 还没用过助手时挂个红点，用过一次就永久收掉（askSeen 落在 preferences）
+          Circle()
+            .width(9)
+            .height(9)
+            .fill('#E2483B')
+            .stroke(PAPER)
+            .strokeWidth(1.5)
+            .offset({ x: 3, y: -2 })
+        }
+      }
+      .width(32)
+      .height(32)
 
       Stack({ alignContent: Alignment.TopEnd }) {
         Text('✉')

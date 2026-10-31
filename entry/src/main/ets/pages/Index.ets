@@ -389,7 +389,7 @@ struct Index {
 
       // 只在首页露出；底栏 58vp，再留 16vp 呼吸空间
       if (this.ready && this.tab === 0) {
-        FloatingAssistant({ bottomGap: 74 })
+        FloatingAssistant({ bottomGap: 74, tag: 'home' })
       }
 
       if (this.createOpen) {
