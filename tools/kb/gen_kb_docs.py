@@ -11,7 +11,9 @@
     goods-文创市集.md
     courses-沿河课程.md
     events-沿河活动.md
-    posts-社区动态.md
+
+社区动态（huanghe_posts.json）不再导出：那是站内游客自己的分享，进检索源
+会让助手把 UGC 当档案引用，也会让回答里冒出「引 · posts」这类chip。
 
 上传到 Dify 知识库时保持文件名不变。App 端引用回跳只认文件名开头的
 siteId（如 s01-庙底沟遗址.md → s01），所以不要改 sXX- 前缀。
@@ -136,27 +138,6 @@ def events_doc(events):
     return "\n".join(lines)
 
 
-def posts_doc(posts):
-    lines = ["# 社区动态", "", "站内用户分享，演示数据。", ""]
-    for p in posts:
-        lines += [
-            f"## {p['id']} · {p['author']}",
-            f"- 身份：{p.get('role', '')}",
-            f"- 话题：{p.get('topic', '')}",
-            f"- 关联遗址：{p.get('siteId', '')}",
-            "",
-            p.get("text", ""),
-            "",
-        ]
-        comments = p.get("comments") or []
-        if comments:
-            lines.append("评论：")
-            for c in comments[:3]:
-                lines.append(f"- {c['author']}：{c['text']}")
-            lines.append("")
-    return "\n".join(lines)
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(ROOT / "tools" / "kb" / "docs"))
@@ -175,7 +156,6 @@ def main():
         ("goods-文创市集.md", goods_doc(load("huanghe_goods.json"))),
         ("courses-沿河课程.md", courses_doc(load("huanghe_courses.json"))),
         ("events-沿河活动.md", events_doc(load("huanghe_events.json"))),
-        ("posts-社区动态.md", posts_doc(load("huanghe_posts.json"))),
     ]
     for fn, text in packs:
         (out / fn).write_text(text, encoding="utf-8", newline="\n")
