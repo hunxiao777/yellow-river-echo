@@ -5,7 +5,7 @@ import { AiService, StreamHandle } from '../service/AiService';
 import { AiContext } from '../service/AiContext';
 import { cleanAiText, cleanPartial } from '../common/Markdown';
 import { INK, SUB, LOESS, CLAY, LINE, RIVER, fs } from '../common/Theme';
-import { goDetail } from '../common/Nav';
+import { goDetail, goTopicSection } from '../common/Nav';
 
 const TIPS: string[] = [
   '仰韶彩陶有什么特点？',
@@ -417,14 +417,19 @@ struct AssistantPage {
   citeChip(c: Citation) {
     Text('引 · ' + c.name)
       .fontSize(fs(10))
-      .fontColor(c.siteId.length > 0 ? RIVER : SUB)
+      .fontColor(c.type === 'site' ? RIVER : '#8B6B2A')
       .padding({ left: 8, right: 8, top: 3, bottom: 3 })
       .borderRadius(9)
-      .border({ width: 1, color: c.siteId.length > 0 ? 'rgba(74,123,140,0.45)' : LINE })
+      .backgroundColor(c.type === 'site' ? Color.Transparent : 'rgba(200,161,96,0.12)')
+      .border({ width: 1, color: c.type === 'site' ? 'rgba(74,123,140,0.45)' : 'rgba(200,161,96,0.55)' })
       .margin({ right: 6, top: 6 })
       .onClick((): void => {
-        if (c.siteId.length > 0) {
-          goDetail(c.siteId);
+        if (c.type === 'site') {
+          if (c.siteId.length > 0) {
+            goDetail(c.siteId);
+          }
+        } else {
+          goTopicSection(c.type);
         }
       })
   }
@@ -461,7 +466,7 @@ struct AssistantPage {
           Flex({ wrap: FlexWrap.Wrap }) {
             ForEach(t.citations, (c: Citation): void => {
               this.citeChip(c)
-            }, (c: Citation): string => c.siteId + '|' + c.name)
+            }, (c: Citation): string => c.type + '|' + c.siteId + '|' + c.name)
           }
           .width('100%')
           .margin({ top: 4 })

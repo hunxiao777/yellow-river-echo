@@ -1,6 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { preferences } from '@kit.ArkData';
-import { ChatTurn } from '../model/AiModels';
+import { ChatTurn, Citation } from '../model/AiModels';
 import { MemoryStore } from './MemoryStore';
 
 // 助手的本机配置与对话留档。
@@ -46,12 +46,52 @@ export class AiStore {
       if (t.isAborted === undefined) {
         t.isAborted = false;
       }
+      let kept: Citation[] = [];
       for (let c of t.citations) {
-        if (c.name.endsWith('.md')) {
-          c.name = c.name.substring(0, c.name.length - 3);
+        let fixed = this.normalizeCitation(c);
+        if (fixed !== undefined) {
+          kept.push(fixed);
         }
       }
+      t.citations = kept;
     }
+  }
+
+  // 老历史里没有 type 字段，按 siteId / 文档名回推分类；
+  // 社区动态（posts）和认不出来源的引用一律不保留，界面就不会渲染 Chip
+  private normalizeCitation(c: Citation): Citation | undefined {
+    let name = (c.name ?? '').trim();
+    if (name.endsWith('.md')) {
+      name = name.substring(0, name.length - 3);
+    }
+    let low = name.toLowerCase();
+    if (low.indexOf('posts') >= 0 || name.indexOf('社区动态') >= 0) {
+      return undefined;
+    }
+    let siteId = (c.siteId ?? '').trim();
+    let type = '';
+    if (siteId.length > 0) {
+      type = 'site';
+    } else if (low.indexOf('goods') >= 0 || name.indexOf('文创') >= 0) {
+      type = 'goods';
+    } else if (low.indexOf('courses') >= 0 || name.indexOf('课程') >= 0) {
+      type = 'courses';
+    } else if (low.indexOf('events') >= 0 || name.indexOf('活动') >= 0) {
+      type = 'events';
+    } else {
+      // 遗址号没解析出来的旧引用：既跳不了遗址，也跳不了专题，丢掉
+      return undefined;
+    }
+    if (type !== 'site') {
+      let dash = name.indexOf('-');
+      if (dash > 0) {
+        name = name.substring(dash + 1);
+      }
+    }
+    c.name = name;
+    c.siteId = siteId;
+    c.type = type;
+    return c;
   }
 
   configured(): boolean {

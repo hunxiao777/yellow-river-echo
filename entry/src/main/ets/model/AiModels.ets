@@ -6,6 +6,9 @@ export interface Citation {
   name: string;
   score: number;
   snippet: string;
+  // 引用出自哪类知识库文档：'site' 遗址 / 'goods' 文创 / 'courses' 课程 / 'events' 活动。
+  // 决定 Chip 的配色和点进去落到哪个页面；旧历史缺这个字段时由 AiStore 回填。
+  type: string;
 }
 
 export interface ChatTurn {

@@ -286,16 +286,17 @@ export class AiService {
   }
 
   private addCitation(out: Citation[], r: RetrieverRes): void {
-    let doc = r.document_name ?? '';
+    let doc = (r.document_name ?? '').trim();
     if (doc.length === 0) {
       return;
     }
-    let siteId = this.siteIdOf(doc);
-    let site = siteId.length > 0 ? SiteRepo.get().byId(siteId) : undefined;
-    let name = site !== undefined ? site.name : doc;
-    if (site === undefined && name.endsWith('.md')) {
-      name = name.substring(0, name.length - 3);
+    let kind = this.kindOf(doc);
+    if (kind.length === 0) {
+      return;
     }
+    let siteId = kind === 'site' ? this.siteIdOf(doc) : '';
+    let site = siteId.length > 0 ? SiteRepo.get().byId(siteId) : undefined;
+    let name = site !== undefined ? site.name : this.topicNameOf(kind, doc);
     for (let c of out) {
       if (c.siteId === siteId && c.name === name) {
         return;
@@ -309,8 +310,50 @@ export class AiService {
       siteId: siteId,
       name: name,
       score: r.score ?? 0,
-      snippet: snippet
+      snippet: snippet,
+      type: kind
     });
+  }
+
+  // 知识库文档命名约定：遗址是 s01-仰韶村遗址.md，专题是 goods-文创市集.md /
+  // courses-沿河课程.md / events-沿河活动.md / posts-社区动态.md。
+  // 只放行白名单：posts 是站内用户分享，不能当作事实依据，整条引用直接丢；
+  // 认不出来的文档（临时试验稿、别的知识库）同样不渲染 Chip，返回空串。
+  private kindOf(doc: string): string {
+    let name = doc;
+    if (name.endsWith('.md')) {
+      name = name.substring(0, name.length - 3);
+    }
+    let dash = name.indexOf('-');
+    let head = (dash > 0 ? name.substring(0, dash) : name).toLowerCase();
+    if (head === 'posts') {
+      return '';
+    }
+    if (head === 'goods' || head === 'courses' || head === 'events') {
+      return head;
+    }
+    // 遗址必须能在 SiteRepo 里对上号，等于把 s01~s20 当白名单用
+    return this.siteIdOf(name).length > 0 ? 'site' : '';
+  }
+
+  // 专题 Chip 只展示中文专题名，不带 goods- 这类文件名前缀
+  private topicNameOf(kind: string, doc: string): string {
+    let name = doc;
+    if (name.endsWith('.md')) {
+      name = name.substring(0, name.length - 3);
+    }
+    let dash = name.indexOf('-');
+    let tail = (dash > 0 ? name.substring(dash + 1) : '').trim();
+    if (tail.length > 0) {
+      return tail;
+    }
+    if (kind === 'goods') {
+      return '文创市集';
+    }
+    if (kind === 'courses') {
+      return '沿河课程';
+    }
+    return '沿河活动';
   }
 
   // 知识库文件名约定为「s01-仰韶村遗址.md」，引用回跳时只认 siteId

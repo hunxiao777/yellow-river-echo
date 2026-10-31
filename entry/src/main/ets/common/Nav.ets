@@ -1,4 +1,5 @@
 import { router } from '@kit.ArkUI';
+import { ContentRepo } from '../service/ContentRepo';
 
 export interface RouteParam {
   id?: string;
@@ -124,6 +125,28 @@ export function goQuiz(from: string): void {
 
 export function goBack(): void {
   router.back();
+}
+
+// 专题类引用（文创 / 课程 / 活动）的落点：
+// 文创市集在首页的「文创」页签，课程有独立页，活动没有列表页就跳最近一场排期。
+// type 由 AiService 按知识库文档名前缀判定，遗址类不走这里。
+export function goTopicSection(type: string): void {
+  if (type === 'courses') {
+    goCourses();
+    return;
+  }
+  if (type === 'events') {
+    let next = ContentRepo.get().upcomingEvents(1);
+    if (next.length > 0) {
+      goActivity(next[0].id);
+    }
+    return;
+  }
+  if (type === 'goods') {
+    switchTab(1);
+    // 从助手页/地图页跳过来时退回主框架，让「文创」页签露出来；已在首页则原地切换
+    router.back({ url: 'pages/Index' });
+  }
 }
 
 export function openDrawer(): void {
