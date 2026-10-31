@@ -969,7 +969,8 @@ export struct HomeView {
                 .margin({ top: 4 })
             }
             .width('100%')
-            .padding({ left: 14, right: 14, bottom: 20 })
+            // 留出右下角悬浮河小导的位置，滚到底时页脚不会被它压住
+            .padding({ left: 14, right: 14, bottom: 92 })
             .alignItems(HorizontalAlign.Start)
           }
           .width('100%')

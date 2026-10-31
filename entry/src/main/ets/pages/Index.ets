@@ -8,6 +8,7 @@ import { HomeView } from '../view/HomeView';
 import { ShopView } from '../view/ShopView';
 import { SocialView } from '../view/SocialView';
 import { MineView } from '../view/MineView';
+import { FloatingAssistant } from '../view/FloatingAssistant';
 import { INK, SUB, LOESS, CLAY, paletteOf, WATER_NAMES, WATER_LABELS, SCALE_LABELS, fs } from '../common/Theme';
 import { effectiveWaterMode } from '../common/River';
 import { goArchive, goPottery, goTopic, goSync, goCourses, goQuiz, goGuide, goEngineer, closeDrawer } from '../common/Nav';
@@ -385,6 +386,11 @@ struct Index {
       }
       .width('100%')
       .height('100%')
+
+      // 只在首页露出；底栏 58vp，再留 16vp 呼吸空间
+      if (this.ready && this.tab === 0) {
+        FloatingAssistant({ bottomGap: 74 })
+      }
 
       if (this.createOpen) {
         Column() {

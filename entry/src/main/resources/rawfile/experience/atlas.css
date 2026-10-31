@@ -14,7 +14,7 @@ header h1{font-size:22px;letter-spacing:2px}header button{padding:8px 12px}
 .atlas-map .tools{top:54px;right:11px;gap:10px}.atlas-map .tools button{width:45px;height:45px;background:#fffdf3f2;border:1px solid #d5c9ac;font-size:11px;box-shadow:0 3px 10px #3a3c2725;color:#587967}
 .zoom-tools{position:absolute;left:13px;bottom:52px;display:grid;z-index:3;border-radius:23px;overflow:hidden;box-shadow:0 3px 12px #31352430}
 .zoom-tools button{border-radius:0;width:39px;height:39px;padding:0;background:#fffdf5;color:#81683d;font-size:20px;border-bottom:1px solid #e9dfcb}
-.atlas-map .routeBtn{width:74px;height:74px;font-size:18px;line-height:1.2;padding:0;bottom:24px;left:auto;right:14px;transform:none;background:#9c804e;z-index:3}
+.atlas-map .routeBtn{width:74px;height:74px;font-size:18px;line-height:1.2;padding:0;bottom:24px;left:50%;right:auto;transform:translateX(-50%);background:#9c804e;z-index:3}
 .map-caption{position:absolute;left:14px;bottom:14px;background:#fffdf1e8;border-radius:15px;padding:6px 11px;font-size:11px;color:#706049;pointer-events:none}
 .atlas-map .pin{outline:none}.atlas-map .pin:hover .pin-pop,.atlas-map .pin:focus-visible .pin-pop{filter:drop-shadow(0 0 12px #b3914c)}
 .pin-pop{animation:markerPop .54s cubic-bezier(.16,.85,.24,1.2) both;transform-origin:0 0}

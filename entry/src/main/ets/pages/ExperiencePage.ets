@@ -5,6 +5,7 @@ import { util } from '@kit.ArkTS';
 import { fileIo as fs, fileUri, picker } from '@kit.CoreFileKit';
 import { systemShare } from '@kit.ShareKit';
 import { params } from '../common/Nav';
+import { FloatingAssistant } from '../view/FloatingAssistant';
 
 class ExperienceBridge {
   ctx: common.UIAbilityContext;
@@ -70,21 +71,26 @@ struct ExperiencePage {
     return response;
   }
   build() {
-    Column() {
-    Web({ src: this.origin + 'index.html', controller: this.controller })
-      .javaScriptAccess(true).domStorageAccess(true).fileAccess(true)
-      .onInterceptRequest((event): WebResourceResponse =>
-        this.localResource(event.request.getRequestUrl()) as WebResourceResponse)
-      .javaScriptProxy({ object: this.bridge, name: 'Native', methodList: ['back', 'journey', 'panorama', 'saveImage', 'shareImage'], controller: this.controller })
-      .onPageEnd((): void => {
-        let m = params().type ?? 'map';
-        if (!['map', 'travel', 'model', 'footprints'].includes(m)) { m = 'map'; }
-        this.controller.runJavaScript('window.startExperience(' + JSON.stringify(m) + ')');
-        let routeId = params().id ?? '';
-        if (m === 'map' && /^[0-4]$/.test(routeId)) {
-          this.controller.runJavaScript('selectRoute(' + routeId + ')');
-        }
-      }).width('100%').height('100%')
+    Stack({ alignContent: Alignment.BottomEnd }) {
+      Column() {
+      Web({ src: this.origin + 'index.html', controller: this.controller })
+        .javaScriptAccess(true).domStorageAccess(true).fileAccess(true)
+        .onInterceptRequest((event): WebResourceResponse =>
+          this.localResource(event.request.getRequestUrl()) as WebResourceResponse)
+        .javaScriptProxy({ object: this.bridge, name: 'Native', methodList: ['back', 'journey', 'panorama', 'saveImage', 'shareImage'], controller: this.controller })
+        .onPageEnd((): void => {
+          let m = params().type ?? 'map';
+          if (!['map', 'travel', 'model', 'footprints'].includes(m)) { m = 'map'; }
+          this.controller.runJavaScript('window.startExperience(' + JSON.stringify(m) + ')');
+          let routeId = params().id ?? '';
+          if (m === 'map' && /^[0-4]$/.test(routeId)) {
+            this.controller.runJavaScript('selectRoute(' + routeId + ')');
+          }
+        }).width('100%').height('100%')
+      }.width('100%').height('100%')
+
+      // 地图页右下角悬浮；地图底部中间有「路线」大按钮，这里留 20vp 靠右不打架
+      FloatingAssistant({ bottomGap: 20 })
     }.width('100%').height('100%')
   }
 }
