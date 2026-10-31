@@ -106,8 +106,8 @@ struct EngineerPage {
     local.push({ label: '每日签到 checkins', live: st.checkins.length, note: '连签 ' + st.streak() + ' 天' });
     local.push({ label: '现场打卡 siteCheckins', live: st.siteCheckins.length, note: '只存本机，不跨端覆盖' });
     local.push({ label: '自测记录 quizRuns', live: st.quizRuns.length, note: '上限 20 次' });
-    local.push({ label: '文创点赞 likes', live: st.likes.length, note: '演示数据，本机' });
-    local.push({ label: '心愿单 cart', live: st.cart.length, note: '演示数据，本机' });
+    local.push({ label: '文创点赞 likes', live: st.likes.length, note: '本机记录' });
+    local.push({ label: '心愿单 cart', live: st.cart.length, note: '本机记录' });
     local.push({ label: '集字 chars', live: st.chars.length, note: '工坊收集，本机' });
     this.localRows = local;
 

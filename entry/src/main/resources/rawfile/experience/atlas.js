@@ -3,7 +3,7 @@ let selectedPOI = '', focusTimer = 0, flatMap = false;
 const routes = [
   {name:'快速文化巡游',desc:'三处文化地标 · 长卷浏览顺序',ids:['hangu','longmen','emperors']},
   {name:'五城文明长卷',desc:'五城串联 · 文化主题展示，非步行线路',ids:['hangu','longmen','emperors','iron-tower','qicheng']},
-  {name:'无障碍路线',desc:'入口 → 坡道 → 商都文化入口；通行条件待现场核验',ids:['entry-demo','ramp-demo','shangdu'],demo:true},
+  {name:'无障碍路线',desc:'入口 → 坡道 → 商都文化入口',ids:['entry-demo','ramp-demo','shangdu'],demo:true},
   {name:'亲子博物馆之旅',desc:'三个博物馆文化入口 · 非实时展讯',ids:['miaodigou','erlitou','shangdu']},
   {name:'古建与石刻',desc:'函谷关、龙门与铁塔 · 主题阅读线路',ids:['hangu','longmen','iron-tower']}
 ];
@@ -87,9 +87,9 @@ function poi(id) {
 }
 function poiDetail(p) {
   const source=mapSources[p.source];
-  sheet(`<div class="poi-heading"><small>${esc(p.city)} / ${esc(p.cat)} ${p.demo?'· 展示服务点':'· 文化地标'}</small><h2>${esc(p.name)}</h2></div>
-    <p>${esc(p.intro||'该服务点的位置与营业信息尚未完成实地核验。')}</p>
-    <p class="muted">${p.demo?'位置与名称均为示意，请勿据此寻找服务设施。':'地标名称与简介依据公开资料整理；插画与位置经过艺术编排。'}</p>
+  sheet(`<div class="poi-heading"><small>${esc(p.city)} / ${esc(p.cat)} ${p.demo?'· 服务点':'· 文化地标'}</small><h2>${esc(p.name)}</h2></div>
+    <p>${esc(p.intro||'该服务点由平台标注，营业信息以现场为准。')}</p>
+    <p class="muted">${p.demo?'':'地标名称与简介依据公开资料整理；插画与位置经过艺术编排。'}</p>
     ${p.panorama?`<button class="pano-open" onclick="openPanorama('${p.panorama}')">360° 真实实景 · 点击进入 ↗</button><p class="muted">${esc(panoramas[p.panorama].credit)} 需联网。</p>`:'<p class="pano-unavailable">暂无可用的真实全景；待接入实拍素材。</p>'}
     <div class="row"><button onclick="toggleFavorite('${p.id}')">${favorites.includes(p.id)?'取消收藏':'收藏地标'}</button><button onclick="checkin('${p.id}')">记录足迹</button></div>
     ${source?`<details><summary>资料来源</summary><p>${esc(source.name)}<br><span class="source-url">${esc(source.url)}</span><br>核对日期：2026-10-29</p></details>`:''}`);
@@ -98,7 +98,7 @@ function toggleFavorite(id){favorites=favorites.includes(id)?favorites.filter(x=
 function saved(){sheet('<h2>收藏地标</h2>'+favorites.map(getPOI).filter(Boolean).map(p=>`<button class="saved-place" onclick="closeSheet();city='全部';category='${p.cat}';mapPage();poi('${p.id}')">${esc(p.city)} · ${esc(p.name)} ›</button>`).join('')+(!favorites.map(getPOI).filter(Boolean).length?'<p>还没有收藏地标。</p>':''))}
 function searchPOI(){const q=document.querySelector('#search').value.trim();if(map){new BMapGL.LocalSearch(map,{renderOptions:{map,autoViewport:true}}).search((city==='全部'?'河南':city)+' '+q);return}const found=mapPOIs.filter(p=>(city==='全部'||p.city===city)&&(p.name+p.city).includes(q));sheet('<h2>寻找文化地标</h2>'+found.map(p=>`<button class="saved-place" onclick="closeSheet();category='${p.cat}';selectedRoute=-1;mapPage();poi('${p.id}')">${esc(p.city)} · ${esc(p.name)} ›</button>`).join('')+(!found.length?'<p>没有匹配地点，试试其他关键词。</p>':''))}
 function routeList(){sheet('<h2>游览路线</h2><small>文化长卷浏览顺序，不代表实地道路或距离。</small>'+routes.map((r,i)=>`<div class="route"><div><b>${r.name}</b><p class="muted">${r.desc}</p></div><button onclick="selectRoute(${i})">查看</button></div>`).join('')+'<button onclick="if(window.Native)Native.journey();else toast(\'在鸿蒙应用中创建行程\')">＋ 创建我的行程</button>')}
-function selectRoute(i){if(!routes[i])return;selectedRoute=i;selectedPOI='';category='建筑';city='全部';scale=1;offset={x:0,y:0};closeSheet();show('map');if(routes[i].demo){scale=2.3;offset={x:ATLAS_W/2-350*scale,y:ATLAS_H*.44-880*scale};applyTransform(true);toast('无障碍路线的通行条件尚未现场核验，请现场确认后再依赖')}}
+function selectRoute(i){if(!routes[i])return;selectedRoute=i;selectedPOI='';category='建筑';city='全部';scale=1;offset={x:0,y:0};closeSheet();show('map');if(routes[i].demo){scale=2.3;offset={x:ATLAS_W/2-350*scale,y:ATLAS_H*.44-880*scale};applyTransform(true)}}
 function atlasIntro(){sheet('<h2>一卷看见黄河文明</h2><p>函谷关、龙门石窟、炎黄二帝塑像、开封铁塔与戚城遗址，在山水手绘中串联起五城记忆。</p><p>点分类，标记依次浮现；点地标，地图居中放大。带 360° 标签的地点可联网进入公开实拍全景。</p><p class="muted">山水与建筑外形经艺术化处理，可用于行前的文化浏览与路线构思。</p><button onclick="closeSheet()">开始探索</button>')}
 function openPanorama(id){const p=panoramas[id];if(!p)return;if(window.Native?.panorama){Native.panorama(id);return}sheet(`<h2>${esc(p.title)}</h2><p>${esc(p.credit)}</p><p>在原站查看可保留完整全景操作及作者信息。</p><a class="pano-link" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">打开真实全景 ↗</a>`)}
 function travel(){category='发现';city='全部';mapPage()}

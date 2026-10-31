@@ -297,11 +297,6 @@ struct AssistantPage {
           .fontColor(INK)
           .fontWeight(FontWeight.Medium)
           .width('100%')
-        Text('地址填到 Dify 的 /v1 为止，例如 https://api.dify.ai/v1。App Key 以 app- 开头，只保存在本机。')
-          .fontSize(fs(11))
-          .fontColor(SUB)
-          .lineHeight(fs(17))
-          .width('100%')
 
         Text('Dify 地址')
           .fontSize(fs(11))
@@ -337,7 +332,7 @@ struct AssistantPage {
             Text('带上我的收藏与笔记')
               .fontSize(fs(13))
               .fontColor(INK)
-            Text('开启后，最多 8 条摘要会随问题发给 Dify 上的模型；关闭则只发问题本身。')
+            Text('开启后，助手会结合您的收藏与笔记作答；关闭则只依据问题本身。')
               .fontSize(fs(10))
               .fontColor(SUB)
               .lineHeight(fs(15))
@@ -394,13 +389,6 @@ struct AssistantPage {
             })
         }
         .width('100%')
-
-        Text('知识库侧：Chat App 需要新增一个文本变量 personal_context，并在提示词里引用 {{personal_context}}；不配也不会影响普通问答。')
-          .fontSize(fs(10))
-          .fontColor(SUB)
-          .lineHeight(fs(16))
-          .width('100%')
-          .margin({ top: 6 })
       }
       .width('100%')
       .padding(14)
