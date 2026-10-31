@@ -211,7 +211,7 @@ struct AssistantPage {
       this.err = text.length > 0 ? this.streamErr + '（回答已中断）' : this.streamErr;
       this.lastQ = this.askQ;
     } else if (text.length === 0) {
-      this.err = '模型没有返回内容，稍后再试';
+      this.err = AiService.ERR_EMPTY;
       this.lastQ = this.askQ;
     }
     this.live = '';

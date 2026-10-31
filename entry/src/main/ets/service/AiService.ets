@@ -20,6 +20,10 @@ export interface StreamHandle {
 // Dify 客户端：response_mode = streaming，走 SSE。
 // 停止即销毁连接，服务端随之停止生成，不留后台任务。
 export class AiService {
+  // 界面按这两个标记决定文案，别在这里拼游客要看的话
+  static readonly ERR_RATE_LIMIT: string = 'rate_limited';
+  static readonly ERR_EMPTY: string = 'empty_answer';
+  static readonly ERR_MODEL: string = '模型侧报错';
   private static readonly inst: AiService = new AiService();
   static get(): AiService {
     return AiService.inst;
@@ -132,7 +136,11 @@ export class AiService {
         } else if (name === 'message_end') {
           citations = self.citationsOf(ev.metadata);
         } else if (name === 'error') {
-          fail('模型侧报错：' + (ev.message ?? '未知原因'));
+          // 限流最常见的是智谱 1305/1302，插件会把一大段英文原文塞进 message，
+          // 这里先认特征，认出来就不让原文往下走
+          fail(AiService.rateLimited(ev.message ?? '')
+            ? AiService.ERR_RATE_LIMIT
+            : AiService.ERR_MODEL + '：' + (ev.message ?? '未知原因'));
           return;
         }
       }
@@ -250,7 +258,22 @@ export class AiService {
     return b + '/chat-messages';
   }
 
+  // 限流特征：HTTP 429、智谱 1305（访问量过大）/1302（速度限制）、
+  // 或插件原样带出的 too many requests / rate limit 字样。
+  static rateLimited(raw: string): boolean {
+    let t = (raw ?? '').toLowerCase();
+    if (t.length === 0) {
+      return false;
+    }
+    return t.indexOf('429') >= 0 || t.indexOf('1305') >= 0 || t.indexOf('1302') >= 0
+      || t.indexOf('too many requests') >= 0 || t.indexOf('rate limit') >= 0
+      || t.indexOf('访问速度') >= 0 || t.indexOf('访问量') >= 0;
+  }
+
   private errorOf(code: number, raw: string): string {
+    if (code === 429 || AiService.rateLimited(raw)) {
+      return AiService.ERR_RATE_LIMIT;
+    }
     let detail = '';
     try {
       let err = JSON.parse(raw) as DifyStreamEvent;
