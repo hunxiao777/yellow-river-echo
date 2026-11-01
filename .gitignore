@@ -20,3 +20,7 @@ build_err.txt
 build_err_clean.txt
 build_warn.txt
 /vibe_images/
+
+# 地形烘焙的中间产物（DEM/瓦片缓存、geo json）与 Python 字节码，不入库
+/.tmp/
+/tools/__pycache__/
