@@ -143,27 +143,157 @@ function updateFooter(relic, i) {
   ui.credit.textContent = relic.credit;
 }
 
-/* ---------- 无 WebGL 时的静帧模式 ---------- */
-/* 模拟器等环境里 ArkWeb 不暴露 WebGL 上下文，这里退到预渲染静帧，
-   信息条、左右切换和返回仍然可用，避免出现一张死掉的报错屏 */
-function bootStill(reason) {
-  console.info('[relic] WebGL 不可用，改用静帧', reason);
+/* ---------- 无 WebGL 时的转台模式 ---------- */
+/* 模拟器等环境里 ArkWeb 不暴露 WebGL 上下文。这里用离线渲染的 24 张转台帧
+   代替实时渲染：左右拖动即可转动文物，双指缩放，松手后缓慢自转 */
+const TURN_FRAMES = 24;
+
+function bootTurntable(reason) {
+  console.info('[relic] WebGL 不可用，改用离线转台', reason);
   ui.still.hidden = false;
-  ui.stillBadge.hidden = false;
+  ui.stillBadge.hidden = true;
   hideHint();
-  setLoading(false);
+
+  let frame = 0;
+  let scale = 1;
+  let dragging = false;
+  let startX = 0;
+  let startFrame = 0;
+  let pinchDist = 0;
+  let pinchScale = 1;
+  let autoTimer = 0;
+  let resumeTimer = 0;
+  let loadToken = 0;
+  let stillOnly = false;
+  let cache = new Map();
+
+  const urlOf = (i, f) => `turntable/${i}/${((f % TURN_FRAMES) + TURN_FRAMES) % TURN_FRAMES}.jpg`;
+
+  function paint() {
+    const src = stillOnly ? `stills/${index}.jpg` : urlOf(index, frame);
+    if (ui.still.getAttribute('src') !== src) ui.still.src = src;
+    ui.still.style.transform = scale === 1 ? '' : `scale(${scale.toFixed(3)})`;
+  }
+
+  function stopAuto() {
+    clearInterval(autoTimer);
+    clearTimeout(resumeTimer);
+  }
+  function startAuto(delay = 2600) {
+    stopAuto();
+    resumeTimer = setTimeout(() => {
+      if (document.hidden || stillOnly) return;
+      autoTimer = setInterval(() => {
+        if (dragging || loading || document.hidden) return;
+        frame = (frame + 1) % TURN_FRAMES;
+        paint();
+      }, 170);
+    }, delay);
+  }
+
+  function preload(i, token) {
+    cache = new Map();
+    stillOnly = false;
+    for (let f = 0; f < TURN_FRAMES; f++) {
+      const img = new Image();
+      img.src = urlOf(i, f);
+      cache.set(f, img);
+    }
+    const first = cache.get(0);
+    const done = () => {
+      if (token !== loadToken) return;
+      setLoading(false);
+      showHint('左右拖动 · 转动文物');
+    };
+    first.onload = done;
+    if (first.complete && first.naturalWidth > 0) done();
+    first.onerror = () => {
+      if (token !== loadToken) return;
+      stillOnly = true;
+      paint();
+      setLoading(false);
+      flashHint('左右拖动切换 · 真机可旋转');
+    };
+  }
+
+  /* 指针交互：单指转台，双指缩放，松手后缓慢自转 */
+  const pts = new Map();
+  function onDown(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    stopAuto();
+    if (pts.size === 1) {
+      dragging = true;
+      startX = e.clientX;
+      startFrame = frame;
+    } else if (pts.size === 2) {
+      const [a, b] = [...pts.values()];
+      pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+      pinchScale = scale;
+    }
+  }
+  function onMove(e) {
+    if (!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size >= 2) {
+      const [a, b] = [...pts.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinchDist > 0) {
+        scale = Math.min(2.4, Math.max(1, pinchScale * (d / pinchDist)));
+        paint();
+      }
+      if (e.cancelable) e.preventDefault();
+      return;
+    }
+    if (!dragging || stillOnly) return;
+    const dx = e.clientX - startX;
+    frame = ((startFrame - Math.round(dx / 9)) % TURN_FRAMES + TURN_FRAMES) % TURN_FRAMES;
+    paint();
+    if (e.cancelable) e.preventDefault();
+  }
+  function onUp(e) {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (pts.size === 0) {
+      dragging = false;
+      if (scale < 1.02) scale = 1;
+      paint();
+      startAuto(2600);
+    } else if (pts.size === 1) {
+      const p = [...pts.values()][0];
+      startX = p.x;
+      startFrame = frame;
+    }
+  }
+  stage.addEventListener('pointerdown', onDown);
+  stage.addEventListener('pointermove', onMove, { passive: false });
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
+
   viewer = {
     load(i) {
       const relic = RELICS[i];
       if (!relic) return;
       index = i;
+      frame = 0;
+      scale = 1;
+      pts.clear();
+      dragging = false;
+      stopAuto();
       updateFooter(relic, i);
-      ui.still.src = `stills/${i}.jpg`;
-      ui.still.alt = relic.name;
-      flashHint('左右箭头切换 · 真机可拖动旋转');
+      const token = ++loadToken;
+      setLoading(true, '正在调取文物…');
+      paint();
+      preload(i, token);
+      startAuto(4200);
+      flashHint('左右拖动 · 转动文物');
     },
     reset() {
-      flashHint('静帧模式 · 真机可复位视角');
+      frame = 0;
+      scale = 1;
+      paint();
+      startAuto(2600);
+      flashHint('已复位视角');
     },
     retry() {
       this.load(index);
@@ -201,7 +331,7 @@ function boot3D() {
   try {
     renderer = makeRenderer();
   } catch (err) {
-    bootStill(err && err.message ? err.message : String(err));
+    bootTurntable(err && err.message ? err.message : String(err));
     return;
   }
 
@@ -428,6 +558,7 @@ function boot3D() {
     const norm = 2 / Math.max(rawSize.x, rawSize.y, rawSize.z, 1e-6);
     group.scale.setScalar(norm);
     group.rotation.set(relic.pitch || 0, relic.yaw || 0, 0);
+    group.userData.baseYaw = relic.yaw || 0;
     group.updateMatrixWorld(true);
 
     const fitted = new THREE.Box3().setFromObject(group);
@@ -594,6 +725,17 @@ function boot3D() {
       if (!loading) loadRelic(index);
     }
   };
+
+  /* 离线截帧钩子：headless Chrome 用它逐角度取图，生成无 WebGL 时的转台序列 */
+  window.__relicSpin = (deg) => {
+    if (!holder) return false;
+    pauseAuto();
+    controls.autoRotate = false;
+    holder.rotation.y = (holder.userData.baseYaw || 0) + THREE.MathUtils.degToRad(Number(deg) || 0);
+    holder.updateMatrixWorld(true);
+    return true;
+  };
+  window.__relicReady = () => !!holder && !loading;
 
   updateFooter(RELICS[index], index);
   loadRelic(index);

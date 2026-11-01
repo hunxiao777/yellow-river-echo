@@ -47,7 +47,7 @@
   /* 关键：这层柔光必须压在模型下面。canvas 是 static 元素，会被定位的 ::before 盖住，
      在深色釉面上就是一层抹不掉的“白雾” */
   #stage canvas{display:block;position:relative;z-index:1;width:100%;height:100%;touch-action:none}
-  #still{position:absolute;inset:0;z-index:1;width:100%;height:100%;object-fit:cover;display:block}
+  #still{position:absolute;inset:0;z-index:1;width:100%;height:100%;object-fit:contain;display:block;touch-action:none;transform-origin:50% 50%;user-select:none;-webkit-user-drag:none}
   #still[hidden]{display:none}
   #stillBadge{
     position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:4;
