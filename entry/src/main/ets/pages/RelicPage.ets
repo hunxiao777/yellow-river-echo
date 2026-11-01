@@ -9,6 +9,10 @@ class RelicBridge {
   }
 }
 
+// 文物件数上界，对应 rawfile/relic/relic.js 里 RELICS 的下标（现有六件：0–5）；
+// 增减文物或调整顺序时要一起改，否则路由带进来的 id 会被打回第一件
+const MAX_RELIC_ID: number = 5;
+
 // 3D 文物工坊：网页只负责转模型，ArkWeb 把 rawfile 挂在同一个 https 源下，
 // 这样 ES module 的 import、GLB 的 fetch 和宿主的本地文件是同一套路径。
 @Entry
@@ -22,7 +26,7 @@ struct RelicPage {
   aboutToAppear(): void {
     let p = params();
     let id = (p === undefined || p.relic === undefined) ? 0 : p.relic;
-    this.relicId = (id >= 0 && id <= 3) ? id : 0;
+    this.relicId = (id >= 0 && id <= MAX_RELIC_ID) ? id : 0;
   }
 
   private localResource(url: string): WebResourceResponse | null {

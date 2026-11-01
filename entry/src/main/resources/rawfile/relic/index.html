@@ -106,6 +106,14 @@
     color:var(--clay);font-size:10.5px;letter-spacing:1px;line-height:1.6;
   }
   .count{margin-left:auto;flex:0 0 auto;color:var(--gold);font-size:11px;letter-spacing:1px}
+  /* 主题标签：压在信息条最上方，给六件文物一条体系线；底色半透明，不抢釉色 */
+  .themeRow{display:flex;margin:0 0 6px}
+  .theme{
+    display:inline-block;padding:2px 11px;border-radius:11px;
+    background:rgba(166,85,61,.13);border:1px solid rgba(166,85,61,.20);
+    color:var(--clay);font-size:10px;letter-spacing:1.6px;line-height:1.6;
+  }
+  .theme[hidden]{display:none}
   .note{
     margin:5px 0 0;color:var(--sub);font-size:11.5px;line-height:1.55;
     display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;
@@ -160,10 +168,11 @@
   </main>
 
   <footer>
+    <div class="themeRow"><span class="theme" id="theme">丝路交融</span></div>
     <div class="titleRow">
-      <h2 id="name">三彩双龙耳瓶</h2>
+      <h2 id="name">修定寺塔舞者砖</h2>
       <span class="era" id="era">唐</span>
-      <span class="count" id="count">1 / 4</span>
+      <span class="count" id="count">1 / 6</span>
     </div>
     <p class="note" id="note"></p>
     <p class="scope" id="scope"></p>

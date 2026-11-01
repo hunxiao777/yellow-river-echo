@@ -4,23 +4,10 @@ import { OrbitControls } from '../experience/vendor/OrbitControls.js';
 import { toCreasedNormals } from '../experience/vendor/BufferGeometryUtils.js';
 import { MeshoptDecoder } from '../experience/vendor/MeshoptDecoder.js';
 
-/* 四件扫描文物：模型均由 Sketchfab 公开藏品扫描，CC BY 4.0，已离线压缩 */
+/* 六件扫描文物：模型均为公开藏品扫描，已离线压缩。
+   顺序即工坊里的 1/6…6/6，转台帧目录 turntable/<序号>/ 与 stills/<序号>.jpg
+   按这里的下标取图，改动顺序时必须一起重排。theme 是信息条上方的主题标签 */
 const RELICS = [
-  {
-    file: 'models/dragon-amphora.glb',
-    name: '三彩双龙耳瓶',
-    era: '唐',
-    material: '三彩陶',
-    collection: '芝加哥艺术博物馆',
-    note: '双龙形耳贴塑于瓶颈两侧，黄绿釉在肩部交融。',
-    scope: '黄河流域文化圈 · 唐三彩窑口工艺（出土地未著录）',
-    credit: '藏品扫描：Art Institute of Chicago · CC BY 4.0 · 压缩版',
-    recomputeNormals: true,
-    yaw: 0,
-    pitch: 0,
-    elevation: 0.16,
-    zoom: 1.06
-  },
   {
     file: 'models/dancer-brick.glb',
     name: '修定寺塔舞者砖',
@@ -29,6 +16,7 @@ const RELICS = [
     collection: '克利夫兰艺术博物馆',
     note: '砖面浮雕蓄须舞者，披帛翻卷，为修定寺塔塔身模制砖。',
     scope: '黄河流域文化圈 · 河南安阳修定寺塔（870 年前）',
+    theme: '丝路交融',
     credit: '藏品扫描：Cleveland Museum of Art · CC BY 4.0 · 压缩版',
     recomputeNormals: false,
     yaw: 0,
@@ -37,29 +25,31 @@ const RELICS = [
     zoom: 1.1
   },
   {
-    file: 'models/sancai-horse.glb',
-    name: '三彩马',
+    file: 'models/dragon-amphora.glb',
+    name: '三彩双龙耳瓶',
     era: '唐',
     material: '三彩陶',
-    collection: '公开三维扫描（shining3dTC）',
-    note: '马身施黄褐釉，鞍鞯俱全，是唐三彩里常见的出行题材。',
+    collection: '芝加哥艺术博物馆',
+    note: '双龙形耳贴塑于瓶颈两侧，黄绿釉在肩部交融。',
     scope: '黄河流域文化圈 · 唐三彩窑口工艺（出土地未著录）',
-    credit: '藏品扫描：shining3dTC · CC BY 4.0 · 压缩版',
-    recomputeNormals: false,
+    theme: '三彩窑火',
+    credit: '藏品扫描：Art Institute of Chicago · CC BY 4.0 · 压缩版',
+    recomputeNormals: true,
     yaw: 0,
     pitch: 0,
-    elevation: 0.14,
-    zoom: 1.08
+    elevation: 0.16,
+    zoom: 1.06
   },
   {
-    file: 'models/andersson-vessel.glb',
-    name: '安特生藏陶罐',
-    era: '新石器时代',
-    material: '陶',
-    collection: '世界文化博物馆（瑞典）',
-    note: '安特生 1923–1924 年在甘肃、青海调查时采集，编号 K-05716。',
-    scope: '黄河上游文化圈 · 甘青史前文化（仰韶—马家窑系统）',
-    credit: '藏品扫描：Världskulturmuseerna · CC BY 4.0 · 压缩版',
+    file: 'models/bell.glb',
+    name: '青铜镈钟',
+    era: '东周',
+    material: '青铜',
+    collection: '河南出土 · 大英博物馆',
+    note: '出土于河南，公元前 5 世纪的大型镈钟，现藏大英博物馆。',
+    scope: '黄河流域文化圈 · 河南出土（东周青铜礼乐器）',
+    theme: '礼乐文明',
+    credit: '藏品扫描：artfletch · CC BY 4.0 · 压缩版',
     recomputeNormals: false,
     yaw: 0,
     pitch: 0,
@@ -74,6 +64,7 @@ const RELICS = [
     collection: '河南洛阳出土',
     note: '出土于河南洛阳。器身饰有饕餮纹、蛇纹与鸟纹，是西周早期黄河流域青铜礼器与祭祀文化的典型代表。',
     scope: '黄河流域文化圈 · 河南洛阳（西周早期青铜礼器）',
+    theme: '青铜礼器',
     credit: '藏品扫描：Smithsonian Institution · Public Domain（Zenodo）',
     recomputeNormals: false,
     /* 源模型的前脸正对 +Z，转到 -30° 才是能同时看见两个面的展示角度 */
@@ -83,19 +74,36 @@ const RELICS = [
     zoom: 1.06
   },
   {
-    file: 'models/bell.glb',
-    name: '青铜镈钟',
-    era: '东周',
-    material: '青铜',
-    collection: '河南出土 · 大英博物馆',
-    note: '出土于河南，公元前 5 世纪的大型镈钟，现藏大英博物馆。',
-    scope: '黄河流域文化圈 · 河南出土（东周青铜礼乐器）',
-    credit: '藏品扫描：artfletch · CC BY 4.0 · 压缩版',
+    file: 'models/andersson-vessel.glb',
+    name: '安特生藏陶罐',
+    era: '新石器时代',
+    material: '陶',
+    collection: '世界文化博物馆（瑞典）',
+    note: '安特生 1923–1924 年在甘肃、青海调查时采集，编号 K-05716。',
+    scope: '黄河上游文化圈 · 甘青史前文化（仰韶—马家窑系统）',
+    theme: '文明溯源',
+    credit: '藏品扫描：Världskulturmuseerna · CC BY 4.0 · 压缩版',
     recomputeNormals: false,
     yaw: 0,
     pitch: 0,
     elevation: 0.16,
     zoom: 1.06
+  },
+  {
+    file: 'models/sancai-horse.glb',
+    name: '三彩马',
+    era: '唐',
+    material: '三彩陶',
+    collection: '公开三维扫描（shining3dTC）',
+    note: '马身施黄褐釉，鞍鞯俱全，是唐三彩里常见的出行题材。',
+    scope: '黄河流域文化圈 · 唐三彩窑口工艺（出土地未著录）',
+    theme: '出行风尚',
+    credit: '藏品扫描：shining3dTC · CC BY 4.0 · 压缩版',
+    recomputeNormals: false,
+    yaw: 0,
+    pitch: 0,
+    elevation: 0.14,
+    zoom: 1.08
   }
 ];
 
@@ -114,6 +122,7 @@ const ui = {
   name: document.getElementById('name'),
   era: document.getElementById('era'),
   count: document.getElementById('count'),
+  theme: document.getElementById('theme'),
   note: document.getElementById('note'),
   scope: document.getElementById('scope'),
   material: document.getElementById('material'),
@@ -173,6 +182,8 @@ function updateFooter(relic, i) {
   ui.name.textContent = relic.name;
   ui.era.textContent = relic.era;
   ui.count.textContent = `${i + 1} / ${RELICS.length}`;
+  ui.theme.textContent = relic.theme || '';
+  ui.theme.hidden = !relic.theme;
   ui.note.textContent = relic.note;
   ui.scope.textContent = relic.scope || '';
   ui.material.textContent = relic.material;
