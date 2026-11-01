@@ -13,6 +13,7 @@ const RELICS = [
     material: '三彩陶',
     collection: '芝加哥艺术博物馆',
     note: '双龙形耳贴塑于瓶颈两侧，黄绿釉在肩部交融。',
+    scope: '黄河流域文化圈 · 唐三彩窑口工艺（出土地未著录）',
     credit: '藏品扫描：Art Institute of Chicago · CC BY 4.0 · 压缩版',
     recomputeNormals: true,
     yaw: 0,
@@ -26,7 +27,8 @@ const RELICS = [
     era: '唐',
     material: '模制陶胎、施化妆土',
     collection: '克利夫兰艺术博物馆',
-    note: '出自河南安阳修定寺塔，砖面浮雕舞者，衣带翻卷。',
+    note: '砖面浮雕蓄须舞者，披帛翻卷，为修定寺塔塔身模制砖。',
+    scope: '黄河流域文化圈 · 河南安阳修定寺塔（870 年前）',
     credit: '藏品扫描：Cleveland Museum of Art · CC BY 4.0 · 压缩版',
     recomputeNormals: false,
     yaw: 0,
@@ -39,8 +41,9 @@ const RELICS = [
     name: '三彩马',
     era: '唐',
     material: '三彩陶',
-    collection: 'shining3dTC',
+    collection: '公开三维扫描（shining3dTC）',
     note: '马身施黄褐釉，鞍鞯俱全，是唐三彩里常见的出行题材。',
+    scope: '黄河流域文化圈 · 唐三彩窑口工艺（出土地未著录）',
     credit: '藏品扫描：shining3dTC · CC BY 4.0 · 压缩版',
     recomputeNormals: false,
     yaw: 0,
@@ -50,11 +53,12 @@ const RELICS = [
   },
   {
     file: 'models/andersson-vessel.glb',
-    name: '安德森藏陶罐',
+    name: '安特生藏陶罐',
     era: '新石器时代',
     material: '陶',
     collection: '世界文化博物馆（瑞典）',
-    note: '安德森 1923–1924 年在甘肃、青海调查时收集，编号 K-05716。',
+    note: '安特生 1923–1924 年在甘肃、青海调查时采集，编号 K-05716。',
+    scope: '黄河上游文化圈 · 甘青史前文化（仰韶—马家窑系统）',
     credit: '藏品扫描：Världskulturmuseerna · CC BY 4.0 · 压缩版',
     recomputeNormals: false,
     yaw: 0,
@@ -80,6 +84,7 @@ const ui = {
   era: document.getElementById('era'),
   count: document.getElementById('count'),
   note: document.getElementById('note'),
+  scope: document.getElementById('scope'),
   material: document.getElementById('material'),
   collection: document.getElementById('collection'),
   credit: document.getElementById('credit')
@@ -138,6 +143,7 @@ function updateFooter(relic, i) {
   ui.era.textContent = relic.era;
   ui.count.textContent = `${i + 1} / ${RELICS.length}`;
   ui.note.textContent = relic.note;
+  ui.scope.textContent = relic.scope || '';
   ui.material.textContent = relic.material;
   ui.collection.textContent = relic.collection;
   ui.credit.textContent = relic.credit;

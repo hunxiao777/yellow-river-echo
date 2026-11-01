@@ -329,7 +329,7 @@ export struct StudioPage {
             .fontWeight(FontWeight.Bold)
             .fontColor(INK)
             .letterSpacing(2)
-          Text('转一转 · 看釉色与纹样，真器 360°')
+          Text('转一转 · 看黄河流域器物的釉色与纹样')
             .fontSize(fs(10))
             .fontColor(SUB)
           Row({ space: 4 }) {
