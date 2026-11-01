@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#F5EFE4">
+<title>黄河地理与文明 · 沙盘推演</title>
+<style>
+  :root{
+    --paper:#F5EFE4; --paper-hi:#FFFCF5; --ink:#2B2622; --sub:#7A6E62;
+    --clay:#A6553D; --line:#E5DAC6; --gold:#C8A160;
+    --head:48px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;overflow:hidden}
+  body{
+    height:100dvh;display:flex;flex-direction:column;color:var(--ink);
+    /* 纸色底 + 做旧：霉斑、纤维纹、边缘压暗，全部用渐变叠出来，不依赖图片 */
+    background:
+      radial-gradient(64% 44% at 88% 96%, rgba(176,140,88,.20) 0%, rgba(176,140,88,0) 70%),
+      radial-gradient(52% 36% at 6% 8%, rgba(176,140,88,.14) 0%, rgba(176,140,88,0) 72%),
+      radial-gradient(30% 22% at 74% 22%, rgba(150,112,66,.10) 0%, rgba(150,112,66,0) 70%),
+      repeating-linear-gradient(112deg, rgba(150,120,80,.042) 0 1px, rgba(0,0,0,0) 1px 5px),
+      repeating-linear-gradient(2deg, rgba(150,120,80,.03) 0 1px, rgba(0,0,0,0) 1px 7px),
+      var(--paper);
+    font:14px/1.55 system-ui,-apple-system,"HarmonyOS Sans SC","PingFang SC",sans-serif;
+    -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;
+    overscroll-behavior:none;
+  }
+  button,input{font:inherit;color:inherit}
+  button{border:0;background:none;padding:0;cursor:pointer}
+  .serif{font-family:Georgia,"Songti SC","STSong","SimSun",serif}
+
+  header{
+    flex:0 0 var(--head);display:flex;align-items:center;gap:10px;
+    padding:0 12px;padding-top:env(safe-area-inset-top);
+    background:rgba(245,239,228,.90);border-bottom:1px solid var(--line);
+    backdrop-filter:blur(3px);z-index:12;position:relative;
+  }
+  header h1{
+    flex:1;min-width:0;margin:0;text-align:center;letter-spacing:4px;
+    font:600 17px/1.2 Georgia,"Songti SC","STSong",serif;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .iconBtn{
+    flex:0 0 auto;width:34px;height:34px;border-radius:17px;border:1px solid var(--line);
+    background:rgba(255,252,245,.78);display:grid;place-items:center;
+    font-size:20px;line-height:1;color:var(--ink);transition:transform .15s ease;
+  }
+  .iconBtn.pill{width:auto;padding:0 11px;font:600 12px/1 Georgia,serif;letter-spacing:2px;color:var(--clay)}
+  .iconBtn:active{transform:scale(.93)}
+  .iconBtn.on{background:var(--clay);color:#fff;border-color:var(--clay)}
+
+  main{
+    position:relative;flex:1 1 auto;min-height:0;overflow:hidden;
+    box-shadow:inset 0 0 90px rgba(120,88,48,.14), inset 0 0 12px rgba(120,88,48,.10);
+  }
+  #map{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  #grain{position:absolute;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;z-index:2}
+
+  /* 阶段批注卡：纸片 + 朱印，换阶段时重新入场 */
+  #card{
+    position:absolute;left:10px;right:10px;bottom:10px;z-index:6;max-width:460px;margin:0 auto;
+    padding:10px 12px 11px;border:1px solid var(--line);border-radius:10px;
+    background:linear-gradient(180deg,rgba(255,252,245,.96),rgba(250,243,230,.94));
+    box-shadow:0 6px 20px rgba(80,54,28,.13);
+    transform-origin:50% 100%;
+  }
+  #card.in{animation:cardIn .42s cubic-bezier(.22,.9,.28,1) both}
+  @keyframes cardIn{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
+  #card.out{opacity:0;transform:translateY(10px);pointer-events:none;transition:opacity .25s ease,transform .25s ease}
+  .cardTop{display:flex;align-items:center;gap:8px}
+  .badge{
+    flex:0 0 auto;padding:2px 8px;border-radius:9px;background:var(--clay);color:#FFF8EE;
+    font:600 10.5px/1.5 system-ui;letter-spacing:1.4px;
+  }
+  .cardTop h2{
+    margin:0;flex:1;min-width:0;font:600 15.5px/1.3 Georgia,"Songti SC",serif;letter-spacing:2.5px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  #cardClose{width:24px;height:24px;border-radius:12px;color:var(--sub);font-size:17px;line-height:1}
+  #cardClose:active{background:rgba(166,85,61,.12)}
+  .cardEra{margin:4px 0 0;color:var(--gold);font-size:10.5px;letter-spacing:1.2px}
+  .cardBody{margin:5px 0 0;font-size:12.5px;line-height:1.62;color:#42392F}
+
+  /* 考据说明：默认收起，点右上角「注」展开 */
+  #note{
+    position:absolute;left:10px;right:10px;top:10px;z-index:8;padding:10px 12px;
+    border:1px solid rgba(166,85,61,.34);border-radius:10px;
+    background:rgba(255,252,245,.96);box-shadow:0 8px 22px rgba(80,54,28,.14);
+    font-size:11px;line-height:1.65;color:var(--sub);
+  }
+  #note b{color:var(--ink);font-weight:600;letter-spacing:1px}
+  #note ul{margin:6px 0 0;padding-left:16px}
+  #note li{margin:3px 0}
+  #note[hidden]{display:none}
+
+  footer{
+    flex:0 0 auto;position:relative;z-index:12;padding:8px 14px calc(10px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg,rgba(255,252,245,.86) 0%,var(--paper-hi) 38%);
+    border-top:1px solid var(--line);
+  }
+  .chips{display:flex;gap:6px;margin-bottom:8px}
+  .chip{
+    flex:1;min-width:0;padding:5px 2px;border:1px solid var(--line);border-radius:9px;
+    background:rgba(255,252,245,.72);color:var(--sub);
+    font-size:10.5px;letter-spacing:.6px;line-height:1.35;text-align:center;
+    transition:background .2s ease,color .2s ease,border-color .2s ease,transform .15s ease;
+  }
+  .chip i{display:block;font:600 9px/1.4 system-ui;font-style:normal;letter-spacing:1.4px;opacity:.72}
+  .chip.on{background:var(--clay);border-color:var(--clay);color:#FFF7EC}
+  .chip.on i{opacity:.88}
+  .chip:active{transform:scale(.97)}
+
+  .sliderRow{display:flex;align-items:center;gap:10px}
+  #play{
+    flex:0 0 auto;width:32px;height:32px;border-radius:16px;border:1px solid rgba(166,85,61,.42);
+    background:rgba(255,252,245,.8);color:var(--clay);display:grid;place-items:center;
+    font-size:13px;line-height:1;transition:transform .15s ease;
+  }
+  #play:active{transform:scale(.93)}
+  #play.playing{background:var(--clay);color:#fff;border-color:var(--clay)}
+  .trackWrap{flex:1 1 auto;min-width:0;position:relative}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:26px;background:transparent;display:block;margin:0;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:6px;border-radius:3px;border:1px solid var(--line);
+    background:linear-gradient(90deg,#BFD8E4 0%,#BFD8E4 25%,#5E90AE 25%,#5E90AE 50%,
+      #C08E42 50%,#C08E42 75%,#6E9A88 75%,#6E9A88 100%);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:20px;height:20px;margin-top:-8px;border-radius:50%;
+    background:var(--paper-hi);border:2px solid var(--clay);box-shadow:0 2px 6px rgba(80,54,28,.24);
+  }
+  input[type=range]:active::-webkit-slider-thumb{transform:scale(1.08)}
+  .ticks{display:flex;justify-content:space-between;margin-top:2px;padding:0 2px;
+    font:500 9.5px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#9A8C7C;letter-spacing:.5px}
+  .hint{margin-top:5px;text-align:center;font-size:9.5px;color:#9A8C7C;letter-spacing:.6px}
+  #val{position:absolute;right:0;top:-2px;font-size:10px;color:var(--clay);letter-spacing:.5px}
+
+  @media (max-width:360px){
+    header h1{font-size:15px;letter-spacing:2px}
+    .chip{font-size:9.5px}
+    .cardBody{font-size:11.5px}
+  }
+  @media (max-height:600px){
+    #card{padding:7px 10px 8px}
+    .cardEra{display:none}
+    .hint{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    #card.in{animation:none}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <button class="iconBtn" id="back" aria-label="返回">‹</button>
+    <h1>黄河地理与文明</h1>
+    <button class="iconBtn pill" id="noteBtn" aria-label="考据说明">注</button>
+  </header>
+
+  <main>
+    <canvas id="map"></canvas>
+    <div id="grain"></div>
+
+    <div id="note" hidden>
+      <b>沙盘口径（先读这句）</b>
+      <ul>
+        <li>省界与河道是<b>教学示意</b>的简化折线，按史籍大致走向改写，不是测绘底图。</li>
+        <li>「大禹导河积石」出自《尚书·禹贡》等后世追述，属传说系统，非考古实证。</li>
+        <li>「夺淮」由南宋建炎二年（1128）决河起，历金、元、明延续至清咸丰五年（1855）北徙，本沙盘按题目归入宋元一段。</li>
+        <li>汉唐汴渠（通济渠）以洛阳—开封为重心，图上只画河南境内一段。</li>
+      </ul>
+    </div>
+
+    <article id="card" class="in">
+      <div class="cardTop">
+        <span class="badge" id="cardIdx">阶段一</span>
+        <h2 id="cardTitle">大禹治水</h2>
+        <button id="cardClose" aria-label="收起批注">×</button>
+      </div>
+      <p class="cardEra" id="cardEra"></p>
+      <p class="cardBody" id="cardBody"></p>
+    </article>
+  </main>
+
+  <footer>
+    <div class="chips" id="chips"></div>
+    <div class="sliderRow">
+      <button id="play" aria-label="自动推演">▶</button>
+      <div class="trackWrap">
+        <input type="range" id="tl" min="0" max="100" step="1" value="0" aria-label="时间轴">
+        <span id="val">0</span>
+      </div>
+    </div>
+    <div class="ticks"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+    <p class="hint">拖动时间轴推演四段河史 · 点阶段名可直接跳段 · 示意地图，非精确地理</p>
+  </footer>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ========== 1. 阶段文案与参数 ========== */
+  // 文案为题目原文；era/口径行只作补充，不与原文混写
+  var STAGES = [
+    { idx: '阶段一', name: '大禹治水', era: '传说时代 · 约前 21 世纪',
+      text: '远古时期，大禹导河积石，疏浚河道，先民开始在黄河两岸定居。' },
+    { idx: '阶段二', name: '汉唐漕运', era: '汉 — 唐 · 前 206 — 907',
+      text: '汉唐时期，黄河水丰，汴渠通达。漕运的繁荣造就了洛阳、开封的绝代风华。' },
+    { idx: '阶段三', name: '宋元夺淮', era: '黄河东南夺淮 · 1128 年起',
+      text: '宋元时期，黄河决溢改道，夺淮入海，冲积出广袤的沙土地，重塑了中原的地貌与农耕。' },
+    { idx: '阶段四', name: '当代安澜', era: '当代 · 1949 — 今',
+      text: '当代黄河岁岁安澜，沿黄生态廊道绿意盎然，人与河流和谐共生。' }
+  ];
+
+  // 河段颜色/粗细/扭曲度：四段各一套，按滑块位置连续插值。
+  // 宽度以「归一化单位」计（1 单位 ≈ 省图宽度的 1%），手机端换算成像素后仍能保证阶段一明显更细
+  var LOOK = [
+    { c: [150, 200, 219], w: 2.7, amp: 1.3 },   // 清澈浅蓝、细
+    { c: [ 66, 126, 158], w: 7.4, amp: 2.0 },   // 水丰、变宽变深
+    { c: [172, 118,  42], w: 9.8, amp: 3.3 },   // 黄褐、剧烈扭曲改道
+    { c: [ 88, 148, 160], w: 6.4, amp: 0.45 }   // 平稳规整
+  ];
+
+  /* 河道骨架：归一化坐标，x 0-100 为河南横向，y 0-100 为上北下南。
+     每段都是同样 12 个点，插值时逐点 morph，改道就表现为「线整条搬走」 */
+  var SPINE = [
+    // 禹河故道：出三门峡后偏东北，循豫北平原行（《禹贡》「又北东至于澹水」之意）
+    [[-8,38.5],[2,36.5],[12,32.5],[22,31.5],[33,30.5],[43,28.5],[52,27.4],[61,24.8],[70,21.2],[79,16.2],[90,9.4],[101,4.4]],
+    // 汉唐：大致即今日豫北河段，漕船可直达开封—荥阳
+    [[-8,38.5],[2,36.5],[12,32.5],[22,31.5],[33,30.8],[43.5,29.5],[52,29.2],[61,27.6],[70,25.5],[79,21.0],[90,12.0],[101,5.0]],
+    // 宋元夺淮：郑州以下东南决，经开封南—睢柘—商丘南—徐州方向，出图入淮
+    [[-8,38.5],[2,36.5],[12,32.5],[22,31.5],[33,30.8],[43.5,30.4],[52,31.4],[60,33.8],[68,38.4],[77,43.5],[87,49.5],[100,57.5]],
+    // 当代：复归北行并经整治，堤线顺直
+    [[-8,38.5],[2,36.5],[12,32.8],[22,31.8],[33,30.9],[43.5,29.4],[52,28.9],[61,27.3],[70,25.3],[79,21.3],[90,13.4],[101,6.2]]
+  ];
+
+  // 河南省轮廓（粗糙折线，按省界大致位置取点，非测绘）
+  var HENAN = [
+    [0.8,35.2],[1.6,27.8],[9.4,16.7],[20.3,20.4],[31.3,16.7],[37.5,22.2],[46.9,11.1],
+    [53.1,5.6],[64.1,1.9],[76.6,7.4],[90.6,8.3],[90.6,22.2],[79.7,28.7],[76.6,36.1],
+    [90.6,40.7],[99.2,48.1],[92.2,59.3],[82.8,68.5],[73.4,74.1],[64.1,85.2],[59.4,94.4],
+    [46.9,90.7],[37.5,85.2],[26.6,75.9],[18.8,70.4],[10.9,64.8],[4.7,55.6],[0.8,44.4]
+  ];
+
+  // 两枚人文标注（题目要求：洛阳、开封）
+  var CITIES = [
+    { n: '洛阳', p: [33.6, 34.8], dx: -1, dy: 1, align: 'right' },
+    { n: '开封', p: [62.7, 31.5], dx: 1, dy: 1, align: 'left' }
+  ];
+
+  // 汴渠（通济渠）首段：荥阳黄河汩口 → 开封 → 东南出图
+  var CANAL = [[43.5,29.6],[52,31.0],[62.7,32.4],[72,37.5],[84,45.0],[96,53.0]];
+
+  // 山脉示意：一小串波形符号
+  var MOUNTAINS = [
+    { n: '崤山',  l: [[9,26],[15,25],[21,26.5]] },
+    { n: '太行',  l: [[44,9],[49.5,12],[55,15]] },
+    { n: '伏牛山', l: [[19,57],[25,59.5],[31,62]] },
+    { n: '大别山', l: [[48,87],[54.5,88.5],[61,85.5]] }
+  ];
+
+  // 分段标注：只在对应阶段浮出
+  var ANNO = [
+    { s: 0, t: '积石', p: [12.6, 30.2] },
+    { s: 0, t: '疏浚河道', p: [30, 26.5] },
+    { s: 1, t: '汴口', p: [44.6, 26.6] },
+    { s: 1, t: '汴渠（通济渠）', p: [74, 41.5] },
+    { s: 2, t: '商胡之决', p: [56.5, 27.0] },
+    { s: 2, t: '夺淮河道', p: [65.5, 51.5] },
+    { s: 2, t: '沙土地', p: [58, 44] },
+    { s: 3, t: '三门峡枢纽', p: [13, 27.4] },
+    { s: 3, t: '小浪底', p: [33, 27.2] },
+    { s: 3, t: '沿黄生态廊道', p: [50, 22.6] }
+  ];
+
+  /* ========== 2. 画布与坐标系 ========== */
+  var cvs = document.getElementById('map');
+  var ctx = cvs.getContext('2d');
+  var view = { k: 3, ox: 0, oy: 0, w: 0, h: 0, dpr: 1 };
+
+  function X(x) { return view.ox + x * view.k; }
+  function Y(y) { return view.oy + y * view.k; }
+
+  function layout() {
+    var w = cvs.clientWidth || window.innerWidth;
+    var h = cvs.clientHeight || window.innerHeight;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    cvs.width = Math.round(w * dpr);
+    cvs.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    view.w = w; view.h = h; view.dpr = dpr;
+    var padX = Math.max(8, w * 0.03);
+    var padT = Math.max(12, h * 0.045);
+    // 底部给批注卡留出净空：河道都在图的上半部，卡压下来会挡住「改道」这场戏
+    var padB = Math.min(h * 0.42, 152);
+    var k = Math.min((w - 2 * padX) / 100, (h - padT - padB) / 100);
+    view.k = k;
+    view.ox = (w - 100 * k) / 2;
+    view.oy = padT + (h - padT - padB - 100 * k) / 2;
+  }
+
+  /* 纸纹：一次性生成极淡噪点，作为 multiply 叠层，做旧质感来自它而不是图片 */
+  function makeGrain() {
+    var g = document.createElement('canvas');
+    g.width = g.height = 96;
+    var gx = g.getContext('2d');
+    var img = gx.createImageData(96, 96);
+    var rnd = mulberry(20260101);
+    for (var i = 0; i < img.data.length; i += 4) {
+      var v = 232 + Math.floor(rnd() * 24);
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+      img.data[i + 3] = rnd() < 0.06 ? 60 : 26;
+    }
+    gx.putImageData(img, 0, 0);
+    var el = document.getElementById('grain');
+    el.style.backgroundImage = 'url(' + g.toDataURL('image/png') + ')';
+    el.style.backgroundSize = '96px 96px';
+  }
+
+  /* ========== 3. 小工具 ========== */
+  function mulberry(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function mix(a, b, t) { return a + (b - a) * t; }
+  function smooth(t) { return t * t * (3 - 2 * t); }
+  function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+  function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+
+  // Catmull-Rom：骨架点 → 密采样折线，河道才「弯得顺」
+  function spline(pts, per) {
+    var p = [pts[0]].concat(pts, [pts[pts.length - 1]]);
+    var out = [];
+    for (var i = 1; i < p.length - 2; i++) {
+      var p0 = p[i - 1], p1 = p[i], p2 = p[i + 1], p3 = p[i + 2];
+      for (var j = 0; j < per; j++) {
+        var t = j / per, t2 = t * t, t3 = t2 * t;
+        out.push([
+          0.5 * (2 * p1[0] + (-p0[0] + p2[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3),
+          0.5 * (2 * p1[1] + (-p0[1] + p2[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3)
+        ]);
+      }
+    }
+    out.push(pts[pts.length - 1]);
+    return out;
+  }
+
+  // 骨架逐点插值 → 加湍流 → 附弧长表
+  function buildRiver(spine, amp, phase) {
+    var base = spline(spine, 14), n = base.length, pts = [], i;
+    for (i = 0; i < n; i++) {
+      var a = base[Math.max(0, i - 1)], b = base[Math.min(n - 1, i + 1)];
+      var dx = b[0] - a[0], dy = b[1] - a[1];
+      var L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+      var u = i / (n - 1);
+      // 波长要明显大于河宽，否则粗线加高频抖动会糊成「毛毛虫」，读不出改道
+      var off = amp * (0.62 * Math.sin(u * Math.PI * 4.2 + phase) + 0.38 * Math.sin(u * Math.PI * 9 + phase * 1.6 + 1.2));
+      var damp = clamp((u - 0.02) / 0.10, 0, 1);   // 图外上游别抖，避免接缝
+      pts.push([base[i][0] - dy * off * damp, base[i][1] + dx * off * damp]);
+    }
+    var cum = [0];
+    for (i = 1; i < n; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    return { pts: pts, cum: cum, total: cum[n - 1] };
+  }
+
+  // 弧长定位（s: 0-1），返回坐标与切线角，帆船/绿植都靠它
+  function at(r, s) {
+    var target = clamp(s, 0, 1) * r.total, lo = 0, hi = r.cum.length - 1;
+    while (lo < hi - 1) {
+      var mid = (lo + hi) >> 1;
+      if (r.cum[mid] < target) lo = mid; else hi = mid;
+    }
+    var seg = r.cum[hi] - r.cum[lo] || 1;
+    var t = (target - r.cum[lo]) / seg;
+    var p0 = r.pts[lo], p1 = r.pts[hi];
+    return {
+      x: mix(p0[0], p1[0], t), y: mix(p0[1], p1[1], t),
+      a: Math.atan2(p1[1] - p0[1], p1[0] - p0[0])
+    };
+  }
+
+  function strokePts(pts, close) {
+    ctx.beginPath();
+    ctx.moveTo(X(pts[0][0]), Y(pts[0][1]));
+    for (var i = 1; i < pts.length; i++) ctx.lineTo(X(pts[i][0]), Y(pts[i][1]));
+    if (close) ctx.closePath();
+  }
+
+  /* ========== 4. 阶段权重：段内稳住形态，跨界那 10 个刻度滑过去 ========== */
+  // 每段的中段（约 60% 行程）形态是纯的，过渡集中在滑块跨过 25/50/75 的前后各 5 格，
+  // 于是「文字换段」和「河道改形态」发生在同一刻，而不是各走各的
+  function weights(v) {
+    var p = clamp(v, 0, 100) / 25, s = [];
+    for (var k = 1; k <= 3; k++) s.push(smooth(clamp((p - (k - 0.2)) / 0.4, 0, 1)));
+    return [1 - s[0], s[0] - s[1], s[1] - s[2], s[2]];
+  }
+
+  // 阶段序号：0-25 / 26-50 / 51-75 / 76-100（按题目分段，整边界归前一段）
+  function band(v) { return clamp(Math.floor(v / 25.0001), 0, 3); }
+
+  // 省界手绘感：一次性抖动，尺寸变了也不变样
+  var HENAN_ROUGH = (function () {
+    var rnd = mulberry(9731), out = [];
+    for (var i = 0; i < HENAN.length; i++) {
+      out.push([HENAN[i][0] + (rnd() - 0.5) * 1.6, HENAN[i][1] + (rnd() - 0.5) * 1.6]);
+    }
+    return out;
+  })();
+
+  // 植被点阵与沙化斑：按「河道相对位置」定义，改道时跟着线走
+  // 绿植是规整点阵（沿河 3 排 × 两岸），行首错半格，才像人工抚育的生态廊道而不是随机撒盐
+  var GREENERY = (function () {
+    var out = [], rows = [1.6, 3.1, 4.7], n = 74, i, j, side;
+    for (i = 0; i < n; i++) {
+      var s = 0.06 + (i / n) * 0.84;
+      for (j = 0; j < rows.length; j++) {
+        for (side = -1; side <= 1; side += 2) {
+          out.push({
+            s: s + (j % 2 ? 0.006 : 0), side: side, d: rows[j],
+            r: 0.45 + ((i + j) % 3) * 0.09, a: 0.86 - j * 0.17
+          });
+        }
+      }
+    }
+    return out;
+  })();
+  var SAND = (function () {
+    var rnd = mulberry(3390), out = [];
+    for (var i = 0; i < 210; i++) {
+      out.push({ s: 0.34 + rnd() * 0.62, side: rnd() < 0.62 ? 1 : -1, d: 1.6 + rnd() * 12, r: 0.24 + rnd() * 0.42, a: 0.2 + rnd() * 0.34 });
+    }
+    return out;
+  })();
+  var HUTS = (function () {
+    var rnd = mulberry(812), out = [];
+    for (var i = 0; i < 5; i++) {
+      out.push({ s: 0.26 + i * 0.11 + rnd() * 0.02, side: rnd() < 0.5 ? -1 : 1, d: 3.2 + rnd() * 2.2 });
+    }
+    return out;
+  })();
+
+  /* ========== 5. 绘制 ========== */
+  function drawFrame() {
+    // 古地图框：双线边框 + 边缘经纬短刻
+    ctx.save();
+    ctx.strokeStyle = 'rgba(90,70,45,.20)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(X(-2.2), Y(-2.2), 104.4 * view.k, 104.4 * view.k);
+    ctx.strokeStyle = 'rgba(90,70,45,.11)';
+    ctx.strokeRect(X(-0.8), Y(-0.8), 101.6 * view.k, 101.6 * view.k);
+    ctx.strokeStyle = 'rgba(150,120,80,.16)';
+    ctx.lineWidth = 1;
+    for (var g = 10; g < 100; g += 10) {
+      ctx.beginPath();
+      ctx.moveTo(X(g), Y(-0.8)); ctx.lineTo(X(g), Y(0.9));
+      ctx.moveTo(X(g), Y(99.1)); ctx.lineTo(X(g), Y(100.8));
+      ctx.moveTo(X(-0.8), Y(g)); ctx.lineTo(X(0.9), Y(g));
+      ctx.moveTo(X(99.1), Y(g)); ctx.lineTo(X(100.8), Y(g));
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawHenan() {
+    ctx.save();
+    // 陆面淡淡铺一层，让河道浮在纸上
+    strokePts(HENAN_ROUGH, true);
+    ctx.fillStyle = 'rgba(255,250,238,.55)';
+    ctx.fill();
+    // 两遍错位描线 = 粗糙手绘
+    strokePts(HENAN_ROUGH, true);
+    ctx.strokeStyle = 'rgba(74,60,44,.62)';
+    ctx.lineWidth = Math.max(1.1, view.k * 0.5);
+    ctx.setLineDash([]);
+    ctx.stroke();
+    ctx.save();
+    ctx.translate(view.k * 0.5, -view.k * 0.45);
+    strokePts(HENAN_ROUGH, true);
+    ctx.strokeStyle = 'rgba(74,60,44,.18)';
+    ctx.lineWidth = Math.max(0.8, view.k * 0.34);
+    ctx.stroke();
+    ctx.restore();
+
+    // 省名（图内空白处）
+    ctx.fillStyle = 'rgba(122,110,98,.5)';
+    ctx.font = '600 ' + (view.k * 3.4) + 'px Georgia,"Songti SC",serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('河 南 省', X(70), Y(76));
+    ctx.font = (view.k * 1.7) + 'px system-ui,sans-serif';
+    ctx.fillStyle = 'rgba(122,110,98,.4)';
+    ctx.fillText('示 意', X(70), Y(80.2));
+    ctx.restore();
+  }
+
+  function drawMountains() {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(96,78,56,.34)';
+    ctx.lineWidth = Math.max(0.9, view.k * 0.36);
+    ctx.lineCap = 'round';
+    for (var m = 0; m < MOUNTAINS.length; m++) {
+      var line = MOUNTAINS[m].l;
+      for (var i = 0; i < line.length - 1; i++) {
+        var a = line[i], b = line[i + 1];
+        var segs = 5;
+        for (var j = 0; j < segs; j++) {
+          var t0 = j / segs, t1 = (j + 0.5) / segs, t2 = (j + 1) / segs;
+          var x0 = mix(a[0], b[0], t0), y0 = mix(a[1], b[1], t0);
+          var xm = mix(a[0], b[0], t1), ym = mix(a[1], b[1], t1) - 2.1;
+          var x1 = mix(a[0], b[0], t2), y1 = mix(a[1], b[1], t2);
+          ctx.beginPath();
+          ctx.moveTo(X(x0), Y(y0));
+          ctx.quadraticCurveTo(X(xm), Y(ym), X(x1), Y(y1));
+          ctx.stroke();
+        }
+      }
+      ctx.fillStyle = 'rgba(122,110,98,.44)';
+      ctx.font = (view.k * 1.7) + 'px Georgia,"Songti SC",serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(MOUNTAINS[m].n, X(line[1][0]), Y(line[1][1] + 3.4));
+    }
+    ctx.restore();
+  }
+
+  function drawRiverShadows(r, col, wUnits, a) {
+    // 堤影：先宽后窄两道，河才有「压在纸上」的厚度
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    strokePts(r.pts);
+    ctx.strokeStyle = rgba([255, 252, 244], 0.8 * a);
+    ctx.lineWidth = Math.max(2, (wUnits + 2.0) * view.k);
+    ctx.stroke();
+    strokePts(r.pts);
+    ctx.strokeStyle = rgba([92, 72, 48], 0.14 * a);
+    ctx.lineWidth = Math.max(1, (wUnits + 1.2) * view.k);
+    ctx.stroke();
+    strokePts(r.pts);
+    ctx.strokeStyle = rgba(col, a);
+    ctx.lineWidth = Math.max(1.2, wUnits * view.k);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawFlow(r, w2, w3) {
+    // 水纹：沿河的白色虚线在流动，汉唐水丰、宋元湍急时更明显
+    var amp = 0.14 + w2 * 0.30 + w3 * 0.26;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.setLineDash([view.k * 3.2, view.k * 6.4]);
+    ctx.lineDashOffset = -performance.now() / 1000 * view.k * (7 + w2 * 12 + w3 * 18);
+    ctx.strokeStyle = rgba([255, 255, 255], amp);
+    ctx.lineWidth = Math.max(0.8, view.k * 0.7);
+    strokePts(r.pts);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawGhost(cur, a) {
+    // 宋元改道后，旧的北行河道留下断线故道
+    var r = buildRiver(SPINE[1], LOOK[1].amp * 0.6, 0);
+    ctx.save();
+    ctx.setLineDash([view.k * 2.4, view.k * 3.6]);
+    ctx.strokeStyle = rgba([120, 104, 84], 0.5 * a);
+    ctx.lineWidth = Math.max(0.9, view.k * 0.72);
+    strokePts(r.pts);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawCanal(a) {
+    var pts = spline(CANAL, 10);
+    ctx.save();
+    strokePts(pts);
+    ctx.strokeStyle = rgba([255, 252, 244], 0.8 * a);
+    ctx.lineWidth = Math.max(1.6, 3.6 * view.k);
+    ctx.stroke();
+    strokePts(pts);
+    ctx.strokeStyle = rgba([92, 138, 152], 0.92 * a);
+    ctx.lineWidth = Math.max(1, 2.2 * view.k);
+    ctx.stroke();
+    ctx.restore();
+    return { pts: pts, cum: (function (p) { var c = [0]; for (var i = 1; i < p.length; i++) c.push(c[i - 1] + Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1])); return c; })(pts), total: 0 };
+  }
+
+  function drawBoat(x, y, ang, scale, a, flip) {
+    ctx.save();
+    ctx.translate(X(x), Y(y));
+    ctx.rotate(ang + (flip ? Math.PI : 0));
+    ctx.scale(scale * view.k / 6.2, scale * view.k / 6.2);
+    ctx.globalAlpha = a;
+    // 船身
+    ctx.beginPath();
+    ctx.moveTo(-3.2, 0.6); ctx.quadraticCurveTo(0, 2.4, 3.2, 0.6);
+    ctx.lineTo(2.4, -0.4); ctx.lineTo(-2.6, -0.4); ctx.closePath();
+    ctx.fillStyle = '#5A4432'; ctx.fill();
+    // 三角帆（题目要求的帆船图标）
+    ctx.beginPath();
+    ctx.moveTo(0.1, -0.6); ctx.lineTo(0.1, -5.4); ctx.lineTo(3.0, -0.9); ctx.closePath();
+    ctx.fillStyle = '#FFFDF6'; ctx.fill();
+    ctx.strokeStyle = '#5A4432'; ctx.lineWidth = 0.5; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-0.5, -0.6); ctx.lineTo(-0.5, -3.6); ctx.lineTo(-2.6, -0.9); ctx.closePath();
+    ctx.fillStyle = 'rgba(255,253,246,.82)'; ctx.fill(); ctx.stroke();
+    // 桅
+    ctx.beginPath(); ctx.moveTo(0.1, -0.6); ctx.lineTo(0.1, -6.0);
+    ctx.strokeStyle = '#5A4432'; ctx.lineWidth = 0.45; ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawDam(x, y, ang, a, wu) {
+    ctx.save();
+    ctx.translate(X(x), Y(y));
+    ctx.rotate(ang + Math.PI / 2);
+    ctx.globalAlpha = a;
+    // 坝体横跨河道并略咬进两岸，才读得出「拦河」而不是一个白块
+    var half = Math.max(view.k * 1.3, (wu / 2 + 1.2) * view.k);
+    var th = Math.max(1, view.k * 0.8);
+    ctx.fillStyle = '#3E382F';
+    ctx.fillRect(-half, -th, half * 2, th * 2);
+    ctx.strokeStyle = 'rgba(255,252,245,.9)';
+    ctx.lineWidth = Math.max(0.7, view.k * 0.26);
+    ctx.strokeRect(-half, -th, half * 2, th * 2);
+    ctx.beginPath();
+    for (var i = -1; i <= 1; i++) { ctx.moveTo(i * half * 0.55, th); ctx.lineTo(i * half * 0.55, th + view.k * 1.6); }
+    ctx.strokeStyle = 'rgba(88,130,148,.85)';
+    ctx.lineWidth = Math.max(0.8, view.k * 0.34);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawHut(x, y, a) {
+    var px = X(x), py = Y(y), k = view.k;
+    ctx.save();
+    ctx.globalAlpha = a;
+    // 屋顶三角 + 一段墙：只画三角会和山脉符号混成一片，读不出「定居」
+    ctx.beginPath();
+    ctx.moveTo(px, py - k * 1.5);
+    ctx.lineTo(px - k * 0.95, py - k * 0.35);
+    ctx.lineTo(px + k * 0.95, py - k * 0.35);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(166,85,61,.85)';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.rect(px - k * 0.6, py - k * 0.35, k * 1.2, k * 0.72);
+    ctx.fillStyle = 'rgba(122,80,58,.66)';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawDots(list, r, col, a, sizeKey) {
+    if (a <= 0.004) return;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = col;
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i], p = at(r, it.s);
+      var nx = -Math.sin(p.a) * it.side, ny = Math.cos(p.a) * it.side;
+      var x = p.x + nx * it.d, y = p.y + ny * it.d;
+      ctx.globalAlpha = a * it.a;
+      ctx.beginPath();
+      ctx.arc(X(x), Y(y), Math.max(0.6, (it[sizeKey] || 0.7) * view.k), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawCities(w3) {
+    ctx.save();
+    for (var i = 0; i < CITIES.length; i++) {
+      var c = CITIES[i];
+      var px = X(c.p[0]), py = Y(c.p[1]);
+      var rr = Math.max(2.6, view.k * 1.25);
+      ctx.beginPath(); ctx.arc(px, py, rr + view.k * 0.9, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,252,245,.9)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, rr, 0, Math.PI * 2);
+      ctx.fillStyle = i === 1 && w3 > 0.55 ? '#A6553D' : '#3F352B';
+      ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, rr + view.k * 1.5, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(63,53,43,.32)';
+      ctx.lineWidth = Math.max(0.8, view.k * 0.32);
+      ctx.stroke();
+      ctx.font = '600 ' + Math.max(10, view.k * 2.35) + 'px Georgia,"Songti SC","STSong",serif';
+      ctx.textAlign = c.align === 'right' ? 'right' : 'left';
+      ctx.textBaseline = 'top';
+      ctx.lineWidth = Math.max(2, view.k * 0.9);
+      ctx.strokeStyle = 'rgba(245,239,228,.9)';
+      var lx = px + c.dx * view.k * 2.6, ly = py + c.dy * view.k * 2.4;
+      ctx.strokeText(c.n, lx, ly);
+      ctx.fillStyle = '#2B2622';
+      ctx.fillText(c.n, lx, ly);
+    }
+    ctx.restore();
+  }
+
+  function drawRiverName(r, col, wUnits) {
+    var p = at(r, 0.42);
+    ctx.save();
+    ctx.translate(X(p.x), Y(p.y));
+    ctx.rotate(p.a);
+    ctx.font = '600 ' + Math.max(9, view.k * 2.1) + 'px Georgia,"Songti SC",serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = Math.max(3, view.k * 1.2);
+    ctx.strokeStyle = 'rgba(250,244,232,.95)';   // 纸色描边：四段河色深浅不一，白字压不住
+    ctx.strokeText('黄 河', 0, 0);
+    ctx.fillStyle = rgba([Math.round(col[0] * 0.45), Math.round(col[1] * 0.45), Math.round(col[2] * 0.45)], 1);
+    ctx.fillText('黄 河', 0, 0);
+    ctx.restore();
+  }
+
+  function drawAnno(r, w) {
+    ctx.save();
+    ctx.textBaseline = 'middle';
+    for (var i = 0; i < ANNO.length; i++) {
+      var a = ANNO[i], al = w[a.s];
+      if (al < 0.06) continue;
+      ctx.globalAlpha = al * 0.9;
+      ctx.font = (view.k * 1.85) + 'px Georgia,"Songti SC",serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = a.s === 2 ? '#8A5A22' : (a.s === 3 ? '#4A6B52' : '#6B5E50');
+      ctx.fillText(a.t, X(a.p[0]), Y(a.p[1]));
+      if (a.s === 2 && i === 4) {
+        // 决口：向外炸开的短笔
+        ctx.globalAlpha = al * 0.75;
+        ctx.strokeStyle = '#A6553D';
+        ctx.lineWidth = Math.max(1, view.k * 0.45);
+        for (var k2 = 0; k2 < 6; k2++) {
+          var ang = k2 / 6 * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(X(a.p[0]) + Math.cos(ang) * view.k * 1.2, Y(a.p[1] + 3.2) + Math.sin(ang) * view.k * 1.2);
+          ctx.lineTo(X(a.p[0]) + Math.cos(ang) * view.k * 2.6, Y(a.p[1] + 3.2) + Math.sin(ang) * view.k * 2.6);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  /* ========== 6. 主循环 ========== */
+  var vTarget = 0, vAnim = 0, dragging = false, playing = false;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function frame() {
+    // 数值平滑：一切形态（颜色/粗细/走向/图标）都跟着这条走，拖动才有连续过渡
+    vAnim += (vTarget - vAnim) * (dragging ? 1 : 0.11);
+    if (Math.abs(vTarget - vAnim) < 0.004) vAnim = vTarget;
+    if (playing && !dragging) {
+      vTarget += 0.22;
+      if (vTarget >= 100) { vTarget = 100; setPlaying(false); }
+      tl.value = String(Math.round(vTarget));
+    }
+
+    var w = weights(vAnim);
+    var col = [0, 0, 0], wUnits = 0, amp = 0, i;
+    for (i = 0; i < 4; i++) {
+      col[0] += LOOK[i].c[0] * w[i]; col[1] += LOOK[i].c[1] * w[i]; col[2] += LOOK[i].c[2] * w[i];
+      wUnits += LOOK[i].w * w[i]; amp += LOOK[i].amp * w[i];
+    }
+    var spine = [];
+    for (i = 0; i < SPINE[0].length; i++) {
+      var x = 0, y = 0;
+      for (var j = 0; j < 4; j++) { x += SPINE[j][i][0] * w[j]; y += SPINE[j][i][1] * w[j]; }
+      spine.push([x, y]);
+    }
+    var tsec = performance.now() / 1000;
+    var phase = reduce ? 0 : 1.1 * Math.sin(tsec * 0.32) * w[2];
+    var r = buildRiver(spine, amp, phase);
+
+    ctx.clearRect(0, 0, view.w, view.h);
+    drawFrame();
+    drawHenan();
+    drawMountains();
+    if (w[2] > 0.04) drawGhost(r, w[2]);          // 故道
+    drawDots(SAND, r, '#C6A167', w[2], 'r');       // 沙土地
+    var canalR = null;
+    if (w[1] > 0.02) canalR = drawCanal(w[1]);    // 汴渠
+    drawRiverShadows(r, col, wUnits, 1);
+    drawFlow(r, w[1], w[2]);
+    if (w[0] > 0.05) {                            // 先民聚落
+      for (i = 0; i < HUTS.length; i++) {
+        var hp = at(r, HUTS[i].s);
+        drawHut(hp.x - Math.sin(hp.a) * HUTS[i].side * HUTS[i].d,
+                hp.y + Math.cos(hp.a) * HUTS[i].side * HUTS[i].d, w[0] * 0.85);
+      }
+    }
+    drawDots(GREENERY, r, '#5E8146', w[3], 'r');   // 绿植点阵
+    if (w[3] > 0.05) {                            // 水利枢纽
+      var d1 = at(r, 0.115), d2 = at(r, 0.215);
+      drawDam(d1.x, d1.y, d1.a, w[3], wUnits);
+      drawDam(d2.x, d2.y, d2.a, w[3], wUnits);
+    }
+    if (w[1] > 0.03) {                            // 漕运帆船
+      var n1 = 5;
+      for (i = 0; i < n1; i++) {
+        var s = (tsec * 0.022 + i / n1) % 1;
+        if (s > 0.02 && s < 0.98) {
+          var bp = at(r, s);
+          drawBoat(bp.x, bp.y, bp.a, 1 + (i % 2) * 0.25, w[1] * 0.95, Math.cos(bp.a) < 0);
+        }
+      }
+      if (canalR) {
+        canalR.total = canalR.cum[canalR.cum.length - 1];
+        for (i = 0; i < 3; i++) {
+          var cs = (tsec * 0.03 + i / 3) % 1;
+          var cp = at(canalR, 0.1 + cs * 0.7);
+          drawBoat(cp.x, cp.y, cp.a, 0.8, w[1] * 0.8, false);
+        }
+      }
+    }
+    drawRiverName(r, col, wUnits);
+    drawCities(w[2]);
+    drawAnno(r, w);
+
+    syncCard();
+    requestAnimationFrame(frame);
+  }
+
+  /* ========== 7. UI ========== */
+  var tl = document.getElementById('tl');
+  var valEl = document.getElementById('val');
+  var card = document.getElementById('card');
+  var cardIdx = document.getElementById('cardIdx');
+  var cardTitle = document.getElementById('cardTitle');
+  var cardEra = document.getElementById('cardEra');
+  var cardBody = document.getElementById('cardBody');
+  var chips = document.getElementById('chips');
+  var playBtn = document.getElementById('play');
+  var curStage = -1, cardHidden = false;
+
+  (function buildChips() {
+    for (var i = 0; i < 4; i++) {
+      var b = document.createElement('button');
+      b.className = 'chip';
+      b.innerHTML = '<i>' + STAGES[i].idx + '</i>' + STAGES[i].name;
+      b.dataset.i = String(i);
+      b.onclick = (function (idx) {
+        return function () {
+          setPlaying(false);
+          cardHidden = false; card.classList.remove('out');
+          vTarget = idx * 25 + 12.5;         // 跳到阶段中心，形态已完全过渡到位
+          tl.value = String(Math.round(vTarget));
+        };
+      })(i);
+      chips.appendChild(b);
+    }
+  })();
+
+  function syncCard() {
+    var v = Number(tl.value);
+    var st = band(v);
+    valEl.textContent = String(v);
+    for (var i = 0; i < chips.children.length; i++) {
+      chips.children[i].classList.toggle('on', i === st);
+    }
+    if (st !== curStage) {
+      curStage = st;
+      cardIdx.textContent = STAGES[st].idx;
+      cardTitle.textContent = STAGES[st].name;
+      cardEra.textContent = STAGES[st].era;
+      cardBody.textContent = STAGES[st].text;
+      cardHidden = false;
+      card.classList.remove('out');
+      card.classList.remove('in');
+      void card.offsetWidth;               // 重新触发入场动画
+      card.classList.add('in');
+    }
+  }
+
+  document.getElementById('cardClose').onclick = function () {
+    cardHidden = true; curStage = -1;
+    card.classList.add('out');
+  };
+
+  tl.addEventListener('input', function () {
+    dragging = true;
+    setPlaying(false);
+    vTarget = Number(tl.value);
+    vAnim = vTarget;                       // 手拖时不做二次滞后，跟手
+  });
+  ['change', 'pointerup', 'pointercancel', 'blur'].forEach(function (ev) {
+    tl.addEventListener(ev, function () { dragging = false; });
+  });
+
+  function setPlaying(on) {
+    playing = on;
+    playBtn.classList.toggle('playing', on);
+    playBtn.textContent = on ? '❚❚' : '▶';
+  }
+  playBtn.onclick = function () {
+    if (playing) { setPlaying(false); return; }
+    if (vTarget >= 99.5) vTarget = 0;
+    vAnim = vTarget;
+    tl.value = String(Math.round(vTarget));
+    setPlaying(true);
+  };
+
+  var noteBtn = document.getElementById('noteBtn');
+  var note = document.getElementById('note');
+  noteBtn.onclick = function () {
+    note.hidden = !note.hidden;
+    noteBtn.classList.toggle('on', !note.hidden);
+  };
+
+  document.getElementById('back').onclick = function () {
+    if (window.Native && window.Native.back) { window.Native.back(); }
+    else if (history.length > 1) { history.back(); }
+  };
+
+  window.addEventListener('resize', layout);
+  window.addEventListener('orientationchange', function () { setTimeout(layout, 220); });
+
+  // 供宿主与自验用：setTimeline(0-100) 直接落到某一时刻
+  window.setTimeline = function (v) {
+    v = clamp(Number(v) || 0, 0, 100);
+    setPlaying(false);
+    vTarget = v; vAnim = v;
+    tl.value = String(Math.round(v));
+    curStage = -1;
+    syncCard();
+  };
+
+  /* 启动 */
+  var q = new URLSearchParams(location.search);
+  var init = q.get('t');
+  layout();
+  makeGrain();
+  if (init !== null) { window.setTimeline(init); }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
