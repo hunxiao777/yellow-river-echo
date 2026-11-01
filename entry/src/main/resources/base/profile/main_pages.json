@@ -23,6 +23,7 @@
     "pages/ColorPage",
     "pages/StudioPage",
     "pages/ExperiencePage",
-    "pages/PanoramaPage"
+    "pages/PanoramaPage",
+    "pages/RelicPage"
   ]
 }

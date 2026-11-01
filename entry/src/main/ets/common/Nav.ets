@@ -14,6 +14,7 @@ export interface RouteParam {
   eventId?: string;
   tab?: number;
   colorKey?: string;
+  relic?: number;
   from?: string;
 }
 
@@ -104,6 +105,12 @@ export function goColor(colorKey: string): void {
 export function goStudio(tab: number): void {
   let p: RouteParam = { tab: tab };
   router.pushUrl({ url: 'pages/StudioPage', params: p });
+}
+
+// 选工坊 →「3D 文物工坊」：relic 是四件扫描文物的顺序，缺省 0
+export function goRelic(id: number): void {
+  let p: RouteParam = { relic: id };
+  router.pushUrl({ url: 'pages/RelicPage', params: p });
 }
 
 // 地图导览：ArkWeb 承载的手绘导览。type 取 map / travel / model / footprints，

@@ -1,6 +1,6 @@
 import { router } from '@kit.ArkUI';
 import { INK, SUB, PAPER, CLAY, LINE, fs, coverRes, paletteOf } from '../common/Theme';
-import { goBack, params, goPlayer, goCourses } from '../common/Nav';
+import { goBack, params, goPlayer, goCourses, goRelic } from '../common/Nav';
 import { PatternBg } from '../view/PatternBg';
 import { ContentRepo } from '../service/ContentRepo';
 import { Course } from '../model/Models';
@@ -318,6 +318,37 @@ export struct StudioPage {
         .border({ width: 1, color: LINE })
         .onClick((): void => {
           router.pushUrl({ url: 'pages/ColorPage' });
+        })
+      }
+      .width('100%')
+
+      Row() {
+        Column({ space: 6 }) {
+          Text('3D 文物工坊')
+            .fontSize(fs(15))
+            .fontWeight(FontWeight.Bold)
+            .fontColor(INK)
+            .letterSpacing(2)
+          Text('转一转 · 看釉色与纹样，真器 360°')
+            .fontSize(fs(10))
+            .fontColor(SUB)
+          Row({ space: 4 }) {
+            Text('看文物')
+              .fontSize(fs(10))
+              .fontColor(CLAY)
+            Text('›')
+              .fontSize(fs(11))
+              .fontColor(CLAY)
+          }
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        .padding(12)
+        .backgroundColor('rgba(255,255,255,0.72)')
+        .borderRadius(12)
+        .border({ width: 1, color: LINE })
+        .onClick((): void => {
+          goRelic(0);
         })
       }
       .width('100%')
