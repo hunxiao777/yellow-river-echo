@@ -11,6 +11,8 @@
  *   双龙耳瓶   去法线+weld → simplify 0.2（目标约 45 万面）→ quantize → meshopt
  *   三彩马     quantize → meshopt
  *   安德森陶罐 quantize → meshopt
+ *   青铜方彝   weld → resize 1024 → quantize → meshopt（源件仅 2.7 万面）
+ *   青铜镈钟   weld → quantize → meshopt（源件约 40 万面）
  *
  * 注意：双龙耳瓶的 674 万顶点是逐三角拆开的（法线逐面不同），直接 weld 合不动、
  * simplify 也只会削掉 1%。所以先卸掉 NORMAL/TANGENT 再 weld，简化为 45 万面后
@@ -66,6 +68,28 @@ const MODELS = [
     src: 'johan_gunnar_andersson_vessel.glb',
     out: 'andersson-vessel.glb',
     pipeline: []
+  },
+  {
+    id: 'fangyi',
+    label: '兽面纹青铜方彝',
+    src: '804468123a8849108b83944ee1008aa5_normalized_optimized.glb',
+    out: 'fangyi.glb',
+    // 源件 Draco 压缩、仅 2.7 万面，无法“简化到 30-45 万”；走解码→weld→
+    // 贴图降到 1024→quantize→meshopt，体积主要由贴图决定
+    pipeline: [
+      { cmd: 'weld', mid: 'fangyi.weld.glb' },
+      { cmd: 'resize', mid: 'fangyi.resize.glb', args: ['--width', '1024', '--height', '1024'] }
+    ]
+  },
+  {
+    id: 'bell',
+    label: '青铜镈钟',
+    src: 'bronze_bo_bell.glb',
+    out: 'bell.glb',
+    // 源件已约 40 万面，落在目标区间，不需要 simplify
+    pipeline: [
+      { cmd: 'weld', mid: 'bell.weld.glb' }
+    ]
   }
 ];
 

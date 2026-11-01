@@ -65,6 +65,37 @@ const RELICS = [
     pitch: 0,
     elevation: 0.16,
     zoom: 1.06
+  },
+  {
+    file: 'models/fangyi.glb',
+    name: '兽面纹青铜方彝',
+    era: '西周早期',
+    material: '青铜',
+    collection: '河南洛阳出土',
+    note: '出土于河南洛阳。器身饰有饕餮纹、蛇纹与鸟纹，是西周早期黄河流域青铜礼器与祭祀文化的典型代表。',
+    scope: '黄河流域文化圈 · 河南洛阳（西周早期青铜礼器）',
+    credit: '藏品扫描：Smithsonian Institution · Public Domain（Zenodo）',
+    recomputeNormals: false,
+    /* 源模型的前脸正对 +Z，转到 -30° 才是能同时看见两个面的展示角度 */
+    yaw: -Math.PI / 6,
+    pitch: 0,
+    elevation: 0.16,
+    zoom: 1.06
+  },
+  {
+    file: 'models/bell.glb',
+    name: '青铜镈钟',
+    era: '东周',
+    material: '青铜',
+    collection: '河南出土 · 大英博物馆',
+    note: '出土于河南，公元前 5 世纪的大型镈钟，现藏大英博物馆。',
+    scope: '黄河流域文化圈 · 河南出土（东周青铜礼乐器）',
+    credit: '藏品扫描：artfletch · CC BY 4.0 · 压缩版',
+    recomputeNormals: false,
+    yaw: 0,
+    pitch: 0,
+    elevation: 0.16,
+    zoom: 1.06
   }
 ];
 
