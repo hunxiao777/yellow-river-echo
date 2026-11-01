@@ -24,6 +24,7 @@
     "pages/StudioPage",
     "pages/ExperiencePage",
     "pages/PanoramaPage",
-    "pages/RelicPage"
+    "pages/RelicPage",
+    "pages/SandtablePage"
   ]
 }

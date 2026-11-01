@@ -115,6 +115,11 @@ export function goRelic(id: number): void {
   router.pushUrl({ url: 'pages/RelicPage', params: p });
 }
 
+// 「黄河地理与文明」沙盘：纯前端 Canvas 时间轴推演（大禹治水 / 汉唐漕运 / 宋元夺淮 / 当代安澜）
+export function goSandtable(): void {
+  router.pushUrl({ url: 'pages/SandtablePage' });
+}
+
 // 地图导览：ArkWeb 承载的手绘导览。type 取 map / travel / model / footprints，
 // 缺省 map；地图页内保留发现·建筑·展览·打卡·餐饮·文创·卫生间·游客服务八类筛选
 export function goExperience(type: string): void {
