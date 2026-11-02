@@ -107,7 +107,7 @@ export function goStudio(tab: number): void {
   router.pushUrl({ url: 'pages/StudioPage', params: p });
 }
 
-// 选工坊 →「3D 文物工坊」：relic 是六件扫描文物的顺序，缺省 0
+// 选工坊 →「3D文物工坊」：relic 是六件扫描文物的顺序，缺省 0
 // （0 舞者砖 · 1 双龙耳瓶 · 2 青铜镈钟 · 3 青铜方彝 · 4 安特生陶罐 · 5 三彩马，
 //   与 relic.js 里的 RELICS、rawfile/relic/turntable/<序号>/ 一一对应）
 export function goRelic(id: number): void {
@@ -115,7 +115,8 @@ export function goRelic(id: number): void {
   router.pushUrl({ url: 'pages/RelicPage', params: p });
 }
 
-// 「黄河地理与文明」沙盘：纯前端 Canvas 时间轴推演（大禹治水 / 汉唐漕运 / 宋元夺淮 / 当代安澜）
+// 「黄河沙盘」：纯前端 Canvas 时间轴推演（大禹治水 / 汉唐漕运 / 宋元夺淮 / 当代安澜）
+// 入口与页内标题都用「黄河沙盘」，地图上的水印副标题保留主题名「黄河地理与文明」
 export function goSandtable(): void {
   router.pushUrl({ url: 'pages/SandtablePage' });
 }

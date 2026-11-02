@@ -324,7 +324,7 @@ export struct StudioPage {
 
       Row() {
         Column({ space: 6 }) {
-          Text('3D 文物工坊')
+          Text('3D文物工坊')
             .fontSize(fs(15))
             .fontWeight(FontWeight.Bold)
             .fontColor(INK)
@@ -355,7 +355,7 @@ export struct StudioPage {
 
       Row() {
         Column({ space: 6 }) {
-          Text('黄河地理与文明')
+          Text('黄河沙盘')
             .fontSize(fs(15))
             .fontWeight(FontWeight.Bold)
             .fontColor(INK)
