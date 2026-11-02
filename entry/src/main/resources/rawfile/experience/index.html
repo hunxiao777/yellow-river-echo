@@ -30,5 +30,5 @@ function drawCardText(x,r){x.fillStyle='#522c28';x.font='44px serif';x.fillText(
 function shareCard(){let png=document.querySelector('#cardCanvas').toDataURL('image/png');if(window.Native)Native.shareImage(png);else toast('请在鸿蒙应用中使用系统分享')}
 function exportCard(){let png=document.querySelector('#cardCanvas').toDataURL('image/png');if(window.Native)Native.saveImage(png);else{let a=document.createElement('a');a.href=png;a.download='黄河明信片.png';a.click()}}
 function modelPage(){app.innerHTML='<div class="pad"><h2>中国瓷瓶 · 数字鉴赏</h2><p class="muted">公开 CC0 扫描模型；资源转载页标注来源 Smithsonian。与河南出土器物无对应关系。</p><div id="three"></div><p id="modelStatus">正在加载离线 3D 模型…</p><button onclick="window.resetModel?.()">复位视角</button> <button onclick="window.toggleRotate?.()">自动旋转／暂停</button><p class="muted">单指拖动旋转，双指缩放；模型是实物三维扫描，不是全景照片。</p></div>';import('./viewer.js').then(m=>m.mount()).catch(e=>{document.querySelector('#modelStatus').textContent='3D 引擎加载失败：'+e.message})}
-window.startExperience=(m)=>show(m||'map');show('map');
-</script></html>
+window.startExperience=(m)=>show(m||'map');
+</script><script src="map-runtime.js"></script><script>show('map')</script></html>

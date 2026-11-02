@@ -27,3 +27,6 @@ build_warn.txt
 /.merge/
 __pycache__/
 *.zip
+
+# 号码认证 SDK 凭据按机器配置，真值只留本机，一律不入库
+entry/src/main/ets/service/NumberAuthConfig.local.ets
