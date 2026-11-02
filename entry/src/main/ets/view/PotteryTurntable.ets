@@ -1,7 +1,7 @@
 import { image } from '@kit.ImageKit';
 import { common } from '@kit.AbilityKit';
-import { fs, paletteOf, Palette, withAlpha, SUB } from '../common/Theme';
-import { drawBand, drawPaper, drawPedestal, drawRimFoot, drawWord } from '../common/PotteryArt';
+import { fs, paletteOf, Palette, withAlpha, hexLum, SUB } from '../common/Theme';
+import { drawBand, drawPaper, drawPedestal, drawWord } from '../common/PotteryArt';
 import { ShapeMeta, TurntableFrames, TurntableIndex } from '../service/TurntableFrames';
 import { PotteryCanvas } from './PotteryCanvas';
 
@@ -31,6 +31,13 @@ import { PotteryCanvas } from './PotteryCanvas';
 const SLABS: number = 8;
 const SPIN_MS: number = 120;
 const RESUME_MS: number = 2500;
+// 罩釉的压实度不是拍脑袋的数值表，是跟灰模底亮度对着算出来的：
+// FRAME_LUM 是灰模器身上半部的实测亮度中位数，TINT_TOL 是「罩完允许差多少」的亮度容差，
+// TINT_MIN 以下灰模的明暗就透出来了 —— 伪 3D 剩下的立体感全指望它。
+const FRAME_LUM: number = 179;
+const TINT_TOL: number = 22;
+const TINT_MIN: number = 0.62;
+const TINT_MAX: number = 0.94;
 
 @Component
 export struct PotteryTurntable {
@@ -210,8 +217,10 @@ export struct PotteryTurntable {
     c.drawImage(cur, 0, 0, this.fw, this.fh);
     this.tint(c, p, m);
     this.wrap(c, p, m);
-    c.globalCompositeOperation = 'source-over';
-    drawRimFoot(c, p, this.shape, this.fw, this.fh);
+    // 口沿、底足不再描：二维版那句 drawRimFoot 是拿来把「轮廓路径的平口」补成椭圆口的，
+    // 而灰模帧的口、足、耳在 3D 里已经烘进位图了，再描一遍等于让一圈红环浮在罐口上方。
+    // 量过帧的不透明包围盒：top=71 / bot=491 / 半宽 237，与映射表 77 / 488 / 236 对得上，
+    // 所以不是位置算错，是这一笔根本不该画（复现：node .tmp/pot_preview/preview.mjs measure）。
     c.globalCompositeOperation = 'destination-over';
     drawPedestal(c, p, this.shape, this.pedestal, m.botPx, this.fw, this.fh);
     c.restore();
@@ -224,10 +233,17 @@ export struct PotteryTurntable {
 
   // 釉色罩层：带透明度的竖向渐变压在灰模上，source-atop 保证颜色只落在器身里
   private tint(c: CanvasRenderingContext2D, p: Palette, m: ShapeMeta): void {
+    // 六套釉色的深浅差得很远，一刀切的 alpha 两头都不讨好：淡泥压高了就没有立体感，
+    // 龙山黑陶压低了又压不住底色（实测被灰模提亮 80 个亮度级，黑陶变灰陶）。
+    // 所以按「罩完的亮度落在目标色 ±TINT_TOL 里」反解 alpha：a = 1 - TOL/(FRAME_LUM - 釉亮度)
+    let d = FRAME_LUM - hexLum(p.base);
+    let a = d <= TINT_TOL ? TINT_MIN : Math.max(TINT_MIN, Math.min(TINT_MAX, 1 - TINT_TOL / d));
     let g: CanvasGradient = c.createLinearGradient(0, m.topPx, 0, m.botPx);
-    g.addColorStop(0, withAlpha(p.paper, 0.55));
-    g.addColorStop(0.45, withAlpha(p.base, 0.80));
-    g.addColorStop(1, withAlpha(p.deep, 0.86));
+    // stop 与二维器身那一笔完全一致（PotteryCanvas 里 base / base@0.55 / deep@1），
+    // 只多一层透明度：灰模自身的明暗从半透明底下透出来，就是上釉的样子。
+    g.addColorStop(0, withAlpha(p.base, a));
+    g.addColorStop(0.55, withAlpha(p.base, a));
+    g.addColorStop(1, withAlpha(p.deep, Math.min(TINT_MAX, a + 0.08)));
     c.globalCompositeOperation = 'source-atop';
     c.fillStyle = g;
     c.fillRect(0, 0, this.fw, this.fh);
