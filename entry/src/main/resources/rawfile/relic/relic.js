@@ -12,7 +12,8 @@ import { MeshoptDecoder } from '../experience/vendor/MeshoptDecoder.js';
      theme      四字主题标签，六件等长
      note       一句话、20~28 字，只讲形制与工艺；不重复 era 的年代、不写收藏机构
                 （出土地看 scope，馆藏看 collection）
-     scope      「<文化圈> · <出土地或窑口>（<年代 · 类别>）」；出土地不明写（出土地未著录）
+     scope      「<文化圈> · <出土地>（<年代或文化归属> · <类别>）」；括号里六件都是两段，
+                出土地不明就写进前一段（如「出土地未著录」），不要占掉括号的年代位
      material   材质短语；多段用顿号「、」连接——信息条里字段之间已经用「 · 」分隔，
                 材质内部再用「 · 」会和分隔符撞在一起看不出边界
      collection 只写收藏机构中文名（必要时装原文括注），不写出土地、不写扫描方
@@ -23,7 +24,7 @@ const RELICS = [
     file: 'models/dancer-brick.glb',
     name: '修定寺塔舞者砖',
     era: '唐',
-    material: '模制陶胎 · 施化妆土',
+    material: '模制陶胎、施化妆土',
     collection: '克利夫兰艺术博物馆',
     note: '砖面浮雕蓄须舞者，披帛翻卷，为塔身砌砖。',
     scope: '黄河流域文化圈 · 河南安阳修定寺塔（唐 · 塔身模制砖）',
@@ -42,7 +43,7 @@ const RELICS = [
     material: '三彩陶',
     collection: '芝加哥艺术博物馆',
     note: '双龙形耳贴塑于瓶颈两侧，黄绿釉在肩部交融。',
-    scope: '黄河流域文化圈 · 唐三彩窑口（出土地未著录）',
+    scope: '黄河流域文化圈 · 出土地未著录（唐 · 三彩陶瓶）',
     theme: '三彩窑火',
     credit: '藏品扫描：Art Institute of Chicago · CC BY 4.0 · 压缩版',
     recomputeNormals: true,
@@ -107,7 +108,7 @@ const RELICS = [
     material: '三彩陶',
     collection: '馆藏未著录（公开扫描）',
     note: '马身施黄褐釉，鞍鞯俱全，是唐三彩里常见的出行题材。',
-    scope: '黄河流域文化圈 · 唐三彩窑口（出土地未著录）',
+    scope: '黄河流域文化圈 · 出土地未著录（唐 · 三彩陶马）',
     theme: '出行风尚',
     credit: '藏品扫描：shining3dTC · CC BY 4.0 · 压缩版',
     recomputeNormals: false,
