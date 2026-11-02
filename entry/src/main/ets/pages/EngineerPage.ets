@@ -237,11 +237,11 @@ struct EngineerPage {
   build() {
     Column({ space: 12 }) {
       Row({ space: 10 }) {
-        Text('‹ 返回').fontSize(fs(15)).fontColor(CLAY)
+        Text('‹ 返回').fontSize(fs(this.ts, 15)).fontColor(CLAY)
           .onClick((): void => {
             router.back();
           })
-        Text('河工面板').fontSize(fs(18)).fontColor(INK).fontWeight(FontWeight.Bold).layoutWeight(1)
+        Text('河工面板').fontSize(fs(this.ts, 18)).fontColor(INK).fontWeight(FontWeight.Bold).layoutWeight(1)
       }
       .width('100%')
       .padding({ left: 14, right: 14, top: 10 })
@@ -252,12 +252,12 @@ struct EngineerPage {
           Column({ space: 8 }) {
             Row({ space: 8 }) {
               Circle().width(10).height(10).fill(this.stateColor())
-              Text(this.stateText()).fontSize(fs(15)).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text(this.stateText()).fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
               Blank()
-              Text('观测 ' + fmtTime(this.clock)).fontSize(fs(10)).fontColor(SUB)
+              Text('观测 ' + fmtTime(this.clock)).fontSize(fs(this.ts, 10)).fontColor(SUB)
             }
             .width('100%')
-            Text(this.hint).fontSize(fs(12)).fontColor(SUB).width('100%')
+            Text(this.hint).fontSize(fs(this.ts, 12)).fontColor(SUB).width('100%')
             Row({ space: 8 }) {
               this.cell({ label: '待同步', live: this.pending, note: 'dirty 队列' })
               this.cell({ label: '冲突', live: SyncService.get().conflicts.length, note: '本次启动' })
@@ -265,17 +265,17 @@ struct EngineerPage {
               this.cell({ label: '现场打卡', live: this.checkedTotal(), note: '本机' })
             }
             .width('100%')
-            Text('最后成功同步：' + fmtTime(this.lastAt)).fontSize(fs(11)).fontColor(SUB)
+            Text('最后成功同步：' + fmtTime(this.lastAt)).fontSize(fs(this.ts, 11)).fontColor(SUB)
             if (this.queueSample.length > 0) {
               Text('队列样本：' + this.queueSample)
-                .fontSize(fs(11)).fontColor(SUB).width('100%')
+                .fontSize(fs(this.ts, 11)).fontColor(SUB).width('100%')
             }
             Row({ space: 10 }) {
-              Button('刷新设备').fontSize(fs(12)).backgroundColor($r('app.color.line')).fontColor(INK)
+              Button('刷新设备').fontSize(fs(this.ts, 12)).backgroundColor($r('app.color.line')).fontColor(INK)
                 .onClick((): void => {
                   SyncService.get().refreshDevices(true);
                 })
-              Button('立即续传').fontSize(fs(12)).backgroundColor(CLAY).fontColor('#FFFFFF')
+              Button('立即续传').fontSize(fs(this.ts, 12)).backgroundColor(CLAY).fontColor('#FFFFFF')
                 .onClick((): void => {
                   SyncService.get().retry();
                 })
@@ -290,26 +290,26 @@ struct EngineerPage {
 
           // ---- 实时日志 ----
           Column({ space: 6 }) {
-            Text('状态机日志 · 本次启动以来').fontSize(fs(15)).fontColor(INK).fontWeight(FontWeight.Medium)
+            Text('状态机日志 · 本次启动以来').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
             if (this.logs.length === 0) {
-              Text('还没有事件。改一条笔记或点「立即续传」就会留下记录。').fontSize(fs(12)).fontColor(SUB)
+              Text('还没有事件。改一条笔记或点「立即续传」就会留下记录。').fontSize(fs(this.ts, 12)).fontColor(SUB)
             } else {
               ForEach(this.logs, (lg: SyncLog): void => {
                 Row({ space: 8 }) {
-                  Text(lg.tag).fontSize(fs(10)).fontColor('#FFFFFF')
+                  Text(lg.tag).fontSize(fs(this.ts, 10)).fontColor('#FFFFFF')
                     .backgroundColor(this.tagColor(lg.tag))
                     .padding({ left: 6, right: 6, top: 1, bottom: 1 })
                     .borderRadius(6)
-                  Text(lg.msg).fontSize(fs(11)).fontColor(INK).layoutWeight(1).maxLines(2)
+                  Text(lg.msg).fontSize(fs(this.ts, 11)).fontColor(INK).layoutWeight(1).maxLines(2)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })
-                  Text(fmtTime(lg.at)).fontSize(fs(10)).fontColor(SUB)
+                  Text(fmtTime(lg.at)).fontSize(fs(this.ts, 10)).fontColor(SUB)
                 }
                 .width('100%')
                 .padding({ top: 4, bottom: 4 })
               }, (lg: SyncLog): string => `${lg.at}_${lg.msg}`)
             }
             Text('日志只在内存里，杀掉进程就清空——不写盘是为了不把调试信息带进备份。')
-              .fontSize(fs(10)).fontColor(SUB)
+              .fontSize(fs(this.ts, 10)).fontColor(SUB)
           }
           .width('100%')
           .alignItems(HorizontalAlign.Start)
@@ -319,9 +319,9 @@ struct EngineerPage {
 
           // ---- 分布式清单 ----
           Column({ space: 4 }) {
-            Text('进分布式清单的 5 类数据').fontSize(fs(15)).fontColor(INK).fontWeight(FontWeight.Medium)
+            Text('进分布式清单的 5 类数据').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
             Text('键格式 entity:id，值为整条记录的 JSON')
-              .fontSize(fs(10)).fontColor(SUB)
+              .fontSize(fs(this.ts, 10)).fontColor(SUB)
             ForEach(this.distRows, (r: CountRow): void => {
               this.row(r)
             }, (r: CountRow): string => r.label)
@@ -334,9 +334,9 @@ struct EngineerPage {
 
           // ---- 本机表 ----
           Column({ space: 4 }) {
-            Text('只存本机的互动数据').fontSize(fs(15)).fontColor(INK).fontWeight(FontWeight.Medium)
+            Text('只存本机的互动数据').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
             Text('这些刻意不进同步队列：换设备互相覆盖没有意义')
-              .fontSize(fs(10)).fontColor(SUB)
+              .fontSize(fs(this.ts, 10)).fontColor(SUB)
             ForEach(this.localRows, (r: CountRow): void => {
               this.row(r)
             }, (r: CountRow): string => r.label)
@@ -349,7 +349,7 @@ struct EngineerPage {
 
           // ---- LWW 参数 ----
           Column({ space: 4 }) {
-            Text('LWW 参数（照代码原样抄，不是文档口径）').fontSize(fs(15)).fontColor(INK).fontWeight(FontWeight.Medium)
+            Text('LWW 参数（照代码原样抄，不是文档口径）').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
             this.param({ k: 'store_id', v: 'hh_memory_kv' })
             this.param({ k: 'kv_store_type', v: 'SINGLE_VERSION' })
             this.param({ k: 'security_level', v: 'S1' })
@@ -369,7 +369,7 @@ struct EngineerPage {
 
           // ---- 打卡密度河图 ----
           Column({ space: 6 }) {
-            Text('河道热力图 · 按年代').fontSize(fs(15)).fontColor(INK).fontWeight(FontWeight.Medium)
+            Text('河道热力图 · 按年代').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
             Canvas(this.ctx)
               .width('100%')
               .height(150)
@@ -379,15 +379,15 @@ struct EngineerPage {
             Row({ space: 12 }) {
               ForEach(this.buckets, (b: EraBucket): void => {
                 Column({ space: 1 }) {
-                  Text(b.era).fontSize(fs(11)).fontColor(INK)
-                  Text(`${b.done}/${b.total}`).fontSize(fs(10)).fontColor(b.done > 0 ? CLAY : SUB)
+                  Text(b.era).fontSize(fs(this.ts, 11)).fontColor(INK)
+                  Text(`${b.done}/${b.total}`).fontSize(fs(this.ts, 10)).fontColor(b.done > 0 ? CLAY : SUB)
                 }
                 .layoutWeight(1)
               }, (b: EraBucket): string => b.era)
             }
             .width('100%')
             Text('浅黄＝该年代收录遗址数，赭红＝你在现场打过卡的数量。打卡只存本机，换设备不跟着走。')
-              .fontSize(fs(10)).fontColor(SUB)
+              .fontSize(fs(this.ts, 10)).fontColor(SUB)
           }
           .width('100%')
           .alignItems(HorizontalAlign.Start)
@@ -396,7 +396,7 @@ struct EngineerPage {
           .borderRadius(12)
 
           Text('彩蛋入口是连点边侧栏头像 5 次。本页所有数字都来自本机 preferences 与内存状态，全程离线。')
-            .fontSize(fs(10)).fontColor(SUB)
+            .fontSize(fs(this.ts, 10)).fontColor(SUB)
             .width('100%')
             .padding({ left: 4, right: 4 })
 
@@ -417,9 +417,9 @@ struct EngineerPage {
   @Builder
   cell(arg: CountArg) {
     Column({ space: 2 }) {
-      Text(`${arg.live}`).fontSize(fs(18)).fontColor(INK).fontWeight(FontWeight.Bold)
-      Text(arg.label).fontSize(fs(10)).fontColor(SUB)
-      Text(arg.note).fontSize(fs(9)).fontColor(SUB).opacity(0.8)
+      Text(`${arg.live}`).fontSize(fs(this.ts, 18)).fontColor(INK).fontWeight(FontWeight.Bold)
+      Text(arg.label).fontSize(fs(this.ts, 10)).fontColor(SUB)
+      Text(arg.note).fontSize(fs(this.ts, 9)).fontColor(SUB).opacity(0.8)
     }
     .layoutWeight(1)
     .padding(8)
@@ -430,9 +430,9 @@ struct EngineerPage {
   @Builder
   row(r: CountRow) {
     Row({ space: 8 }) {
-      Text(r.label).fontSize(fs(13)).fontColor(INK).width(128)
-      Text(`${r.live}`).fontSize(fs(13)).fontColor(CLAY).fontWeight(FontWeight.Bold).width(38)
-      Text(r.note).fontSize(fs(10)).fontColor(SUB).layoutWeight(1).maxLines(2)
+      Text(r.label).fontSize(fs(this.ts, 13)).fontColor(INK).width(128)
+      Text(`${r.live}`).fontSize(fs(this.ts, 13)).fontColor(CLAY).fontWeight(FontWeight.Bold).width(38)
+      Text(r.note).fontSize(fs(this.ts, 10)).fontColor(SUB).layoutWeight(1).maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
     }
     .width('100%')
@@ -443,8 +443,8 @@ struct EngineerPage {
   @Builder
   param(p: ParamArg) {
     Row({ space: 8 }) {
-      Text(p.k).fontSize(fs(12)).fontColor(RIVER).width(108)
-      Text(p.v).fontSize(fs(12)).fontColor(INK).layoutWeight(1)
+      Text(p.k).fontSize(fs(this.ts, 12)).fontColor(RIVER).width(108)
+      Text(p.v).fontSize(fs(this.ts, 12)).fontColor(INK).layoutWeight(1)
     }
     .width('100%')
     .padding({ top: 4, bottom: 4 })

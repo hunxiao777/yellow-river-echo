@@ -1,10 +1,12 @@
 import { router } from '@kit.ArkUI';
 import { StudioStore } from '../service/StudioStore';
-import { ERAS, INK, SUB, LOESS, CLAY, RIVER, PAPER, paletteOf } from '../common/Theme';
+import { fs, ERAS, INK, SUB, LOESS, CLAY, RIVER, PAPER, paletteOf } from '../common/Theme';
 
 @Entry
 @Component
 struct GuidePage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @State idx: number = 0;
   private ctrl: SwiperController = new SwiperController();
 
@@ -43,7 +45,7 @@ struct GuidePage {
             .height(58)
             .borderRadius({ topLeft: 13, topRight: 13, bottomLeft: 4, bottomRight: 4 })
             .backgroundColor(paletteOf(this.eraKey(e)).deep)
-          Text(e).fontSize(10).fontColor(SUB)
+          Text(e).fontSize(fs(this.ts, 10)).fontColor(SUB)
         }
       }, (e: string): string => e)
     }
@@ -57,7 +59,7 @@ struct GuidePage {
     Column({ space: 10 }) {
       Row({ space: 6 }) {
         Circle().width(8).height(8).fill(CLAY)
-        Text('龙门石窟 · 读到第 4 节').fontSize(11).fontColor(SUB)
+        Text('龙门石窟 · 读到第 4 节').fontSize(fs(this.ts, 11)).fontColor(SUB)
       }
       Column({ space: 6 }) {
         Column().width(200).height(8).borderRadius(4).backgroundColor('#E5DAC6')
@@ -65,7 +67,7 @@ struct GuidePage {
         Column().width(182).height(8).borderRadius(4).backgroundColor('#EFE4CE')
       }
       .alignItems(HorizontalAlign.Start)
-      Text('看过的地方会自动排进来').fontSize(10).fontColor(SUB)
+      Text('看过的地方会自动排进来').fontSize(fs(this.ts, 10)).fontColor(SUB)
     }
     .alignItems(HorizontalAlign.Start)
     .padding(18)
@@ -79,15 +81,15 @@ struct GuidePage {
     Row({ space: 16 }) {
       Column() {
         Column().width(52).height(84).borderRadius(10).backgroundColor(INK)
-        Text('手机').fontSize(10).fontColor(SUB).margin({ top: 6 })
+        Text('手机').fontSize(fs(this.ts, 10)).fontColor(SUB).margin({ top: 6 })
       }
       Column({ space: 4 }) {
-        Text('⇄').fontSize(20).fontColor(LOESS)
-        Text('时间戳新者胜').fontSize(9).fontColor(SUB)
+        Text('⇄').fontSize(fs(this.ts, 20)).fontColor(LOESS)
+        Text('时间戳新者胜').fontSize(fs(this.ts, 9)).fontColor(SUB)
       }
       Column() {
         Column().width(78).height(56).borderRadius(8).backgroundColor(RIVER)
-        Text('平板').fontSize(10).fontColor(SUB).margin({ top: 6 })
+        Text('平板').fontSize(fs(this.ts, 10)).fontColor(SUB).margin({ top: 6 })
       }
     }
     .padding({ left: 22, right: 22, top: 24, bottom: 20 })
@@ -111,8 +113,8 @@ struct GuidePage {
       .justifyContent(FlexAlign.Center)
 
       Column({ space: 10 }) {
-        Text(title).fontSize(23).fontColor(INK).fontWeight(FontWeight.Bold)
-        Text(lead).fontSize(13).fontColor(SUB).lineHeight(22).textAlign(TextAlign.Center)
+        Text(title).fontSize(fs(this.ts, 23)).fontColor(INK).fontWeight(FontWeight.Bold)
+        Text(lead).fontSize(fs(this.ts, 13)).fontColor(SUB).lineHeight(fs(this.ts, 22)).textAlign(TextAlign.Center)
       }
     }
     .width('100%')
@@ -140,7 +142,7 @@ struct GuidePage {
       })
 
       Row() {
-        Text('跳过').fontSize(14).fontColor(SUB)
+        Text('跳过').fontSize(fs(this.ts, 14)).fontColor(SUB)
           .onClick((): void => {
             this.finish();
           })
@@ -162,7 +164,7 @@ struct GuidePage {
         }
 
         Button(this.idx === 2 ? '开始使用' : '下一步')
-          .fontSize(15)
+          .fontSize(fs(this.ts, 15))
           .fontColor('#FFFFFF')
           .backgroundColor(CLAY)
           .width(190)

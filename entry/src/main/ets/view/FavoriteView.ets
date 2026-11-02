@@ -2,11 +2,13 @@ import { router } from '@kit.ArkUI';
 import { SiteRepo } from '../service/SiteRepo';
 import { MemoryStore } from '../service/MemoryStore';
 import { FavRec, SiteInfo, TagRec } from '../model/Models';
-import { coverRes, INK, SUB, LOESS, CLAY } from '../common/Theme';
+import { fs, coverRes, INK, SUB, LOESS, CLAY } from '../common/Theme';
 import { goDetail } from '../common/Nav';
 
 @Component
 export struct FavoriteView {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('dataRev') @Watch('reload') rev: number = 0;
   // 列表抄成 @State：MemoryStore 是普通单例，ArkUI 观察不到它内部的数组变化。
   // dataRev 一涨就整份换新数组引用，ForEach 才认这个变化、当场重排
@@ -52,18 +54,18 @@ export struct FavoriteView {
       Column({ space: 10 }) {
         Row({ space: 8 }) {
           Text('我的收藏')
-            .fontSize(20)
+            .fontSize(fs(this.ts, 20))
             .fontColor(INK)
             .fontWeight(FontWeight.Bold)
             .layoutWeight(1)
           Text(this.manage ? '完成' : '管理标签')
-            .fontSize(13)
+            .fontSize(fs(this.ts, 13))
             .fontColor(CLAY)
             .onClick((): void => {
               this.manage = !this.manage;
             })
           Text('我的主题')
-            .fontSize(13)
+            .fontSize(fs(this.ts, 13))
             .fontColor(CLAY)
             .onClick((): void => {
               router.pushUrl({ url: 'pages/TopicPage' });
@@ -77,14 +79,14 @@ export struct FavoriteView {
             Row({ space: 8 }) {
               TextInput({ text: this.tagInput, placeholder: this.renameId.length > 0 ? '新名字' : '新标签名' })
                 .height(36)
-                .fontSize(13)
+                .fontSize(fs(this.ts, 13))
                 .layoutWeight(1)
                 .onChange((v: string): void => {
                   this.tagInput = v;
                 })
               Button(this.renameId.length > 0 ? '保存' : '添加')
                 .height(36)
-                .fontSize(13)
+                .fontSize(fs(this.ts, 13))
                 .backgroundColor(LOESS)
                 .onClick(async (): Promise<void> => {
                   if (this.renameId.length > 0) {
@@ -98,14 +100,14 @@ export struct FavoriteView {
             }
             ForEach(this.tags, (t: TagRec): void => {
               Row({ space: 10 }) {
-                Text(t.name).fontSize(14).fontColor(INK).layoutWeight(1)
-                Text(`${this.tagCount(t.id)} 条`).fontSize(12).fontColor(SUB)
-                Text('改名').fontSize(12).fontColor(CLAY)
+                Text(t.name).fontSize(fs(this.ts, 14)).fontColor(INK).layoutWeight(1)
+                Text(`${this.tagCount(t.id)} 条`).fontSize(fs(this.ts, 12)).fontColor(SUB)
+                Text('改名').fontSize(fs(this.ts, 12)).fontColor(CLAY)
                   .onClick((): void => {
                     this.renameId = t.id;
                     this.tagInput = t.name;
                   })
-                Text('删除').fontSize(12).fontColor(SUB)
+                Text('删除').fontSize(fs(this.ts, 12)).fontColor(SUB)
                   .onClick(async (): Promise<void> => {
                     await MemoryStore.get().deleteTag(t.id);
                   })
@@ -122,7 +124,7 @@ export struct FavoriteView {
         Scroll() {
           Row({ space: 8 }) {
             Text('全部')
-              .fontSize(13)
+              .fontSize(fs(this.ts, 13))
               .fontColor(this.filterTag.length === 0 ? Color.White : SUB)
               .padding({ left: 12, right: 12, top: 5, bottom: 5 })
               .borderRadius(13)
@@ -132,7 +134,7 @@ export struct FavoriteView {
               })
             ForEach(this.tags, (t: TagRec): void => {
               Text(t.name)
-                .fontSize(13)
+                .fontSize(fs(this.ts, 13))
                 .fontColor(this.filterTag === t.id ? Color.White : SUB)
                 .padding({ left: 12, right: 12, top: 5, bottom: 5 })
                 .borderRadius(13)
@@ -150,8 +152,8 @@ export struct FavoriteView {
 
         if (this.shownFavs().length === 0) {
           Column({ space: 6 }) {
-            Text('这里还是空的').fontSize(15).fontColor(INK)
-            Text('去探索页找一处遗址，点星标收进来').fontSize(12).fontColor(SUB)
+            Text('这里还是空的').fontSize(fs(this.ts, 15)).fontColor(INK)
+            Text('去探索页找一处遗址，点星标收进来').fontSize(fs(this.ts, 12)).fontColor(SUB)
           }
           .margin({ top: 60 })
         } else {
@@ -180,10 +182,10 @@ export struct FavoriteView {
             this.sheetFav = '';
           })
         Column({ space: 10 }) {
-          Text('归类到标签').fontSize(16).fontColor(INK).fontWeight(FontWeight.Medium)
+          Text('归类到标签').fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Medium)
           ForEach(this.tags, (t: TagRec): void => {
             Row() {
-              Text(t.name).fontSize(14).fontColor(INK).layoutWeight(1)
+              Text(t.name).fontSize(fs(this.ts, 14)).fontColor(INK).layoutWeight(1)
               Toggle({ type: ToggleType.Switch, isOn: this.sheetPicked.indexOf(t.id) >= 0 })
                 .selectedColor(CLAY)
                 .onChange((on: boolean): void => {
@@ -226,13 +228,13 @@ export struct FavoriteView {
           .objectFit(ImageFit.Cover)
         Column({ space: 4 }) {
           Text((SiteRepo.get().byId(f.siteId) as SiteInfo).name)
-            .fontSize(15).fontColor(INK).fontWeight(FontWeight.Medium)
+            .fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
           Text(`${(SiteRepo.get().byId(f.siteId) as SiteInfo).city} · ${(SiteRepo.get().byId(f.siteId) as SiteInfo).eras.join('/')}`)
-            .fontSize(12).fontColor(SUB)
+            .fontSize(fs(this.ts, 12)).fontColor(SUB)
           Row({ space: 4 }) {
             ForEach(f.tagIds, (tid: string): void => {
               Text(MemoryStore.get().tagName(tid))
-                .fontSize(10)
+                .fontSize(fs(this.ts, 10))
                 .fontColor(CLAY)
                 .padding({ left: 6, right: 6, top: 2, bottom: 2 })
                 .border({ width: 1, color: '#D9C9A8' })
@@ -244,11 +246,11 @@ export struct FavoriteView {
         .layoutWeight(1)
 
         Column({ space: 8 }) {
-          Text('归类').fontSize(12).fontColor(CLAY)
+          Text('归类').fontSize(fs(this.ts, 12)).fontColor(CLAY)
             .onClick((): void => {
               this.openSheet(f.siteId);
             })
-          Text('移除').fontSize(12).fontColor(SUB)
+          Text('移除').fontSize(fs(this.ts, 12)).fontColor(SUB)
             .onClick(async (): Promise<void> => {
               await MemoryStore.get().removeFav(f.siteId);
             })

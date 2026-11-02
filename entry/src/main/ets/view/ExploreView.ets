@@ -1,12 +1,14 @@
 import { SiteRepo } from '../service/SiteRepo';
 import { MemoryStore } from '../service/MemoryStore';
 import { SiteInfo, Suggestion } from '../model/Models';
-import { ERAS, CITIES, ERA_WORD, coverRes, coverOf, INK, SUB, LOESS, CLAY } from '../common/Theme';
+import { fs, ERAS, CITIES, ERA_WORD, coverRes, coverOf, INK, SUB, LOESS, CLAY } from '../common/Theme';
 import { goDetail, goList } from '../common/Nav';
 import { SiteCard } from './SiteCard';
 
 @Component
 export struct ExploreView {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('dataRev') @Watch('reload') rev: number = 0;
   @State kw: string = '';
   // 推荐位和「最近在读」都来自 MemoryStore / SiteRepo 这两个普通单例，
@@ -42,8 +44,8 @@ export struct ExploreView {
   secTitle(title: string, sub: string) {
     Row({ space: 8 }) {
       Divider().vertical(true).height(14).strokeWidth(3).color(LOESS)
-      Text(title).fontSize(17).fontColor(INK).fontWeight(FontWeight.Medium)
-      Text(sub).fontSize(11).fontColor(SUB).layoutWeight(1)
+      Text(title).fontSize(fs(this.ts, 17)).fontColor(INK).fontWeight(FontWeight.Medium)
+      Text(sub).fontSize(fs(this.ts, 11)).fontColor(SUB).layoutWeight(1)
     }
     .width('100%')
     .padding({ left: 14 })
@@ -58,9 +60,9 @@ export struct ExploreView {
             .height(180)
             .objectFit(ImageFit.Cover)
           Column({ space: 2 }) {
-            Text('黄河续响平台').fontSize(24).fontColor(Color.White).fontWeight(FontWeight.Bold)
+            Text('黄河续响平台').fontSize(fs(this.ts, 24)).fontColor(Color.White).fontWeight(FontWeight.Bold)
             Text('河南段沿线文化遗址 · 随身数字档案')
-              .fontSize(12).fontColor('#E8E0D2')
+              .fontSize(fs(this.ts, 12)).fontColor('#E8E0D2')
           }
           .alignItems(HorizontalAlign.Start)
           .padding(14)
@@ -91,9 +93,9 @@ export struct ExploreView {
                   .height(64)
                   .borderRadius(8)
                   .objectFit(ImageFit.Cover)
-                Text(era).fontSize(14).fontColor(INK).fontWeight(FontWeight.Medium)
+                Text(era).fontSize(fs(this.ts, 14)).fontColor(INK).fontWeight(FontWeight.Medium)
                 Text(`${ERA_WORD.get(era)} · ${SiteRepo.get().countByEra(era)} 处`)
-                  .fontSize(11).fontColor(SUB)
+                  .fontSize(fs(this.ts, 11)).fontColor(SUB)
               }
               .width(108)
               .alignItems(HorizontalAlign.Start)
@@ -112,7 +114,7 @@ export struct ExploreView {
         Flex({ wrap: FlexWrap.Wrap }) {
           ForEach(CITIES, (city: string): void => {
             Text(`${city} · ${SiteRepo.get().countByCity(city)}`)
-              .fontSize(13)
+              .fontSize(fs(this.ts, 13))
               .fontColor(CLAY)
               .margin({ left: 14, top: 4, bottom: 4 })
               .padding({ left: 12, right: 12, top: 6, bottom: 6 })
@@ -147,7 +149,7 @@ export struct ExploreView {
                     .borderRadius(6)
                     .objectFit(ImageFit.Cover)
                   Text(site.name)
-                    .fontSize(11)
+                    .fontSize(fs(this.ts, 11))
                     .fontColor(INK)
                     .maxLines(1)
                     .textOverflow({ overflow: TextOverflow.Ellipsis })

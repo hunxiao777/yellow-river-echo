@@ -1,9 +1,11 @@
-import { paletteOf, Palette } from '../common/Theme';
+import { fs, paletteOf, Palette } from '../common/Theme';
 
 // 程序化封面：按器型现画，不占包体，也不会在列表刷新时反复解码大图。
 // shape 取值：pot jar ding tile stele tower cave scroll coin box bridge kiln
 @Component
 export struct ArtCover {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @Prop @Watch('repaint') palette: string = 'yangshao';
   @Prop @Watch('repaint') shape: string = 'pot';
   @Prop @Watch('repaint') seed: number = 0;
@@ -200,7 +202,7 @@ export struct ArtCover {
         })
       if (this.label.length > 0) {
         Text(this.label)
-          .fontSize(10)
+          .fontSize(fs(this.ts, 10))
           .fontColor(paletteOf(this.palette).ink)
           .padding({ left: 7, right: 7, top: 3, bottom: 3 })
           .backgroundColor('rgba(255,255,255,0.62)')

@@ -3,12 +3,14 @@ import { ExploreView } from '../view/ExploreView';
 import { FavoriteView } from '../view/FavoriteView';
 import { NoteView } from '../view/NoteView';
 import { MemoryStore } from '../service/MemoryStore';
-import { INK, SUB, CLAY } from '../common/Theme';
+import { fs, INK, SUB, CLAY } from '../common/Theme';
 import { params } from '../common/Nav';
 
 @Entry
 @Component
 struct ArchivePage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @State tab: number = 0;
   @StorageLink('dataRev') @Watch('syncCount') rev: number = 0;
   // 角标读的是普通单例，ArkUI 观察不到；dataRev 一变就把数量抄进 @State
@@ -44,11 +46,11 @@ struct ArchivePage {
   seg(idx: number, title: string) {
     Column({ space: 3 }) {
       Row({ space: 4 }) {
-        Text(title).fontSize(15)
+        Text(title).fontSize(fs(this.ts, 15))
           .fontColor(this.tab === idx ? INK : SUB)
           .fontWeight(this.tab === idx ? FontWeight.Bold : FontWeight.Normal)
         if (this.badgeOf(idx).length > 0) {
-          Text(this.badgeOf(idx)).fontSize(10).fontColor(CLAY)
+          Text(this.badgeOf(idx)).fontSize(fs(this.ts, 10)).fontColor(CLAY)
         }
       }
       Divider().width(20).strokeWidth(2)
@@ -63,7 +65,7 @@ struct ArchivePage {
   build() {
     Column() {
       Row({ space: 10 }) {
-        Text('‹ 返回').fontSize(15).fontColor(CLAY)
+        Text('‹ 返回').fontSize(fs(this.ts, 15)).fontColor(CLAY)
           .onClick((): void => {
             router.back();
           })
@@ -74,7 +76,7 @@ struct ArchivePage {
         }
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
-        Text('同步').fontSize(14).fontColor(SUB)
+        Text('同步').fontSize(fs(this.ts, 14)).fontColor(SUB)
           .onClick((): void => {
             router.pushUrl({ url: 'pages/SyncPage' });
           })

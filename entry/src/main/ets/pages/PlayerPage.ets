@@ -2,7 +2,7 @@ import { router } from '@kit.ArkUI';
 import { ContentRepo } from '../service/ContentRepo';
 import { SiteRepo } from '../service/SiteRepo';
 import { Course, CourseStep } from '../model/Models';
-import { INK, SUB, LINE, CLAY, paletteOf, Palette } from '../common/Theme';
+import { fs, INK, SUB, LINE, CLAY, paletteOf, Palette } from '../common/Theme';
 import { params, goPottery, goDetail } from '../common/Nav';
 
 function kindOf(t: string, i: number): string {
@@ -33,6 +33,8 @@ function kindOf(t: string, i: number): string {
 @Entry
 @Component
 struct PlayerPage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @State course: Course | undefined = undefined;
   @State @Watch('repaint') idx: number = 0;
   @State playing: boolean = false;
@@ -369,14 +371,14 @@ struct PlayerPage {
   build() {
     Column({ space: 10 }) {
       Row({ space: 10 }) {
-        Text('‹').fontSize(24).fontColor(CLAY).width(22)
+        Text('‹').fontSize(fs(this.ts, 24)).fontColor(CLAY).width(22)
           .onClick((): void => {
             this.stopPlay();
             router.back();
           })
         Column({ space: 2 }) {
           Text(this.coverText())
-            .fontSize(17).fontColor(INK).fontWeight(FontWeight.Bold)
+            .fontSize(fs(this.ts, 17)).fontColor(INK).fontWeight(FontWeight.Bold)
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
@@ -386,7 +388,7 @@ struct PlayerPage {
 
       if (this.course === undefined) {
         Column({ space: 12 }) {
-          Text('课程不存在').fontSize(16).fontColor(INK)
+          Text('课程不存在').fontSize(fs(this.ts, 16)).fontColor(INK)
           Button('返回')
             .backgroundColor($r('app.color.line')).fontColor(INK)
             .onClick((): void => {
@@ -416,7 +418,7 @@ struct PlayerPage {
             Column({ space: 8 }) {
               Row({ space: 10 }) {
                 Text(this.playing ? '▮▮' : '▶')
-                  .fontSize(15).fontColor(Color.White)
+                  .fontSize(fs(this.ts, 15)).fontColor(Color.White)
                   .width(40).height(34).borderRadius(8)
                   .backgroundColor(CLAY)
                   .textAlign(TextAlign.Center)
@@ -424,7 +426,7 @@ struct PlayerPage {
                     this.togglePlay();
                   })
                 Text('‹ 上一镜')
-                  .fontSize(12).fontColor(INK)
+                  .fontSize(fs(this.ts, 12)).fontColor(INK)
                   .padding({ left: 10, right: 10, top: 8, bottom: 8 })
                   .borderRadius(8)
                   .backgroundColor($r('app.color.line'))
@@ -434,7 +436,7 @@ struct PlayerPage {
                     }
                   })
                 Text('下一镜 ›')
-                  .fontSize(12).fontColor(INK)
+                  .fontSize(fs(this.ts, 12)).fontColor(INK)
                   .padding({ left: 10, right: 10, top: 8, bottom: 8 })
                   .borderRadius(8)
                   .backgroundColor($r('app.color.line'))
@@ -445,7 +447,7 @@ struct PlayerPage {
                   })
                 Blank()
                 Text(this.playing ? '每 5 秒一镜' : '已暂停')
-                  .fontSize(10).fontColor(SUB)
+                  .fontSize(fs(this.ts, 10)).fontColor(SUB)
               }
               .width('100%')
 
@@ -465,9 +467,9 @@ struct PlayerPage {
 
               Column({ space: 6 }) {
                 Text(this.stepTitle())
-                  .fontSize(19).fontColor(INK).fontWeight(FontWeight.Bold).width('100%')
+                  .fontSize(fs(this.ts, 19)).fontColor(INK).fontWeight(FontWeight.Bold).width('100%')
                 Text(this.stepBody())
-                  .fontSize(14).fontColor(INK).lineHeight(23).width('100%')
+                  .fontSize(fs(this.ts, 14)).fontColor(INK).lineHeight(fs(this.ts, 23)).width('100%')
               }
               .width('100%')
               .alignItems(HorizontalAlign.Start)
@@ -478,18 +480,18 @@ struct PlayerPage {
             .width('100%')
 
             Column({ space: 2 }) {
-              Text('全部分镜').fontSize(13).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text('全部分镜').fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Medium)
                 .width('100%').padding({ bottom: 6 })
               ForEach(this.steps(), (s: CourseStep, i: number): void => {
                 Row({ space: 8 }) {
                   Text(`${i + 1}`)
-                    .fontSize(11).fontColor(i === this.idx ? Color.White : SUB)
+                    .fontSize(fs(this.ts, 11)).fontColor(i === this.idx ? Color.White : SUB)
                     .width(20).height(20).borderRadius(10)
                     .backgroundColor(i === this.idx ? CLAY : $r('app.color.page_bg'))
                     .textAlign(TextAlign.Center)
                   Column({ space: 2 }) {
-                    Text(s.t).fontSize(13).fontColor(INK).width('100%')
-                    Text(s.d).fontSize(10).fontColor(SUB).width('100%').maxLines(1)
+                    Text(s.t).fontSize(fs(this.ts, 13)).fontColor(INK).width('100%')
+                    Text(s.d).fontSize(fs(this.ts, 10)).fontColor(SUB).width('100%').maxLines(1)
                       .textOverflow({ overflow: TextOverflow.Ellipsis })
                   }
                   .alignItems(HorizontalAlign.Start)
@@ -510,14 +512,14 @@ struct PlayerPage {
 
             Row({ space: 10 }) {
               Button('跟着做一遍')
-                .fontSize(13).backgroundColor(CLAY).fontColor(Color.White)
+                .fontSize(fs(this.ts, 13)).backgroundColor(CLAY).fontColor(Color.White)
                 .onClick((): void => {
                   this.stopPlay();
                   goPottery();
                 })
               if (this.siteName().length > 0) {
                 Button('去遗址看看')
-                  .fontSize(13).backgroundColor($r('app.color.line')).fontColor(INK)
+                  .fontSize(fs(this.ts, 13)).backgroundColor($r('app.color.line')).fontColor(INK)
                   .onClick((): void => {
                     let co = this.course;
                     if (co !== undefined) {
@@ -531,7 +533,7 @@ struct PlayerPage {
             .width('100%')
 
             Text(`课程线索来源：${this.srcText()}`)
-              .fontSize(10).fontColor(SUB).width('100%')
+              .fontSize(fs(this.ts, 10)).fontColor(SUB).width('100%')
           }
           .width('100%')
           .padding({ left: 14, right: 14, bottom: 14 })

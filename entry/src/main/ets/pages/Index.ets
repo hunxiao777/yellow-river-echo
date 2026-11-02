@@ -9,15 +9,18 @@ import { ShopView } from '../view/ShopView';
 import { SocialView } from '../view/SocialView';
 import { MineView } from '../view/MineView';
 import { FloatingAssistant } from '../view/FloatingAssistant';
-import { INK, SUB, LOESS, CLAY, paletteOf, WATER_NAMES, WATER_LABELS, SCALE_LABELS, fs } from '../common/Theme';
-import { effectiveWaterMode } from '../common/River';
-import { goArchive, goPottery, goTopic, goSync, goCourses, goQuiz, goGuide, goEngineer, closeDrawer } from '../common/Nav';
+import { INK, SUB, LOESS, CLAY, paletteOf, SCALE_LABELS, fs } from '../common/Theme';
+import { goArchive, goPottery, goTopic, goSync, goCourses, goQuiz, goGuide, goEngineer, closeDrawer, goCompose, goLogin, closeSignOutAsk } from '../common/Nav';
 
-// 档位胶囊组。做成组件而不是 @Builder：Builder 的普通参数是快照，
+// 退出登录是危险操作，面板里这一行单独标红
+const DANGER: string = '#C0392B';
+
+// 字号档位胶囊组。做成组件而不是 @Builder：Builder 的普通参数是快照，
 // 点了「大」之后高亮不会跟着变（真机上实测到的高亮卡死）。
 @Component
 struct DrawerPicker {
-  @Require @Prop kind: string; // water | scale
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('studioRev') @Watch('refresh') rev: number = 0;
   @State cur: number = 0;
 
@@ -26,41 +29,25 @@ struct DrawerPicker {
   }
 
   refresh(): void {
-    this.cur = this.kind === 'water' ? WATER_NAMES.indexOf(effectiveWaterMode()) : StudioStore.get().scaleStep;
-  }
-
-  labels(): string[] {
-    return this.kind === 'water' ? WATER_LABELS : SCALE_LABELS;
-  }
-
-  title(): string {
-    return this.kind === 'water' ? '河道动效' : '字号';
-  }
-
-  icon(): string {
-    return this.kind === 'water' ? '〰' : 'A';
+    this.cur = StudioStore.get().scaleStep;
   }
 
   pick(i: number): void {
-    if (this.kind === 'water') {
-      StudioStore.get().setWaterMode(WATER_NAMES[i]);
-    } else {
-      StudioStore.get().setScaleStep(i);
-    }
+    StudioStore.get().setScaleStep(i);
   }
 
   build() {
     Column({ space: 7 }) {
       Row({ space: 8 }) {
-        Text(this.icon()).fontSize(fs(15)).fontColor(LOESS).width(20)
-        Text(this.title()).fontSize(fs(15)).fontColor(INK)
+        Text('A').fontSize(fs(this.ts, 15)).fontColor(LOESS).width(20)
+        Text('字号').fontSize(fs(this.ts, 15)).fontColor(INK)
       }
       .width('100%')
 
       Row({ space: 8 }) {
-        ForEach(this.labels(), (lb: string, i: number): void => {
+        ForEach(SCALE_LABELS, (lb: string, i: number): void => {
           Text(lb)
-            .fontSize(fs(12))
+            .fontSize(fs(this.ts, 12))
             .textAlign(TextAlign.Center)
             .fontColor(this.cur === i ? '#FFFFFF' : SUB)
             .backgroundColor(this.cur === i ? LOESS : $r('app.color.page_bg'))
@@ -85,6 +72,7 @@ struct DrawerPicker {
 struct Index {
   @StorageLink('mainTab') tab: number = 0;
   @StorageLink('drawerOpen') drawer: boolean = false;
+  @StorageLink('signOutAsk') signOutAsk: boolean = false;
   @StorageLink('studioRev') studioRev: number = 0;
   @StorageLink('textScale') ts: number = 1;
   @State ready: boolean = false;
@@ -107,7 +95,7 @@ struct Index {
   footLabel(idx: number, title: string) {
     Column({ space: 3 }) {
       Text(title)
-        .fontSize(13)
+        .fontSize(fs(this.ts, 13))
         .fontColor(this.tab === idx ? INK : SUB)
         .fontWeight(this.tab === idx ? FontWeight.Bold : FontWeight.Normal)
       Circle().width(4).height(4)
@@ -122,10 +110,10 @@ struct Index {
   @Builder
   drawerRow(icon: string, title: string, note: string, act: () => void) {
     Row({ space: 12 }) {
-      Text(icon).fontSize(fs(15)).fontColor(LOESS).width(20)
-      Text(title).fontSize(fs(15)).fontColor(INK).layoutWeight(1)
+      Text(icon).fontSize(fs(this.ts, 15)).fontColor(LOESS).width(20)
+      Text(title).fontSize(fs(this.ts, 15)).fontColor(INK).layoutWeight(1)
       if (note.length > 0) {
-        Text(note).fontSize(fs(12)).fontColor(SUB)
+        Text(note).fontSize(fs(this.ts, 12)).fontColor(SUB)
       }
     }
     .width('100%')
@@ -160,7 +148,7 @@ struct Index {
       Row({ space: 12 }) {
         Column() {
           Text(StudioStore.get().profile.nick.substring(0, 1))
-            .fontSize(fs(19)).fontColor(paletteOf(this.avatarKey()).ink).fontWeight(FontWeight.Bold)
+            .fontSize(fs(this.ts, 19)).fontColor(paletteOf(this.avatarKey()).ink).fontWeight(FontWeight.Bold)
         }
         .width(48).height(48).borderRadius(24)
         .justifyContent(FlexAlign.Center)
@@ -170,9 +158,9 @@ struct Index {
         })
 
         Column({ space: 3 }) {
-          Text(StudioStore.get().profile.nick).fontSize(fs(16)).fontColor(INK).fontWeight(FontWeight.Medium)
+          Text(StudioStore.get().profile.nick).fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Medium)
           Text(this.engineerUnlocked ? '河工面板已解锁' : StudioStore.get().profile.bio)
-            .fontSize(fs(11)).fontColor(this.engineerUnlocked ? CLAY : SUB)
+            .fontSize(fs(this.ts, 11)).fontColor(this.engineerUnlocked ? CLAY : SUB)
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
@@ -225,13 +213,12 @@ struct Index {
 
           Divider().strokeWidth(1).color($r('app.color.line')).margin({ left: 16, right: 16, top: 6, bottom: 6 })
 
-          // 标题一行、胶囊一行：272vp 的边侧栏塞不下"标题 + 三个胶囊"同行，实测会切掉"关闭"
-          DrawerPicker({ kind: 'water' })
-          DrawerPicker({ kind: 'scale' })
+          // 标题一行、胶囊一行：272vp 的边侧栏塞不下"标题 + 三个胶囊"同行，实测会切掉最后一档
+          DrawerPicker()
 
           Row({ space: 12 }) {
-            Text('◎').fontSize(fs(15)).fontColor(LOESS).width(20)
-            Text('离线模式').fontSize(fs(15)).fontColor(INK).layoutWeight(1)
+            Text('◎').fontSize(fs(this.ts, 15)).fontColor(LOESS).width(20)
+            Text('离线模式').fontSize(fs(this.ts, 15)).fontColor(INK).layoutWeight(1)
             Toggle({ type: ToggleType.Switch, isOn: SyncService.get().localOnly })
               .selectedColor(LOESS)
               .onChange((on: boolean): void => {
@@ -251,11 +238,10 @@ struct Index {
           this.drawerRow('↧', '备份与恢复', '在「我的」里', (): void => {
             this.tab = 3;
           })
-          Text('黄河续响平台 1.1 · 数据只存本机与同账号可信设备')
-            .fontSize(fs(10)).fontColor(SUB)
-            .margin({ top: 14, bottom: 18 })
         }
         .width('100%')
+        // 原来底下那行版本小字删了，留点呼吸空间，别让最后一行贴着面板底
+        .padding({ bottom: 16 })
       }
       .layoutWeight(1)
       .scrollBar(BarState.Off)
@@ -270,8 +256,8 @@ struct Index {
   @Builder
   drawerStat(title: string, value: string) {
     Column({ space: 2 }) {
-      Text(value).fontSize(fs(16)).fontColor(INK).fontWeight(FontWeight.Bold)
-      Text(title).fontSize(fs(10)).fontColor(SUB)
+      Text(value).fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Bold)
+      Text(title).fontSize(fs(this.ts, 10)).fontColor(SUB)
     }
   }
 
@@ -287,27 +273,41 @@ struct Index {
       Column().width(38).height(4).borderRadius(2).backgroundColor('#D9CDB6')
         .margin({ top: 10, bottom: 14 })
       Text('记点什么')
-        .fontSize(13).fontColor(SUB)
-      Row({ space: 12 }) {
-        this.createTile('✎', '写笔记', '挑一处遗址记两行', (): void => {
-          this.createOpen = false;
-          goArchive(2);
-        })
-        this.createTile('⌣', '彩陶工坊', '拼一件自己的器物', (): void => {
-          this.createOpen = false;
-          goPottery();
-        })
-        this.createTile('☼', '看课程', '跟着工序做一遍', (): void => {
-          this.createOpen = false;
-          goCourses();
-        })
-        this.createTile('⊚', '知识网络', '把关联摊开看', (): void => {
-          this.createOpen = false;
-          goTopic();
-        })
+        .fontSize(fs(this.ts, 13)).fontColor(SUB)
+      // 四个入口两行排，宽度按 (100% - gap)/2 算，别用 layoutWeight，
+      // 否则换行后最后一格会被挤成半宽
+      Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
+        Column() {
+          this.createTile('✎', '写笔记', '挑一处遗址记两行', (): void => {
+            this.createOpen = false;
+            goArchive(2);
+          })
+        }
+        .width('47.5%').margin({ right: '5%', bottom: 12 })
+        Column() {
+          this.createTile('⌣', '彩陶工坊', '拼一件自己的器物', (): void => {
+            this.createOpen = false;
+            goPottery();
+          })
+        }
+        .width('47.5%').margin({ bottom: 12 })
+        Column() {
+          this.createTile('⊚', '知识网络', '把关联摊开看', (): void => {
+            this.createOpen = false;
+            goTopic();
+          })
+        }
+        .width('47.5%').margin({ right: '5%', bottom: 12 })
+        Column() {
+          this.createTile('✦', '发动态', '说给河边的人听', (): void => {
+            this.createOpen = false;
+            goCompose();
+          })
+        }
+        .width('47.5%').margin({ bottom: 12 })
       }
       .width('100%')
-      .padding({ left: 16, right: 16, top: 14, bottom: 26 })
+      .padding({ left: 16, right: 16, top: 14, bottom: 14 })
     }
     .width('100%')
     .backgroundColor($r('app.color.card_bg'))
@@ -317,11 +317,11 @@ struct Index {
   @Builder
   createTile(icon: string, title: string, note: string, act: () => void) {
     Column({ space: 5 }) {
-      Text(icon).fontSize(20).fontColor(LOESS)
-      Text(title).fontSize(13).fontColor(INK).fontWeight(FontWeight.Medium)
-      Text(note).fontSize(9).fontColor(SUB).maxLines(2).textAlign(TextAlign.Center)
+      Text(icon).fontSize(fs(this.ts, 20)).fontColor(LOESS)
+      Text(title).fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Medium)
+      Text(note).fontSize(fs(this.ts, 9)).fontColor(SUB).maxLines(2).textAlign(TextAlign.Center)
     }
-    .layoutWeight(1)
+    .width('100%')
     .height(96)
     .justifyContent(FlexAlign.Center)
     .backgroundColor($r('app.color.page_bg'))
@@ -331,13 +331,112 @@ struct Index {
     })
   }
 
+  sessionNick(): string {
+    return StudioStore.get().profile.nick;
+  }
+
+  sessionAccN(): number {
+    return StudioStore.get().accounts.length;
+  }
+
+  // 退出登录：底部动作面板。切换账号 / 退出登录两条动作，危险的那条标红，
+  // 取消单独一张卡，点遮罩也能收回去。
+  // 面板挂在 Index 而不是 MineView：底栏是这一页的兄弟节点，写在「我的」里盖不住它
+  @Builder
+  signOutSheet() {
+    Column() {
+      Column() {
+        Column({ space: 6 }) {
+          Row({ space: 10 }) {
+            Column() {
+              Text(this.sessionNick().substring(0, 1))
+                .fontSize(fs(this.ts, 16)).fontColor(paletteOf(this.avatarKey()).ink).fontWeight(FontWeight.Bold)
+            }
+            .width(40).height(40).borderRadius(20)
+            .justifyContent(FlexAlign.Center)
+            .backgroundColor(paletteOf(this.avatarKey()).deep)
+
+            Column({ space: 2 }) {
+              Text(this.sessionNick().length > 0 ? `当前会话「${this.sessionNick()}」` : '当前没有会话')
+                .fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
+                .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+              Text(`本机已注册 ${this.sessionAccN()} 个账号 · 数据不上传服务器`)
+                .fontSize(fs(this.ts, 11)).fontColor(SUB)
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+          }
+          .width('100%')
+
+          Text('退出只关掉这次会话：收藏、笔记、作品都原样留在这台设备上，重新登录接着用。')
+            .fontSize(fs(this.ts, 11)).fontColor(SUB).lineHeight(fs(this.ts, 17))
+            .width('100%')
+        }
+        .width('100%')
+        .alignItems(HorizontalAlign.Start)
+        .padding({ left: 14, right: 14, top: 14, bottom: 12 })
+
+        Divider().color($r('app.color.line'))
+
+        Row({ space: 10 }) {
+          Text('⇄').fontSize(fs(this.ts, 15)).fontColor(LOESS).width(20).textAlign(TextAlign.Center)
+          Text('切换账号').fontSize(fs(this.ts, 15)).fontColor(INK).layoutWeight(1)
+          Text('换个本机账号登录').fontSize(fs(this.ts, 11)).fontColor(SUB)
+        }
+        .width('100%').height(52).padding({ left: 14, right: 14 })
+        .onClick((): void => {
+          closeSignOutAsk();
+          StudioStore.get().signOut();
+          promptAction.showToast({ message: '换个账号：填昵称输口令，或注册新的' });
+          goLogin();
+        })
+
+        Divider().color($r('app.color.line'))
+
+        Row({ space: 10 }) {
+          Text('⏻').fontSize(fs(this.ts, 15)).fontColor(DANGER).width(20).textAlign(TextAlign.Center)
+          Text('退出登录').fontSize(fs(this.ts, 15)).fontColor(DANGER).fontWeight(FontWeight.Medium).layoutWeight(1)
+          Text('危险操作').fontSize(fs(this.ts, 11)).fontColor(DANGER)
+            .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+            .backgroundColor('#F7E3E0').borderRadius(9)
+        }
+        .width('100%').height(52).padding({ left: 14, right: 14 })
+        .onClick((): void => {
+          closeSignOutAsk();
+          StudioStore.get().signOut();
+          promptAction.showToast({ message: '已退出登录，本机数据原样留着' });
+          goLogin();
+        })
+      }
+      .width('100%')
+      .backgroundColor($r('app.color.card_bg'))
+      .borderRadius(14)
+
+      Row() {
+        Text('取消').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
+          .width('100%').height(52).textAlign(TextAlign.Center)
+      }
+      .width('100%')
+      .margin({ top: 8 })
+      .backgroundColor($r('app.color.card_bg'))
+      .borderRadius(14)
+      .onClick((): void => {
+        closeSignOutAsk();
+      })
+    }
+    .width('100%')
+    .padding({ left: 12, right: 12, bottom: 14 })
+    .transition(TransitionEffect.move(TransitionEdge.BOTTOM)
+      .animation({ duration: 200, curve: Curve.EaseOut }))
+  }
+
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
       Column() {
         if (!this.ready) {
           Column({ space: 12 }) {
-            Text('黄河续响平台').fontSize(24).fontColor(LOESS).fontWeight(FontWeight.Bold)
-            Text('正在整理河岸的旧时光…').fontSize(12).fontColor(SUB)
+            Text('黄河续响平台').fontSize(fs(this.ts, 24)).fontColor(LOESS).fontWeight(FontWeight.Bold)
+            Text('正在整理河岸的旧时光…').fontSize(fs(this.ts, 12)).fontColor(SUB)
           }
           .width('100%').layoutWeight(1).justifyContent(FlexAlign.Center)
         } else {
@@ -359,7 +458,7 @@ struct Index {
             this.footLabel(1, '文创')
             Column() {
               Text('+')
-                .fontSize(24)
+                .fontSize(fs(this.ts, 24))
                 .fontColor('#FFFFFF')
                 .fontWeight(FontWeight.Bold)
             }
@@ -420,6 +519,21 @@ struct Index {
         .width('100%')
         .height('100%')
         .transition(TransitionEffect.OPACITY.animation({ duration: 180 }))
+      }
+
+      if (this.signOutAsk) {
+        Column() {
+          // 遮罩：点空白处也能收回去
+          Column().layoutWeight(1)
+            .width('100%')
+            .onClick((): void => {
+              closeSignOutAsk();
+            })
+          this.signOutSheet()
+        }
+        .width('100%')
+        .height('100%')
+        .backgroundColor('rgba(43,38,34,0.45)')
       }
     }
     .width('100%')

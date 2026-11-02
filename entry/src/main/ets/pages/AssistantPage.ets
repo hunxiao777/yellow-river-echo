@@ -20,6 +20,8 @@ const TYPE_MS: number = 50;
 @Entry
 @Component
 struct AssistantPage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('aiRev') rev: number = 0;
   @State turns: ChatTurn[] = [];
   @State input: string = '';
@@ -259,24 +261,24 @@ struct AssistantPage {
   head() {
     Row({ space: 10 }) {
       Text('‹ 返回')
-        .fontSize(fs(14))
+        .fontSize(fs(this.ts, 14))
         .fontColor(INK)
         .onClick((): void => {
           router.back();
         })
       Column({ space: 2 }) {
         Text('河小导')
-          .fontSize(fs(16))
+          .fontSize(fs(this.ts, 16))
           .fontColor(INK)
           .fontWeight(FontWeight.Medium)
         Text('黄河续响平台 · 文化向导')
-          .fontSize(fs(10))
+          .fontSize(fs(this.ts, 10))
           .fontColor(SUB)
       }
       .alignItems(HorizontalAlign.Start)
       Blank()
       Text(this.cfgOpen ? '完成' : '设置')
-        .fontSize(fs(12))
+        .fontSize(fs(this.ts, 12))
         .fontColor(this.cfgOpen ? CLAY : SUB)
         .padding({ left: 8, right: 8, top: 4, bottom: 4 })
         .onClick((): void => {
@@ -293,18 +295,18 @@ struct AssistantPage {
     Scroll() {
       Column({ space: 12 }) {
         Text('接入设置')
-          .fontSize(fs(15))
+          .fontSize(fs(this.ts, 15))
           .fontColor(INK)
           .fontWeight(FontWeight.Medium)
           .width('100%')
 
         Text('Dify 地址')
-          .fontSize(fs(11))
+          .fontSize(fs(this.ts, 11))
           .fontColor(SUB)
           .width('100%')
         TextInput({ placeholder: 'https://api.dify.ai/v1', text: this.base })
           .height(40)
-          .fontSize(fs(12))
+          .fontSize(fs(this.ts, 12))
           .backgroundColor('#FBF6EC')
           .borderRadius(10)
           .border({ width: 1, color: LINE })
@@ -313,13 +315,13 @@ struct AssistantPage {
           })
 
         Text('App Key')
-          .fontSize(fs(11))
+          .fontSize(fs(this.ts, 11))
           .fontColor(SUB)
           .width('100%')
         TextInput({ placeholder: 'app-xxxxxxxx', text: this.apiKey })
           .type(InputType.Password)
           .height(40)
-          .fontSize(fs(12))
+          .fontSize(fs(this.ts, 12))
           .backgroundColor('#FBF6EC')
           .borderRadius(10)
           .border({ width: 1, color: LINE })
@@ -330,12 +332,12 @@ struct AssistantPage {
         Row({ space: 10 }) {
           Column({ space: 3 }) {
             Text('带上我的收藏与笔记')
-              .fontSize(fs(13))
+              .fontSize(fs(this.ts, 13))
               .fontColor(INK)
             Text('开启后，助手会结合您的收藏与笔记作答；关闭则只依据问题本身。')
-              .fontSize(fs(10))
+              .fontSize(fs(this.ts, 10))
               .fontColor(SUB)
-              .lineHeight(fs(15))
+              .lineHeight(fs(this.ts, 15))
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
@@ -352,14 +354,14 @@ struct AssistantPage {
 
         if (this.err.length > 0) {
           Text(this.err)
-            .fontSize(fs(11))
+            .fontSize(fs(this.ts, 11))
             .fontColor(CLAY)
             .width('100%')
         }
 
         Row({ space: 10 }) {
           Text('保存')
-            .fontSize(fs(13))
+            .fontSize(fs(this.ts, 13))
             .fontColor(Color.White)
             .textAlign(TextAlign.Center)
             .layoutWeight(1)
@@ -370,7 +372,7 @@ struct AssistantPage {
               this.saveCfg();
             })
           Text(this.clearAsk ? '再点一次清空' : '清空对话')
-            .fontSize(fs(12))
+            .fontSize(fs(this.ts, 12))
             .fontColor(this.clearAsk ? CLAY : SUB)
             .textAlign(TextAlign.Center)
             .width(108)
@@ -405,7 +407,7 @@ struct AssistantPage {
   @Builder
   citeChip(c: Citation) {
     Text('引 · ' + c.name)
-      .fontSize(fs(10))
+      .fontSize(fs(this.ts, 10))
       .fontColor(c.type === 'site' ? RIVER : '#8B6B2A')
       .padding({ left: 8, right: 8, top: 3, bottom: 3 })
       .borderRadius(9)
@@ -429,9 +431,9 @@ struct AssistantPage {
       Row() {
         Blank()
         Text(t.text)
-          .fontSize(fs(13))
+          .fontSize(fs(this.ts, 13))
           .fontColor(Color.White)
-          .lineHeight(fs(20))
+          .lineHeight(fs(this.ts, 20))
           .padding({ left: 12, right: 12, top: 9, bottom: 9 })
           .backgroundColor(CLAY)
           .borderRadius({ topLeft: 14, topRight: 4, bottomLeft: 14, bottomRight: 14 })
@@ -441,13 +443,13 @@ struct AssistantPage {
     } else {
       Column({ space: 2 }) {
         Text(t.text)
-          .fontSize(fs(13))
+          .fontSize(fs(this.ts, 13))
           .fontColor(t.failed ? CLAY : INK)
-          .lineHeight(fs(21))
+          .lineHeight(fs(this.ts, 21))
           .copyOption(CopyOptions.LocalDevice)
         if (t.isAborted === true) {
           Text('· 回答已中断')
-            .fontSize(fs(10))
+            .fontSize(fs(this.ts, 10))
             .fontColor(SUB)
             .margin({ top: 3 })
         }
@@ -475,17 +477,17 @@ struct AssistantPage {
     Column({ space: 2 }) {
       if (this.live.length > 0) {
         Text(this.live)
-          .fontSize(fs(13))
+          .fontSize(fs(this.ts, 13))
           .fontColor(INK)
-          .lineHeight(fs(21))
+          .lineHeight(fs(this.ts, 21))
       }
       if (this.live.length === 0) {
         Text('河小导正在翻档案…')
-          .fontSize(fs(11))
+          .fontSize(fs(this.ts, 11))
           .fontColor(SUB)
       } else if (!this.streamDone) {
         Text('▍')
-          .fontSize(fs(12))
+          .fontSize(fs(this.ts, 12))
           .fontColor(CLAY)
       }
     }
@@ -506,24 +508,24 @@ struct AssistantPage {
           .borderRadius(32)
           .backgroundColor('#EFE3CE')
         Text('导')
-          .fontSize(28)
+          .fontSize(fs(this.ts, 28))
           .fontColor(CLAY)
           .fontWeight(FontWeight.Bold)
       }
       Text('沿河有事，问我')
-        .fontSize(fs(16))
+        .fontSize(fs(this.ts, 16))
         .fontColor(INK)
         .fontWeight(FontWeight.Medium)
       Text('我知道站内 20 处遗址、课程和活动，也能按你的收藏推荐路线。答不了的会直说，不编年代和票价。')
-        .fontSize(fs(11))
+        .fontSize(fs(this.ts, 11))
         .fontColor(SUB)
-        .lineHeight(fs(18))
+        .lineHeight(fs(this.ts, 18))
         .textAlign(TextAlign.Center)
         .padding({ left: 18, right: 18 })
       Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Center }) {
         ForEach(TIPS, (s: string): void => {
           Text(s)
-            .fontSize(fs(11))
+            .fontSize(fs(this.ts, 11))
             .fontColor(INK)
             .padding({ left: 10, right: 10, top: 7, bottom: 7 })
             .borderRadius(14)
@@ -571,13 +573,13 @@ struct AssistantPage {
               .objectFit(ImageFit.Contain)
             Column({ space: 2 }) {
               Text(errCopyOf(this.err).line)
-                .fontSize(fs(12))
+                .fontSize(fs(this.ts, 12))
                 .fontColor(INK)
-                .lineHeight(fs(18))
+                .lineHeight(fs(this.ts, 18))
                 .width('100%')
               if (errCopyOf(this.err).sub.length > 0) {
                 Text(errCopyOf(this.err).sub)
-                  .fontSize(fs(9))
+                  .fontSize(fs(this.ts, 9))
                   .fontColor(SUB)
                   .maxLines(1)
                   .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -588,7 +590,7 @@ struct AssistantPage {
             .alignItems(HorizontalAlign.Start)
             if (this.lastQ.length > 0) {
               Text('再问一次')
-                .fontSize(fs(11))
+                .fontSize(fs(this.ts, 11))
                 .fontColor(CLAY)
                 .fontWeight(FontWeight.Medium)
                 .padding({ left: 8, right: 4, top: 2, bottom: 2 })
@@ -618,7 +620,7 @@ struct AssistantPage {
         TextInput({ placeholder: '问遗址、器物或路线…', text: this.input })
           .layoutWeight(1)
           .height(42)
-          .fontSize(fs(13))
+          .fontSize(fs(this.ts, 13))
           .backgroundColor('#FBF6EC')
           .borderRadius(21)
           .border({ width: 1, color: LINE })
@@ -631,7 +633,7 @@ struct AssistantPage {
           })
         if (this.busy) {
           Text('停')
-            .fontSize(fs(13))
+            .fontSize(fs(this.ts, 13))
             .fontColor(CLAY)
             .textAlign(TextAlign.Center)
             .width(42)
@@ -644,7 +646,7 @@ struct AssistantPage {
             })
         } else {
           Text('问')
-            .fontSize(fs(13))
+            .fontSize(fs(this.ts, 13))
             .fontColor(Color.White)
             .textAlign(TextAlign.Center)
             .width(42)

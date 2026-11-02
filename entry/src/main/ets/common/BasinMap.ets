@@ -1,6 +1,6 @@
 import { SiteRepo } from '../service/SiteRepo';
 import { StudioStore } from '../service/StudioStore';
-import { WATER_FLOW, WATER_OFF } from '../common/Theme';
+import { fs, WATER_FLOW, WATER_OFF } from '../common/Theme';
 import { effectiveWaterMode } from '../common/River';
 
 // 河图洛书·流域图：把整条黄河（源—几字弯—晋陕峡谷—出潼关—入海）连同两侧支流
@@ -235,6 +235,8 @@ function geoOf(id: string): Geo | undefined {
 
 @Component
 export struct BasinMap {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @Prop activeId: string = '';
   @Prop mapHeight: number = 264;
   @Watch('onFlashReq') @Prop flashReq: string = '';   // 'siteId|nonce'：父组件盖章成功后要炸开的那团光
@@ -1064,7 +1066,7 @@ export struct BasinMap {
       Row({ space: 6 }) {
         ForEach(PRESETS, (p: ViewPreset): void => {
           Text(p.label)
-            .fontSize(11)
+            .fontSize(fs(this.ts, 11))
             .fontColor('rgba(255,236,190,0.92)')
             .padding({ left: 9, right: 9, top: 4, bottom: 4 })
             .backgroundColor('rgba(38,32,26,0.55)')
@@ -1075,7 +1077,7 @@ export struct BasinMap {
             })
         }, (p: ViewPreset): string => p.key)
         Text('−')
-          .fontSize(14)
+          .fontSize(fs(this.ts, 14))
           .fontColor('rgba(255,236,190,0.92)')
           .width(24)
           .height(24)
@@ -1087,7 +1089,7 @@ export struct BasinMap {
             this.zoomTo(this.zoom / 1.4, this.w / 2, this.h / 2);
           })
         Text('+')
-          .fontSize(14)
+          .fontSize(fs(this.ts, 14))
           .fontColor('rgba(255,236,190,0.92)')
           .width(24)
           .height(24)

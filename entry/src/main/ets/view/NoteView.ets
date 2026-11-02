@@ -3,11 +3,13 @@ import { SiteRepo } from '../service/SiteRepo';
 import { MemoryStore } from '../service/MemoryStore';
 import { SyncService } from '../service/SyncService';
 import { NoteRec, SiteInfo } from '../model/Models';
-import { INK, SUB, LOESS, CLAY, fmtTime } from '../common/Theme';
+import { fs, INK, SUB, LOESS, CLAY, fmtTime } from '../common/Theme';
 import { goNote } from '../common/Nav';
 
 @Component
 export struct NoteView {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('dataRev') @Watch('reload') rev: number = 0;
   @StorageLink('syncRev') syncRev: number = 0;
   // 笔记抄成 @State：MemoryStore 是普通单例，ArkUI 观察不到它里面的数组变化；
@@ -78,19 +80,19 @@ export struct NoteView {
       Column({ space: 10 }) {
         Row({ space: 8 }) {
           Text('我的笔记')
-            .fontSize(20)
+            .fontSize(fs(this.ts, 20))
             .fontColor(INK)
             .fontWeight(FontWeight.Bold)
             .layoutWeight(1)
           Text(this.organize ? '退出整理' : '整理合并')
-            .fontSize(13)
+            .fontSize(fs(this.ts, 13))
             .fontColor(CLAY)
             .onClick((): void => {
               this.organize = !this.organize;
               this.sel = [];
             })
           Text('写笔记')
-            .fontSize(13)
+            .fontSize(fs(this.ts, 13))
             .fontColor(Color.White)
             .padding({ left: 10, right: 10, top: 5, bottom: 5 })
             .backgroundColor(CLAY)
@@ -104,8 +106,8 @@ export struct NoteView {
 
         if (this.notes.length === 0) {
           Column({ space: 6 }) {
-            Text('还没有写过笔记').fontSize(15).fontColor(INK)
-            Text('在遗址详情页点「写一笔」，现场的话先存本机').fontSize(12).fontColor(SUB)
+            Text('还没有写过笔记').fontSize(fs(this.ts, 15)).fontColor(INK)
+            Text('在遗址详情页点「写一笔」，现场的话先存本机').fontSize(fs(this.ts, 12)).fontColor(SUB)
           }
           .margin({ top: 60 })
         } else {
@@ -128,18 +130,18 @@ export struct NoteView {
                   }
                   Column({ space: 4 }) {
                     Text(this.siteName(n.siteId))
-                      .fontSize(11)
+                      .fontSize(fs(this.ts, 11))
                       .fontColor(CLAY)
                     Text(n.text)
-                      .fontSize(14)
+                      .fontSize(fs(this.ts, 14))
                       .fontColor(INK)
                       .maxLines(2)
                       .textOverflow({ overflow: TextOverflow.Ellipsis })
                     Row({ space: 8 }) {
-                      Text('改于 ' + fmtTime(n.updatedAt)).fontSize(10).fontColor(SUB)
-                      Text(this.syncBadge(n)).fontSize(10).fontColor(SUB)
+                      Text('改于 ' + fmtTime(n.updatedAt)).fontSize(fs(this.ts, 10)).fontColor(SUB)
+                      Text(this.syncBadge(n)).fontSize(fs(this.ts, 10)).fontColor(SUB)
                       if (n.srcIds !== undefined && n.srcIds.length > 0) {
-                        Text(`由 ${n.srcIds.length} 篇合并`).fontSize(10).fontColor(LOESS)
+                        Text(`由 ${n.srcIds.length} 篇合并`).fontSize(fs(this.ts, 10)).fontColor(LOESS)
                       }
                     }
                   }
@@ -148,13 +150,13 @@ export struct NoteView {
                   if (this.organize) {
                     Column({ space: 12 }) {
                       Text('↑')
-                        .fontSize(14)
+                        .fontSize(fs(this.ts, 14))
                         .fontColor(SUB)
                         .onClick(async (): Promise<void> => {
                           await MemoryStore.get().moveNote(n.id, -1);
                         })
                       Text('↓')
-                        .fontSize(14)
+                        .fontSize(fs(this.ts, 14))
                         .fontColor(SUB)
                         .onClick(async (): Promise<void> => {
                           await MemoryStore.get().moveNote(n.id, 1);
@@ -181,7 +183,7 @@ export struct NoteView {
 
         if (this.organize) {
           Row({ space: 10 }) {
-            Text(`已选 ${this.sel.length} 篇 · 限同一遗址 · 箭头可调顺序`).fontSize(12).fontColor(SUB).layoutWeight(1)
+            Text(`已选 ${this.sel.length} 篇 · 限同一遗址 · 箭头可调顺序`).fontSize(fs(this.ts, 12)).fontColor(SUB).layoutWeight(1)
             Button('合并')
               .enabled(this.canMerge())
               .backgroundColor(LOESS)
@@ -205,12 +207,12 @@ export struct NoteView {
             this.pickSite = false;
           })
         Column({ space: 8 }) {
-          Text('给哪处遗址记一笔').fontSize(16).fontColor(INK).fontWeight(FontWeight.Medium)
+          Text('给哪处遗址记一笔').fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Medium)
           List() {
             ForEach(SiteRepo.get().sites, (s: SiteInfo): void => {
               ListItem() {
                 Text(s.name)
-                  .fontSize(14)
+                  .fontSize(fs(this.ts, 14))
                   .fontColor(INK)
                   .width('100%')
                   .padding(10)
@@ -238,10 +240,10 @@ export struct NoteView {
             this.mergeOpen = false;
           })
         Column({ space: 8 }) {
-          Text('合并预览（原文都会保留）').fontSize(16).fontColor(INK).fontWeight(FontWeight.Medium)
+          Text('合并预览（原文都会保留）').fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Medium)
           TextArea({ text: this.mergeText })
             .height(200)
-            .fontSize(13)
+            .fontSize(fs(this.ts, 13))
             .onChange((v: string): void => {
               this.mergeText = v;
             })

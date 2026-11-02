@@ -11,6 +11,8 @@ import { goDetail } from '../common/Nav';
 @Entry
 @Component
 struct RoutePage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('studioRev') rev: number = 0;
   @State era: string = '';
   @State city: string = '';
@@ -70,7 +72,7 @@ struct RoutePage {
   @Builder
   eraChip(text: string) {
     Text(text)
-      .fontSize(fs(12))
+      .fontSize(fs(this.ts, 12))
       .fontColor(this.eraOn(text) ? Color.White : INK)
       .padding({ left: 12, right: 12, top: 6, bottom: 6 })
       .borderRadius(14)
@@ -85,7 +87,7 @@ struct RoutePage {
   @Builder
   cityChip(text: string) {
     Text(text)
-      .fontSize(fs(12))
+      .fontSize(fs(this.ts, 12))
       .fontColor(this.cityOn(text) ? Color.White : INK)
       .padding({ left: 12, right: 12, top: 6, bottom: 6 })
       .borderRadius(14)
@@ -141,7 +143,7 @@ struct RoutePage {
           .backgroundColor(this.checked(s.id) ? CLAY : '#F1E7D5')
           .border({ width: 1, color: this.checked(s.id) ? CLAY : LINE })
         Text(`${i + 1}`)
-          .fontSize(fs(13))
+          .fontSize(fs(this.ts, 13))
           .fontColor(this.checked(s.id) ? Color.White : CLAY)
           .fontWeight(FontWeight.Bold)
       }
@@ -151,7 +153,7 @@ struct RoutePage {
       Column({ space: 3 }) {
         Row({ space: 6 }) {
           Text(s.name)
-            .fontSize(fs(14))
+            .fontSize(fs(this.ts, 14))
             .fontColor(INK)
             .fontWeight(FontWeight.Medium)
             .maxLines(1)
@@ -159,7 +161,7 @@ struct RoutePage {
             .layoutWeight(1)
           if (this.checked(s.id)) {
             Text('已盖章')
-              .fontSize(fs(9))
+              .fontSize(fs(this.ts, 9))
               .fontColor(CLAY)
               .borderRadius(6)
               .border({ width: 1, color: CLAY })
@@ -169,12 +171,12 @@ struct RoutePage {
         .width('100%')
 
         Text(`${s.city} · ${s.eras.join('/')} · ${s.types.join('/')}`)
-          .fontSize(fs(10))
+          .fontSize(fs(this.ts, 10))
           .fontColor(SUB)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         Text(s.summary)
-          .fontSize(fs(11))
+          .fontSize(fs(this.ts, 11))
           .fontColor(SUB)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -183,7 +185,7 @@ struct RoutePage {
       .alignItems(HorizontalAlign.Start)
 
       Text('›')
-        .fontSize(fs(15))
+        .fontSize(fs(this.ts, 15))
         .fontColor(SUB)
     }
     .width('100%')
@@ -200,18 +202,18 @@ struct RoutePage {
     Column() {
       Row({ space: 10 }) {
         Text('‹ 返回')
-          .fontSize(fs(15))
+          .fontSize(fs(this.ts, 15))
           .fontColor(CLAY)
           .onClick((): void => {
             router.back();
           })
         Text('行程规划')
-          .fontSize(fs(18))
+          .fontSize(fs(this.ts, 18))
           .fontColor(INK)
           .fontWeight(FontWeight.Bold)
           .layoutWeight(1)
         Text(`${this.stops.length} 站`)
-          .fontSize(fs(14))
+          .fontSize(fs(this.ts, 14))
           .fontColor(LOESS)
       }
       .width('100%')
@@ -222,7 +224,7 @@ struct RoutePage {
           Column({ space: 8 }) {
             Row({ space: 6 }) {
               Text('年代')
-                .fontSize(fs(11))
+                .fontSize(fs(this.ts, 11))
                 .fontColor(SUB)
                 .width(30)
               Scroll() {
@@ -242,7 +244,7 @@ struct RoutePage {
 
             Row({ space: 6 }) {
               Text('城市')
-                .fontSize(fs(11))
+                .fontSize(fs(this.ts, 11))
                 .fontColor(SUB)
                 .width(30)
               Scroll() {
@@ -268,7 +270,7 @@ struct RoutePage {
 
           Column({ space: 8 }) {
             Text(this.lead())
-              .fontSize(fs(13))
+              .fontSize(fs(this.ts, 13))
               .fontColor(INK)
               .fontWeight(FontWeight.Medium)
               .width('100%')

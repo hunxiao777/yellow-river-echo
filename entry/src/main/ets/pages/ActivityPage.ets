@@ -3,7 +3,7 @@ import { ContentRepo } from '../service/ContentRepo';
 import { StudioStore } from '../service/StudioStore';
 import { SiteRepo } from '../service/SiteRepo';
 import { EventInfo, Goods } from '../model/Models';
-import { INK, SUB, LOESS, CLAY, RIVER, dayText, moneyText } from '../common/Theme';
+import { fs, INK, SUB, LOESS, CLAY, RIVER, dayText, moneyText } from '../common/Theme';
 import { params, goDetail, RouteParam } from '../common/Nav';
 import { ArtCover } from '../view/ArtCover';
 
@@ -26,6 +26,8 @@ function pad2(n: number): string {
 @Entry
 @Component
 struct ActivityPage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('studioRev') @Watch('syncMine') studioRev: number = 0;
   @State topId: string = '';
   @State selDay: string = '';
@@ -212,7 +214,7 @@ struct ActivityPage {
   topBar() {
     Row({ space: 10 }) {
       Text('‹ 返回')
-        .fontSize(14)
+        .fontSize(fs(this.ts, 14))
         .fontColor(INK)
         .padding({ left: 10, right: 12, top: 5, bottom: 5 })
         .backgroundColor($r('app.color.card_bg'))
@@ -221,7 +223,7 @@ struct ActivityPage {
           router.back();
         })
       Text('活动')
-        .fontSize(20)
+        .fontSize(fs(this.ts, 20))
         .fontColor(INK)
         .fontWeight(FontWeight.Bold)
         .layoutWeight(1)
@@ -235,20 +237,20 @@ struct ActivityPage {
     Column({ space: 10 }) {
       Row({ space: 10 }) {
         Column({ space: 2 }) {
-          Text('今天').fontSize(11).fontColor(SUB)
-          Text(dayText(Date.now())).fontSize(17).fontColor(INK).fontWeight(FontWeight.Bold)
+          Text('今天').fontSize(fs(this.ts, 11)).fontColor(SUB)
+          Text(dayText(Date.now())).fontSize(fs(this.ts, 17)).fontColor(INK).fontWeight(FontWeight.Bold)
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
 
         Column({ space: 2 }) {
-          Text('连续签到').fontSize(11).fontColor(SUB)
-          Text(`${this.streakN} 天`).fontSize(17).fontColor(CLAY).fontWeight(FontWeight.Bold)
+          Text('连续签到').fontSize(fs(this.ts, 11)).fontColor(SUB)
+          Text(`${this.streakN} 天`).fontSize(fs(this.ts, 17)).fontColor(CLAY).fontWeight(FontWeight.Bold)
         }
         .alignItems(HorizontalAlign.End)
 
         Button(this.signed ? '今日已签' : '签到')
-          .fontSize(13)
+          .fontSize(fs(this.ts, 13))
           .fontColor(this.signed ? SUB : Color.White)
           .backgroundColor(this.signed ? '#D9CDB6' : CLAY)
           .enabled(!this.signed)
@@ -259,7 +261,7 @@ struct ActivityPage {
       .width('100%')
 
       Text(`累计签到 ${this.checkinN} 次，签到会拿到一个还没集到的字`)
-        .fontSize(11)
+        .fontSize(fs(this.ts, 11))
         .fontColor(SUB)
     }
     .width('100%')
@@ -273,7 +275,7 @@ struct ActivityPage {
     Column({ space: 2 }) {
       if (c.day > 0) {
         Text(`${c.day}`)
-          .fontSize(13)
+          .fontSize(fs(this.ts, 13))
           .fontColor(c.key === this.selDay ? Color.White : (c.isToday ? CLAY : INK))
           .fontWeight(c.isToday ? FontWeight.Bold : FontWeight.Normal)
         Row({ space: 2 }) {
@@ -287,7 +289,7 @@ struct ActivityPage {
         .height(6)
       } else {
         Text(' ')
-          .fontSize(13)
+          .fontSize(fs(this.ts, 13))
         Column().height(6)
       }
     }
@@ -306,9 +308,9 @@ struct ActivityPage {
   calCard() {
     Column({ space: 6 }) {
       Row({ space: 8 }) {
-        Text(this.monthLabel()).fontSize(15).fontColor(INK).fontWeight(FontWeight.Medium).layoutWeight(1)
+        Text(this.monthLabel()).fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium).layoutWeight(1)
         Text('‹ 上月')
-          .fontSize(12)
+          .fontSize(fs(this.ts, 12))
           .fontColor(SUB)
           .padding({ left: 8, right: 8, top: 3, bottom: 3 })
           .onClick((): void => {
@@ -316,7 +318,7 @@ struct ActivityPage {
             this.selDay = '';
           })
         Text('下月 ›')
-          .fontSize(12)
+          .fontSize(fs(this.ts, 12))
           .fontColor(SUB)
           .padding({ left: 8, right: 8, top: 3, bottom: 3 })
           .onClick((): void => {
@@ -329,7 +331,7 @@ struct ActivityPage {
       Row({ space: 0 }) {
         ForEach(WEEK, (w: string): void => {
           Column() {
-            Text(w).fontSize(11).fontColor(SUB)
+            Text(w).fontSize(fs(this.ts, 11)).fontColor(SUB)
           }
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Center)
@@ -348,9 +350,9 @@ struct ActivityPage {
 
       Row({ space: 10 }) {
         Circle().width(5).height(5).fill(LOESS)
-        Text('有活动').fontSize(10).fontColor(SUB)
+        Text('有活动').fontSize(fs(this.ts, 10)).fontColor(SUB)
         Circle().width(5).height(5).fill(CLAY)
-        Text('已签到').fontSize(10).fontColor(SUB)
+        Text('已签到').fontSize(fs(this.ts, 10)).fontColor(SUB)
       }
       .width('100%')
       .justifyContent(FlexAlign.Center)
@@ -366,7 +368,7 @@ struct ActivityPage {
   charBox(c: string) {
     Column() {
       Text(this.mineChars.indexOf(c) >= 0 ? c : '?')
-        .fontSize(22)
+        .fontSize(fs(this.ts, 22))
         .fontColor(this.mineChars.indexOf(c) >= 0 ? Color.White : SUB)
         .fontWeight(FontWeight.Bold)
     }
@@ -386,7 +388,7 @@ struct ActivityPage {
   @Builder
   charCard() {
     Column({ space: 10 }) {
-      Text('集字有礼').fontSize(16).fontColor(INK).fontWeight(FontWeight.Medium)
+      Text('集字有礼').fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Medium)
       Row({ space: 10 }) {
         ForEach(GOALS, (c: string): void => {
           this.charBox(c)
@@ -394,10 +396,10 @@ struct ActivityPage {
       }
       .width('100%')
 
-      Text(`已集 ${this.owned()}/4`).fontSize(13).fontColor(SUB)
+      Text(`已集 ${this.owned()}/4`).fontSize(fs(this.ts, 13)).fontColor(SUB)
       if (this.owned() >= GOALS.length) {
         Text('已集齐，可到「我的」领取纪念卡')
-          .fontSize(12)
+          .fontSize(fs(this.ts, 12))
           .fontColor(CLAY)
       }
     }
@@ -413,13 +415,13 @@ struct ActivityPage {
     Column({ space: 8 }) {
       Row({ space: 8 }) {
         Text(e.kind)
-          .fontSize(10)
+          .fontSize(fs(this.ts, 10))
           .fontColor(Color.White)
           .padding({ left: 7, right: 7, top: 2, bottom: 2 })
           .borderRadius(6)
           .backgroundColor(this.kindColor(e.kind))
         Text(e.title)
-          .fontSize(15)
+          .fontSize(fs(this.ts, 15))
           .fontColor(INK)
           .fontWeight(FontWeight.Medium)
           .maxLines(2)
@@ -428,22 +430,22 @@ struct ActivityPage {
       }
       .width('100%')
 
-      Text(`${e.date} · ${e.place}`).fontSize(12).fontColor(SUB).width('100%')
-      Text(`${e.fee} · ${e.seats}`).fontSize(12).fontColor(CLAY).width('100%')
+      Text(`${e.date} · ${e.place}`).fontSize(fs(this.ts, 12)).fontColor(SUB).width('100%')
+      Text(`${e.fee} · ${e.seats}`).fontSize(fs(this.ts, 12)).fontColor(CLAY).width('100%')
       Text(e.brief)
-        .fontSize(13)
+        .fontSize(fs(this.ts, 13))
         .fontColor(INK)
-        .lineHeight(21)
+        .lineHeight(fs(this.ts, 21))
         .width('100%')
         .maxLines(3)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       if (e.chars.length > 0) {
-        Text(`本次可集：${e.chars.join(' ')}`).fontSize(11).fontColor(SUB).width('100%')
+        Text(`本次可集：${e.chars.join(' ')}`).fontSize(fs(this.ts, 11)).fontColor(SUB).width('100%')
       }
 
       Row({ space: 10 }) {
         Button('报名')
-          .fontSize(13)
+          .fontSize(fs(this.ts, 13))
           .fontColor(Color.White)
           .backgroundColor(CLAY)
           .onClick((): void => {
@@ -451,7 +453,7 @@ struct ActivityPage {
           })
         if (SiteRepo.get().byId(e.siteId) !== undefined) {
           Button('去遗址')
-            .fontSize(13)
+            .fontSize(fs(this.ts, 13))
             .fontColor(INK)
             .backgroundColor($r('app.color.line'))
             .onClick((): void => {
@@ -460,7 +462,7 @@ struct ActivityPage {
         }
         Blank()
         if (e.id === this.topId) {
-          Text('刚选的活动').fontSize(10).fontColor(SUB)
+          Text('刚选的活动').fontSize(fs(this.ts, 10)).fontColor(SUB)
         }
       }
       .width('100%')
@@ -475,10 +477,10 @@ struct ActivityPage {
   @Builder
   boxCard() {
     Column({ space: 10 }) {
-      Text('盲盒抽一件').fontSize(16).fontColor(INK).fontWeight(FontWeight.Medium)
-      Text('随机从随包文创里取一件').fontSize(12).fontColor(SUB)
+      Text('盲盒抽一件').fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Medium)
+      Text('随机从随包文创里取一件').fontSize(fs(this.ts, 12)).fontColor(SUB)
       Button('抽一次')
-        .fontSize(14)
+        .fontSize(fs(this.ts, 14))
         .fontColor(Color.White)
         .backgroundColor(LOESS)
         .onClick((): void => {
@@ -503,21 +505,21 @@ struct ActivityPage {
       .borderRadius(10)
       .clip(true)
 
-      Text(g.name).fontSize(17).fontColor(INK).fontWeight(FontWeight.Bold)
-      Text(`${g.sub} · ${g.era}`).fontSize(12).fontColor(SUB)
-      Text(`￥${moneyText(g.price)}`).fontSize(16).fontColor(CLAY)
-      Text(`${g.origin} · ${g.tags.join(' ')}`).fontSize(11).fontColor(SUB)
+      Text(g.name).fontSize(fs(this.ts, 17)).fontColor(INK).fontWeight(FontWeight.Bold)
+      Text(`${g.sub} · ${g.era}`).fontSize(fs(this.ts, 12)).fontColor(SUB)
+      Text(`￥${moneyText(g.price)}`).fontSize(fs(this.ts, 16)).fontColor(CLAY)
+      Text(`${g.origin} · ${g.tags.join(' ')}`).fontSize(fs(this.ts, 11)).fontColor(SUB)
 
       Row({ space: 10 }) {
         Button(StudioStore.get().inCart(g.id) ? '已在清单' : '加入清单')
-          .fontSize(13)
+          .fontSize(fs(this.ts, 13))
           .fontColor(StudioStore.get().inCart(g.id) ? SUB : Color.White)
           .backgroundColor(StudioStore.get().inCart(g.id) ? '#D9CDB6' : LOESS)
           .onClick((): void => {
             StudioStore.get().toggleCart(g.id);
           })
         Button('关闭')
-          .fontSize(13)
+          .fontSize(fs(this.ts, 13))
           .fontColor(INK)
           .backgroundColor($r('app.color.line'))
           .onClick((): void => {
@@ -546,11 +548,11 @@ struct ActivityPage {
 
             Column({ space: 8 }) {
               Row({ space: 8 }) {
-                Text('活动安排').fontSize(16).fontColor(INK).fontWeight(FontWeight.Medium).layoutWeight(1)
+                Text('活动安排').fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Medium).layoutWeight(1)
                 if (this.selDay.length > 0) {
-                  Text(`${this.selDay} · ${this.shownEvents().length} 场`).fontSize(11).fontColor(CLAY)
+                  Text(`${this.selDay} · ${this.shownEvents().length} 场`).fontSize(fs(this.ts, 11)).fontColor(CLAY)
                   Text('显示全部')
-                    .fontSize(12)
+                    .fontSize(fs(this.ts, 12))
                     .fontColor(CLAY)
                     .onClick((): void => {
                       this.selDay = '';
@@ -561,7 +563,7 @@ struct ActivityPage {
 
               if (this.shownEvents().length === 0) {
                 Text('这个月没有排活动，点有圆点的日期换个月看看')
-                  .fontSize(12).fontColor(SUB).width('100%')
+                  .fontSize(fs(this.ts, 12)).fontColor(SUB).width('100%')
               }
 
               ForEach(this.shownEvents(), (e: EventInfo): void => {

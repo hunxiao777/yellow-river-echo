@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit';
 import { util } from '@kit.ArkTS';
 import { Goods, Course, EventInfo, Post } from '../model/Models';
+import { StudioStore } from './StudioStore';
 
 // 只读内容包：文创、课程、活动、社区动态。
 // 缺文件时留空，页面自己显示占位，避免启动链被拖住。
@@ -57,6 +58,26 @@ export class ContentRepo {
     return undefined;
   }
 
+  postOf(id: string): Post | undefined {
+    for (let p of this.feed()) {
+      if (p.id === id) {
+        return p;
+      }
+    }
+    return undefined;
+  }
+
+  // 推荐流读这一份：随包动态 + 这台设备自己发的动态，按时间倒序，刚发的自然顶到最前
+  feed(): Post[] {
+    let out = this.posts.slice();
+    let mine = StudioStore.get().userPosts;
+    for (let p of mine) {
+      out.push(p);
+    }
+    out.sort((a: Post, b: Post): number => b.at - a.at);
+    return out;
+  }
+
   eventOf(id: string): EventInfo | undefined {
     for (let e of this.events) {
       if (e.id === id) {
@@ -111,9 +132,9 @@ export class ContentRepo {
 
   postsOfTopic(topic: string): Post[] {
     if (topic.length === 0) {
-      return this.posts;
+      return this.feed();
     }
-    return this.posts.filter((p: Post): boolean => p.topic === topic);
+    return this.feed().filter((p: Post): boolean => p.topic === topic);
   }
 
   topics(): string[] {

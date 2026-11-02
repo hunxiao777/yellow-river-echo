@@ -14,6 +14,8 @@ const MAP_H: number = 316;
 @Entry
 @Component
 struct CheckinPage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('studioRev') @Watch('reload') studioRev: number = 0;
   @State sites: SiteInfo[] = [];
   @State doneIds: string[] = [];
@@ -91,7 +93,7 @@ struct CheckinPage {
   chip(col: string, text: string) {
     Row({ space: 5 }) {
       Circle().width(9).height(9).fill(col)
-      Text(text).fontSize(fs(11)).fontColor(SUB)
+      Text(text).fontSize(fs(this.ts, 11)).fontColor(SUB)
     }
   }
 
@@ -103,17 +105,17 @@ struct CheckinPage {
           .width(56).height(56).borderRadius(8).objectFit(ImageFit.Cover)
         Column({ space: 3 }) {
           Text(this.sel!.name)
-            .fontSize(fs(16)).fontColor(INK).fontWeight(FontWeight.Bold)
+            .fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Bold)
             .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
           Text(`${this.sel!.city} · ${this.sel!.eras.join('/')} · ${this.sel!.types.join('/')}`)
-            .fontSize(fs(11)).fontColor(SUB)
+            .fontSize(fs(this.ts, 11)).fontColor(SUB)
             .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
 
         Text('看档案 ›')
-          .fontSize(fs(12)).fontColor(CLAY)
+          .fontSize(fs(this.ts, 12)).fontColor(CLAY)
           .onClick((): void => {
             goDetail(this.sel!.id);
           })
@@ -123,9 +125,9 @@ struct CheckinPage {
       Row({ space: 10 }) {
         if (this.isChecked(this.sel!.id)) {
           Text(this.checkedLabel())
-            .fontSize(fs(12)).fontColor(LOESS).layoutWeight(1)
+            .fontSize(fs(this.ts, 12)).fontColor(LOESS).layoutWeight(1)
           Text('撤销这一步')
-            .fontSize(fs(12)).fontColor(SUB)
+            .fontSize(fs(this.ts, 12)).fontColor(SUB)
             .padding({ left: 12, right: 12, top: 6, bottom: 6 })
             .border({ width: 1, color: $r('app.color.line') })
             .borderRadius(14)
@@ -133,9 +135,9 @@ struct CheckinPage {
               this.undoCheckin();
             })
         } else {
-          Text('这一步还没走过').fontSize(fs(12)).fontColor(SUB).layoutWeight(1)
+          Text('这一步还没走过').fontSize(fs(this.ts, 12)).fontColor(SUB).layoutWeight(1)
           Text('盖章打卡')
-            .fontSize(fs(13)).fontColor('#FFFFFF')
+            .fontSize(fs(this.ts, 13)).fontColor('#FFFFFF')
             .padding({ left: 16, right: 16, top: 7, bottom: 7 })
             .backgroundColor(CLAY)
             .borderRadius(15)
@@ -155,9 +157,9 @@ struct CheckinPage {
   @Builder
   emptyCard() {
     Column({ space: 6 }) {
-      Text('点河道上的一个小圆').fontSize(fs(13)).fontColor(INK)
+      Text('点河道上的一个小圆').fontSize(fs(this.ts, 13)).fontColor(INK)
       Text('遗址圈都在河南流域那一段：按右下角「河南流域」一键放大，或双指放大地图。点发光的水面还会溅起水花')
-        .fontSize(fs(11)).fontColor(SUB)
+        .fontSize(fs(this.ts, 11)).fontColor(SUB)
     }
     .width('100%')
     .padding({ top: 18, bottom: 18 })
@@ -169,12 +171,12 @@ struct CheckinPage {
   build() {
     Column({ space: 12 }) {
       Row({ space: 10 }) {
-        Text('‹ 返回').fontSize(fs(15)).fontColor(CLAY)
+        Text('‹ 返回').fontSize(fs(this.ts, 15)).fontColor(CLAY)
           .onClick((): void => {
             router.back();
           })
-        Text('河图洛书').fontSize(fs(18)).fontColor(INK).fontWeight(FontWeight.Bold).layoutWeight(1)
-        Text(`${this.doneIds.length} / ${this.sites.length}`).fontSize(fs(14)).fontColor(LOESS)
+        Text('河图洛书').fontSize(fs(this.ts, 18)).fontColor(INK).fontWeight(FontWeight.Bold).layoutWeight(1)
+        Text(`${this.doneIds.length} / ${this.sites.length}`).fontSize(fs(this.ts, 14)).fontColor(LOESS)
       }
       .width('100%')
       .padding({ left: 14, right: 14, top: 10 })
@@ -185,9 +187,9 @@ struct CheckinPage {
           Column({ space: 8 }) {
             Row({ space: 8 }) {
               // 这块是深色底（#1A212A），标题/提示不能用纸面上的 INK/SUB，否则黑压黑看不清
-              Text('黄河全流域').fontSize(fs(14)).fontColor('#F2E6CF').fontWeight(FontWeight.Medium)
+              Text('黄河全流域').fontSize(fs(this.ts, 14)).fontColor('#F2E6CF').fontWeight(FontWeight.Medium)
               Blank()
-              Text('双指缩放 · 拖动平移 · 点河道溅水花').fontSize(fs(10)).fontColor('rgba(226,216,196,0.62)')
+              Text('双指缩放 · 拖动平移 · 点河道溅水花').fontSize(fs(this.ts, 10)).fontColor('rgba(226,216,196,0.62)')
             }
             .width('100%')
 
@@ -206,19 +208,19 @@ struct CheckinPage {
             Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
               Row({ space: 4 }) {
                 Circle().width(8).height(8).fill('#FFD873')
-                Text('干流（荧光流动）').fontSize(fs(10)).fontColor(SUB)
+                Text('干流（荧光流动）').fontSize(fs(this.ts, 10)).fontColor(SUB)
               }.margin({ right: 12, bottom: 4 })
               Row({ space: 4 }) {
                 Circle().width(8).height(8).fill(RIVER)
-                Text('支流 23 条').fontSize(fs(10)).fontColor(SUB)
+                Text('支流 23 条').fontSize(fs(this.ts, 10)).fontColor(SUB)
               }.margin({ right: 12, bottom: 4 })
               Row({ space: 4 }) {
                 Circle().width(8).height(8).fill(CLAY)
-                Text('盖过章的遗址').fontSize(fs(10)).fontColor(SUB)
+                Text('盖过章的遗址').fontSize(fs(this.ts, 10)).fontColor(SUB)
               }.margin({ right: 12, bottom: 4 })
               Row({ space: 4 }) {
                 Circle().width(8).height(8).fill('#F0EBE2')
-                Text('城镇').fontSize(fs(10)).fontColor(SUB)
+                Text('城镇').fontSize(fs(this.ts, 10)).fontColor(SUB)
               }.margin({ bottom: 4 })
             }
             .width('100%')
@@ -232,7 +234,7 @@ struct CheckinPage {
             Image($r('app.media.hh_scene_a'))
               .width('100%').height(92).borderRadius(10).objectFit(ImageFit.Cover)
             Text('黄河乾坤湾 · 实景')
-              .fontSize(fs(10)).fontColor('#FFFFFF')
+              .fontSize(fs(this.ts, 10)).fontColor('#FFFFFF')
               .padding({ left: 8, right: 8, top: 2, bottom: 2 })
               .backgroundColor('rgba(43,38,34,0.45)')
               .borderRadius({ topLeft: 10, bottomRight: 10 })
@@ -249,11 +251,11 @@ struct CheckinPage {
           // 进度：一眼看出这条河还差几段
           Column({ space: 6 }) {
             Row() {
-              Text('这条河走了').fontSize(fs(12)).fontColor(SUB)
+              Text('这条河走了').fontSize(fs(this.ts, 12)).fontColor(SUB)
               Blank()
               Text(`${Math.round(this.sites.length === 0 ? 0 :
                 this.doneIds.length * 100 / this.sites.length)}%`)
-                .fontSize(fs(12)).fontColor(CLAY).fontWeight(FontWeight.Medium)
+                .fontSize(fs(this.ts, 12)).fontColor(CLAY).fontWeight(FontWeight.Medium)
             }
             .width('100%')
             Stack({ alignContent: Alignment.Start }) {
@@ -273,26 +275,26 @@ struct CheckinPage {
 
           Column({ space: 8 }) {
             Row() {
-              Text('盖过的章').fontSize(fs(16)).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text('盖过的章').fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Medium)
               Blank()
-              Text(`${this.checkedList.length} 处`).fontSize(fs(11)).fontColor(SUB)
+              Text(`${this.checkedList.length} 处`).fontSize(fs(this.ts, 11)).fontColor(SUB)
             }
             .width('100%')
 
             if (this.checkedList.length === 0) {
               Text('还没有章。河道上随便点一个圈，先盖一个试试')
-                .fontSize(fs(12)).fontColor(SUB)
+                .fontSize(fs(this.ts, 12)).fontColor(SUB)
                 .width('100%').padding({ top: 8, bottom: 8 })
             } else {
               Flex({ wrap: FlexWrap.Wrap }) {
                 ForEach(this.checkedList, (s: SiteInfo): void => {
                   Row({ space: 5 }) {
                     Text(s.name.substring(0, 1))
-                      .fontSize(fs(10)).fontColor('#F6E2CE')
+                      .fontSize(fs(this.ts, 10)).fontColor('#F6E2CE')
                       .width(16).height(16).borderRadius(4)
                       .textAlign(TextAlign.Center)
                       .backgroundColor('rgba(166,85,61,0.86)')
-                    Text(s.name).fontSize(fs(12)).fontColor(INK)
+                    Text(s.name).fontSize(fs(this.ts, 12)).fontColor(INK)
                   }
                   .padding({ left: 8, right: 10, top: 5, bottom: 5 })
                   .margin({ right: 8, bottom: 8 })

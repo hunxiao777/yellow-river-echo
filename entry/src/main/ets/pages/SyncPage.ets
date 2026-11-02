@@ -3,7 +3,7 @@ import { MemoryStore } from '../service/MemoryStore';
 import { SyncService, DeviceRow, ConflictRow } from '../service/SyncService';
 import { SiteRepo } from '../service/SiteRepo';
 import { NoteRec } from '../model/Models';
-import { INK, SUB, LOESS, CLAY, RIVER, fmtTime } from '../common/Theme';
+import { fs, INK, SUB, LOESS, CLAY, RIVER, fmtTime } from '../common/Theme';
 
 // @Builder 收对象字面量才会在数值变化后重画，普通参数是快照
 interface MetricArg {
@@ -14,6 +14,8 @@ interface MetricArg {
 @Entry
 @Component
 struct SyncPage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('syncRev') @Watch('sync') syncRev: number = 0;
   @StorageLink('dataRev') rev: number = 0;
   @State hint: string = '';
@@ -63,11 +65,11 @@ struct SyncPage {
   build() {
     Column({ space: 12 }) {
       Row({ space: 10 }) {
-        Text('‹ 返回').fontSize(15).fontColor(CLAY)
+        Text('‹ 返回').fontSize(fs(this.ts, 15)).fontColor(CLAY)
           .onClick((): void => {
             router.back();
           })
-        Text('同步面板').fontSize(18).fontColor(INK).fontWeight(FontWeight.Bold).layoutWeight(1)
+        Text('同步面板').fontSize(fs(this.ts, 18)).fontColor(INK).fontWeight(FontWeight.Bold).layoutWeight(1)
       }
       .width('100%')
       .padding({ left: 14, right: 14, top: 10 })
@@ -77,9 +79,9 @@ struct SyncPage {
           Column({ space: 8 }) {
             Row({ space: 8 }) {
               Circle().width(10).height(10).fill(this.stateColor())
-              Text(this.stateText()).fontSize(16).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text(this.stateText()).fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Medium)
             }
-            Text(this.hint).fontSize(12).fontColor(SUB)
+            Text(this.hint).fontSize(fs(this.ts, 12)).fontColor(SUB)
             GridRow({ columns: 3, gutter: 8 }) {
               GridCol() {
                 this.metric({ title: '待同步', value: `${this.pending}` })
@@ -92,24 +94,24 @@ struct SyncPage {
               }
             }
             Text('最后成功：' + fmtTime(this.lastAt))
-              .fontSize(12).fontColor(SUB)
+              .fontSize(fs(this.ts, 12)).fontColor(SUB)
             Scroll() {
               Row({ space: 10 }) {
                 Button('立即重试')
-                  .fontSize(13)
+                  .fontSize(fs(this.ts, 13))
                   .backgroundColor(CLAY)
                   .onClick((): void => {
                     SyncService.get().retry();
                   })
                 Button('刷新设备')
-                  .fontSize(13)
+                  .fontSize(fs(this.ts, 13))
                   .backgroundColor($r('app.color.line'))
                   .fontColor(INK)
                   .onClick((): void => {
                     SyncService.get().refreshDevices(true);
                   })
                 Button(this.localOn ? '开启跨设备同步' : '切到本机模式')
-                  .fontSize(13)
+                  .fontSize(fs(this.ts, 13))
                   .backgroundColor($r('app.color.line'))
                   .fontColor(INK)
                   .onClick((): void => {
@@ -128,15 +130,15 @@ struct SyncPage {
           .borderRadius(12)
 
           Column({ space: 6 }) {
-            Text('可信设备').fontSize(15).fontColor(INK).fontWeight(FontWeight.Medium)
+            Text('可信设备').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
             if (this.devN === 0) {
               Text('没发现同账号设备。两台真机登录同一账号、开蓝牙和 Wi-Fi 后再刷新。')
-                .fontSize(12).fontColor(SUB)
+                .fontSize(fs(this.ts, 12)).fontColor(SUB)
             } else {
               ForEach(SyncService.get().devices, (d: DeviceRow): void => {
                 Row() {
-                  Text(d.name).fontSize(14).fontColor(INK).layoutWeight(1)
-                  Text(d.id.substring(0, 8) + '…').fontSize(11).fontColor(SUB)
+                  Text(d.name).fontSize(fs(this.ts, 14)).fontColor(INK).layoutWeight(1)
+                  Text(d.id.substring(0, 8) + '…').fontSize(fs(this.ts, 11)).fontColor(SUB)
                 }.width('100%').padding({ top: 6, bottom: 6 })
               }, (d: DeviceRow): string => d.id)
             }
@@ -148,14 +150,14 @@ struct SyncPage {
           .borderRadius(12)
 
           Column({ space: 6 }) {
-            Text('冲突记录（最新时间戳优先）').fontSize(15).fontColor(INK).fontWeight(FontWeight.Medium)
+            Text('冲突记录（最新时间戳优先）').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
             if (this.conflictN === 0) {
-              Text('还没有发生过冲突。').fontSize(12).fontColor(SUB)
+              Text('还没有发生过冲突。').fontSize(fs(this.ts, 12)).fontColor(SUB)
             } else {
               ForEach(SyncService.get().conflicts, (c: ConflictRow): void => {
                 Row() {
-                  Text(c.key).fontSize(12).fontColor(INK).layoutWeight(1)
-                  Text(fmtTime(c.at) + ' 保留' + c.kept).fontSize(11).fontColor(SUB)
+                  Text(c.key).fontSize(fs(this.ts, 12)).fontColor(INK).layoutWeight(1)
+                  Text(fmtTime(c.at) + ' 保留' + c.kept).fontSize(fs(this.ts, 11)).fontColor(SUB)
                 }.width('100%').padding({ top: 4, bottom: 4 })
               }, (c: ConflictRow): string => c.key + c.at)
             }
@@ -168,18 +170,18 @@ struct SyncPage {
 
           if (MemoryStore.get().conflictCopies.length > 0) {
             Column({ space: 6 }) {
-              Text('被覆盖的旧笔记（可找回）').fontSize(15).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text('被覆盖的旧笔记（可找回）').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
               ForEach(MemoryStore.get().conflictCopies, (n: NoteRec): void => {
                 Row({ space: 8 }) {
                   Column({ space: 2 }) {
                     Text(SiteRepo.get().byId(n.siteId)?.name ?? '游离笔记')
-                      .fontSize(12).fontColor(CLAY)
-                    Text(n.text).fontSize(12).fontColor(INK)
+                      .fontSize(fs(this.ts, 12)).fontColor(CLAY)
+                    Text(n.text).fontSize(fs(this.ts, 12)).fontColor(INK)
                       .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
                   }
                   .alignItems(HorizontalAlign.Start)
                   .layoutWeight(1)
-                  Text('找回为笔记').fontSize(12).fontColor(LOESS)
+                  Text('找回为笔记').fontSize(fs(this.ts, 12)).fontColor(LOESS)
                     .onClick(async (): Promise<void> => {
                       await MemoryStore.get().restoreConflict(n.id);
                     })
@@ -212,8 +214,8 @@ struct SyncPage {
   @Builder
   metric(arg: MetricArg) {
     Column({ space: 2 }) {
-      Text(arg.value).fontSize(20).fontColor(INK).fontWeight(FontWeight.Bold)
-      Text(arg.title).fontSize(11).fontColor(SUB)
+      Text(arg.value).fontSize(fs(this.ts, 20)).fontColor(INK).fontWeight(FontWeight.Bold)
+      Text(arg.title).fontSize(fs(this.ts, 11)).fontColor(SUB)
     }
     .width('100%')
     .padding(8)

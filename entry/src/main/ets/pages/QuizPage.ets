@@ -214,7 +214,7 @@ struct QuizPage {
   optionRow(q: QuizQ, i: number) {
     Row({ space: 10 }) {
       Text(['甲', '乙', '丙', '丁'][i])
-        .fontSize(fs(13))
+        .fontSize(fs(this.ts, 13))
         .fontColor(CLAY)
         .width(26)
         .height(26)
@@ -222,7 +222,7 @@ struct QuizPage {
         .backgroundColor(PAPER)
         .textAlign(TextAlign.Center)
       Text(q.opts[i].t)
-        .fontSize(fs(15))
+        .fontSize(fs(this.ts, 15))
         .fontColor(INK)
         .layoutWeight(1)
     }
@@ -256,11 +256,11 @@ struct QuizPage {
     Column({ space: 12 }) {
       Row({ space: 8 }) {
         Text(`第 ${this.idx + 1} / ${QUESTIONS.length} 问`)
-          .fontSize(fs(11))
+          .fontSize(fs(this.ts, 11))
           .fontColor(SUB)
         Blank()
         Text('趣味自测 · 非学术测评')
-          .fontSize(fs(10))
+          .fontSize(fs(this.ts, 10))
           .fontColor(SUB)
           .borderRadius(8)
           .border({ width: 1, color: LINE })
@@ -269,12 +269,12 @@ struct QuizPage {
       .width('100%')
 
       Text(QUESTIONS[this.idx].title)
-        .fontSize(fs(19))
+        .fontSize(fs(this.ts, 19))
         .fontColor(INK)
         .fontWeight(FontWeight.Bold)
-        .lineHeight(fs(28))
+        .lineHeight(fs(this.ts, 28))
       Text(QUESTIONS[this.idx].hint)
-        .fontSize(fs(11))
+        .fontSize(fs(this.ts, 11))
         .fontColor(SUB)
 
       ForEach(QUESTIONS[this.idx].opts, (o: QuizOption, i: number): void => {
@@ -290,7 +290,7 @@ struct QuizPage {
     Column({ space: 14 }) {
       Row({ space: 12 }) {
         Text(personaOf(this.resultKey).ch)
-          .fontSize(fs(22))
+          .fontSize(fs(this.ts, 22))
           .fontColor('#FBF4E7')
           .fontWeight(FontWeight.Bold)
           .width(52)
@@ -300,11 +300,11 @@ struct QuizPage {
           .textAlign(TextAlign.Center)
         Column({ space: 4 }) {
           Text(personaOf(this.resultKey).name)
-            .fontSize(fs(20))
+            .fontSize(fs(this.ts, 20))
             .fontColor(INK)
             .fontWeight(FontWeight.Bold)
           Text(personaOf(this.resultKey).line)
-            .fontSize(fs(13))
+            .fontSize(fs(this.ts, 13))
             .fontColor(CLAY)
         }
         .alignItems(HorizontalAlign.Start)
@@ -313,16 +313,16 @@ struct QuizPage {
       .width('100%')
 
       Text(personaOf(this.resultKey).detail)
-        .fontSize(fs(13))
+        .fontSize(fs(this.ts, 13))
         .fontColor(INK)
-        .lineHeight(fs(21))
+        .lineHeight(fs(this.ts, 21))
 
       RiverRibbon({ bandHeight: 62, showDots: true, activeId: '',
         note: `你的年代是${personaOf(this.resultKey).era}，位置在河道示意图上。` })
 
       Column({ space: 8 }) {
         Text('先去这三处现场')
-          .fontSize(fs(15))
+          .fontSize(fs(this.ts, 15))
           .fontColor(INK)
           .fontWeight(FontWeight.Medium)
         ForEach(this.reco, (s: SiteInfo): void => {
@@ -334,7 +334,7 @@ struct QuizPage {
       .alignItems(HorizontalAlign.Start)
 
       Button('再测一次')
-        .fontSize(fs(14))
+        .fontSize(fs(this.ts, 14))
         .fontColor('#FFFFFF')
         .backgroundColor(CLAY)
         .width('100%')
@@ -353,27 +353,27 @@ struct QuizPage {
   historyCard() {
     Column({ space: 8 }) {
       Text('测过的记录')
-        .fontSize(fs(15))
+        .fontSize(fs(this.ts, 15))
         .fontColor(INK)
         .fontWeight(FontWeight.Medium)
       ForEach(StudioStore.get().quizRuns, (r: QuizRun): void => {
         Row({ space: 8 }) {
           Text(personaOf(r.persona).name)
-            .fontSize(fs(14))
+            .fontSize(fs(this.ts, 14))
             .fontColor(INK)
             .layoutWeight(1)
           Text(`${r.picks.length} 问`)
-            .fontSize(fs(11))
+            .fontSize(fs(this.ts, 11))
             .fontColor(SUB)
           Text(dayText(r.at))
-            .fontSize(fs(11))
+            .fontSize(fs(this.ts, 11))
             .fontColor(SUB)
         }
         .width('100%')
         .padding({ top: 9, bottom: 9 })
       }, (r: QuizRun): string => r.id)
       Text('记录只存本机，未联网。')
-        .fontSize(fs(10))
+        .fontSize(fs(this.ts, 10))
         .fontColor(SUB)
     }
     .width('100%')
@@ -387,19 +387,19 @@ struct QuizPage {
     Column() {
       Row({ space: 10 }) {
         Text('‹ 返回')
-          .fontSize(fs(14))
+          .fontSize(fs(this.ts, 14))
           .fontColor(INK)
           .onClick((): void => {
             router.back();
           })
         Text('趣味自测 · 你是哪种人手')
-          .fontSize(fs(15))
+          .fontSize(fs(this.ts, 15))
           .fontColor(INK)
           .fontWeight(FontWeight.Medium)
         Blank()
         if (this.picks.length > 0 && !this.done) {
           Text('清空')
-            .fontSize(fs(12))
+            .fontSize(fs(this.ts, 12))
             .fontColor(SUB)
             .onClick((): void => {
               this.reset();
@@ -420,9 +420,9 @@ struct QuizPage {
             this.ferryDots()
             this.questionCard()
             Text('八道题，凭第一反应。结果只按你在本机选下的顺序算，同分取年代在前的一型。')
-              .fontSize(fs(10))
+              .fontSize(fs(this.ts, 10))
               .fontColor(SUB)
-              .lineHeight(fs(16))
+              .lineHeight(fs(this.ts, 16))
           }
         }
         .width('100%')

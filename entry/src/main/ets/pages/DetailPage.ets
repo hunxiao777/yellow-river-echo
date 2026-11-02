@@ -146,21 +146,21 @@ struct DetailPage {
   sectionCard(sec: SecCard, idx: number) {
     Column({ space: 6 }) {
       Row({ space: 8 }) {
-        Text(`${idx + 1}`).fontSize(fs(12)).fontColor(Color.White)
+        Text(`${idx + 1}`).fontSize(fs(this.ts, 12)).fontColor(Color.White)
           .width(18).height(18).borderRadius(9)
           .backgroundColor(idx < 3 ? CLAY : LOESS)
           .textAlign(TextAlign.Center)
-        Text(sec.t).fontSize(fs(16)).fontColor(INK).fontWeight(FontWeight.Medium)
+        Text(sec.t).fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Medium)
         Blank()
         if (idx === 3) {
-          Text('拟咏已按库内标注').fontSize(fs(9)).fontColor(SUB)
+          Text('拟咏已按库内标注').fontSize(fs(this.ts, 9)).fontColor(SUB)
         }
       }
       .width('100%')
       Text(sec.body)
-        .fontSize(fs(14))
+        .fontSize(fs(this.ts, 14))
         .fontColor(INK)
-        .lineHeight(fs(23))
+        .lineHeight(fs(this.ts, 23))
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
@@ -174,13 +174,13 @@ struct DetailPage {
   poemCard() {
     Column({ space: 10 }) {
       Row({ space: 8 }) {
-        Text('4').fontSize(fs(12)).fontColor(Color.White)
+        Text('4').fontSize(fs(this.ts, 12)).fontColor(Color.White)
           .width(18).height(18).borderRadius(9)
           .backgroundColor(LOESS)
           .textAlign(TextAlign.Center)
-        Text('相关诗词').fontSize(fs(16)).fontColor(INK).fontWeight(FontWeight.Medium)
+        Text('相关诗词').fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Medium)
         Blank()
-        Text('库内收录').fontSize(fs(9)).fontColor(SUB)
+        Text('库内收录').fontSize(fs(this.ts, 9)).fontColor(SUB)
       }
       .width('100%')
 
@@ -189,12 +189,12 @@ struct DetailPage {
           Column({ space: 3 }) {
             ForEach(x.line.split(''), (ch: string, ci: number): void => {
               Text(ch)
-                .fontSize(fs(17))
+                .fontSize(fs(this.ts, 17))
                 .fontColor(INK)
-                .lineHeight(fs(26))
+                .lineHeight(fs(this.ts, 26))
             }, (ch: string, ci: number): string => `${pi}-${ci}-${ch}`)
             Text(`${x.author}｜${x.source}`)
-              .fontSize(fs(10))
+              .fontSize(fs(this.ts, 10))
               .fontColor(SUB)
               .margin({ top: 6 })
           }
@@ -229,9 +229,9 @@ struct DetailPage {
 
         Column({ space: 4 }) {
           Text(this.site!.name)
-            .fontSize(fs(22)).fontColor(Color.White).fontWeight(FontWeight.Bold)
+            .fontSize(fs(this.ts, 22)).fontColor(Color.White).fontWeight(FontWeight.Bold)
           Text(`${this.site!.city} · ${this.site!.eras.join('/')} · ${this.site!.types.join('/')}`)
-            .fontSize(fs(12)).fontColor('#E8E0D2')
+            .fontSize(fs(this.ts, 12)).fontColor('#E8E0D2')
         }
         .alignItems(HorizontalAlign.Start)
         .padding(14)
@@ -240,7 +240,7 @@ struct DetailPage {
         Stack({ alignContent: Alignment.BottomEnd }) {
           Column() {
             Text(this.sealChar())
-              .fontSize(fs(17))
+              .fontSize(fs(this.ts, 17))
               .fontColor('#F6E2CE')
               .fontWeight(FontWeight.Bold)
           }
@@ -265,7 +265,7 @@ struct DetailPage {
   actionBar() {
     Row({ space: 10 }) {
       Button(this.favOn ? '已收藏' : '收藏')
-        .fontSize(fs(13))
+        .fontSize(fs(this.ts, 13))
         .backgroundColor(this.favOn ? LOESS : CLAY)
         .onClick(async (): Promise<void> => {
           if (this.favOn) {
@@ -275,7 +275,7 @@ struct DetailPage {
           }
         })
       Button('归类')
-        .fontSize(fs(13))
+        .fontSize(fs(this.ts, 13))
         .backgroundColor($r('app.color.line'))
         .fontColor(INK)
         .onClick((): void => {
@@ -284,7 +284,7 @@ struct DetailPage {
           this.sheetOpen = true;
         })
       Button('写一笔')
-        .fontSize(fs(13))
+        .fontSize(fs(this.ts, 13))
         .backgroundColor($r('app.color.line'))
         .fontColor(INK)
         .onClick((): void => {
@@ -292,7 +292,7 @@ struct DetailPage {
         })
       Blank()
       Text(this.readOn ? '已读' : '未读')
-        .fontSize(fs(12)).fontColor(SUB)
+        .fontSize(fs(this.ts, 12)).fontColor(SUB)
         .onClick(async (): Promise<void> => {
           let pr = MemoryStore.get().progressOf(this.site!.id);
           let cur = pr !== undefined && pr.read;
@@ -308,7 +308,7 @@ struct DetailPage {
     Row({ space: 10 }) {
       Column() {
         Text(this.checkinText())
-          .fontSize(fs(13))
+          .fontSize(fs(this.ts, 13))
           .fontColor(this.sealOn ? CLAY : INK)
           .fontWeight(this.sealOn ? FontWeight.Normal : FontWeight.Medium)
       }
@@ -317,14 +317,14 @@ struct DetailPage {
 
       if (this.sealOn) {
         Text('撤销')
-          .fontSize(fs(12))
+          .fontSize(fs(this.ts, 12))
           .fontColor(SUB)
           .onClick((): void => {
             this.undoCheckin();
           })
       } else {
         Text('打卡')
-          .fontSize(fs(13))
+          .fontSize(fs(this.ts, 13))
           .fontColor('#FFFFFF')
           .padding({ left: 14, right: 14, top: 7, bottom: 7 })
           .backgroundColor(CLAY)
@@ -357,7 +357,7 @@ struct DetailPage {
           }
 
           ListItem() {
-            Text(this.readLine()).fontSize(fs(11)).fontColor(SUB)
+            Text(this.readLine()).fontSize(fs(this.ts, 11)).fontColor(SUB)
               .width('100%').padding({ left: 4 })
           }
 
@@ -378,16 +378,16 @@ struct DetailPage {
 
           ListItem() {
             Text(`这里的笔记（${this.notes.length}）`)
-              .fontSize(fs(15)).fontColor(INK).fontWeight(FontWeight.Medium)
+              .fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
               .width('100%').padding(4)
           }
 
           ForEach(this.notes, (n: NoteRec): void => {
             ListItem() {
               Column({ space: 4 }) {
-                Text(n.text).fontSize(fs(13)).fontColor(INK).maxLines(3)
+                Text(n.text).fontSize(fs(this.ts, 13)).fontColor(INK).maxLines(3)
                   .textOverflow({ overflow: TextOverflow.Ellipsis })
-                Text('点按编辑').fontSize(fs(10)).fontColor(SUB)
+                Text('点按编辑').fontSize(fs(this.ts, 10)).fontColor(SUB)
               }
               .width('100%')
               .alignItems(HorizontalAlign.Start)
@@ -402,7 +402,7 @@ struct DetailPage {
 
           ListItem() {
             Text('同一段河')
-              .fontSize(fs(15)).fontColor(INK).fontWeight(FontWeight.Medium)
+              .fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
               .width('100%').padding(4)
           }
 
@@ -434,13 +434,13 @@ struct DetailPage {
         })
       } else {
         Column() {
-          Text('没找到这条资源').fontSize(fs(15)).fontColor(INK)
+          Text('没找到这条资源').fontSize(fs(this.ts, 15)).fontColor(INK)
         }.width('100%').height('100%').justifyContent(FlexAlign.Center)
       }
 
       Row({ space: 10 }) {
         Text('‹ 返回')
-          .fontSize(fs(14))
+          .fontSize(fs(this.ts, 14))
           .fontColor(this.barAlpha() > 0.5 ? INK : Color.White)
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .backgroundColor(this.barAlpha() > 0.5 ? Color.Transparent : '#66000000')
@@ -450,7 +450,7 @@ struct DetailPage {
           })
         if (this.site !== undefined) {
           Text(this.site.name)
-            .fontSize(fs(16))
+            .fontSize(fs(this.ts, 16))
             .fontColor(INK)
             .fontWeight(FontWeight.Medium)
             .opacity(this.barAlpha())
@@ -473,10 +473,10 @@ struct DetailPage {
             this.sheetOpen = false;
           })
         Column({ space: 10 }) {
-          Text('归类到标签').fontSize(fs(16)).fontColor(INK).fontWeight(FontWeight.Medium)
+          Text('归类到标签').fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Medium)
           ForEach(this.tags, (t: TagRec): void => {
             Row() {
-              Text(t.name).fontSize(fs(14)).fontColor(INK).layoutWeight(1)
+              Text(t.name).fontSize(fs(this.ts, 14)).fontColor(INK).layoutWeight(1)
               Toggle({ type: ToggleType.Switch, isOn: this.sheetPicked.indexOf(t.id) >= 0 })
                 .selectedColor(CLAY)
                 .onChange((on: boolean): void => {

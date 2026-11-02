@@ -1,7 +1,8 @@
-import { router } from '@kit.ArkUI';
-import { promptAction } from '@kit.ArkUI';
+import { router, promptAction } from '@kit.ArkUI';
 import { StudioStore } from '../service/StudioStore';
-import { INK, SUB, LOESS, CLAY, paletteOf } from '../common/Theme';
+import { VerifyGate } from '../service/VerifyGate';
+import { ArtCover } from '../view/ArtCover';
+import { fs, INK, SUB, LOESS, CLAY, RIVER, LINE, PAPER } from '../common/Theme';
 
 interface AvatarSeed {
   key: string;
@@ -17,131 +18,401 @@ const AVATARS: AvatarSeed[] = [
   { key: 'song', glyph: '桥' }
 ];
 
+// @Builder 收对象字面量才会跟着状态重画，普通参数只是建时快照
+interface FieldArg {
+  label: string;
+  holder: string;
+  value: string;
+  kind: string; // text | pwd | phone | num
+  max: number;
+  set: (v: string) => void;
+}
+
+interface QuickArg {
+  glyph: string;
+  label: string;
+  act: () => void;
+}
+
+// 版式照参考图：圆形纹样头像 + 欢迎登录/欢迎注册双态 + 昵称口令两行 +
+// 主次两颗胶囊按钮 + 快捷登录 + 底部协议勾选。
+// 账号只写在本机 preferences，口令存摘要、手机号只存掩码，没有服务端，也不上传任何东西。
+// 注册要多一道手机号 + 验证码，但码是本机生成的，只在这台设备上校验，不出设备。
+// 注册这一步不问签名，一句话签名留到「我的」里改。
 @Entry
 @Component
 struct LoginPage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
+  @State mode: string = 'login'; // login | register
   @State nick: string = '';
-  @State bio: string = '';
+  @State pwd: string = '';
+  @State pwd2: string = '';
+  @State phone: string = '';
+  @State code: string = '';
+  @State cdLeft: number = 0;
+  @State demoCode: string = '';
   @State avatar: number = 0;
+  @State agree: boolean = false;
+  private cdTimer: number = -1;
 
-  enter(): void {
-    let name = this.nick.trim();
-    if (name.length === 0) {
-      name = '河边来的人';
+  aboutToAppear(): void {
+    let last = StudioStore.get().lastAccount();
+    if (last !== undefined) {
+      this.nick = last.nick;
+      this.avatar = last.avatar;
+    }
+    // 闸门是常驻单例，页面退出再进来时倒计时可能还没走完
+    this.tick();
+  }
+
+  aboutToDisappear(): void {
+    if (this.cdTimer >= 0) {
+      clearInterval(this.cdTimer);
+      this.cdTimer = -1;
+    }
+  }
+
+  isRegister(): boolean {
+    return this.mode === 'register';
+  }
+
+  avatarSeed(i: number): AvatarSeed {
+    return AVATARS[i % AVATARS.length];
+  }
+
+  cycleAvatar(): void {
+    this.avatar = (this.avatar + 1) % AVATARS.length;
+  }
+
+  submit(): void {
+    if (!this.agree) {
+      promptAction.showToast({ message: '先勾一下用户协议与隐私政策' });
+      return;
     }
     let s = StudioStore.get();
-    let note = this.bio.trim();
-    s.signIn(name, this.avatar).then((): void => {
-      if (note.length > 0) {
-        s.setBio(note);
+    let err = this.isRegister()
+      ? s.register(this.nick, this.pwd, this.pwd2, this.avatar, this.phone, this.code)
+      : s.login(this.nick, this.pwd);
+    if (err.length > 0) {
+      promptAction.showToast({ message: err });
+      return;
+    }
+    this.enter(this.isRegister() ? '注册好了，已经替你登进来' : '回来了，接着记');
+  }
+
+  // 发码：本机生成，弹一条带明文的 toast，不然演示时没人知道该输什么
+  sendCode(): void {
+    let bad = VerifyGate.phoneErr(this.phone);
+    if (bad.length > 0) {
+      promptAction.showToast({ message: bad });
+      return;
+    }
+    let gate = VerifyGate.get();
+    if (gate.secondsLeft() > 0) {
+      promptAction.showToast({ message: '刚发过一条，等倒计时走完' });
+      return;
+    }
+    let issued = gate.issue(this.phone);
+    this.code = '';
+    this.tick();
+    promptAction.showToast({ message: `验证码 ${issued}，5 分钟内有效` });
+  }
+
+  // 倒计时与演示码都按闸门的真实状态取，不自己减，免得页面挂后台回来对不上
+  tick(): void {
+    let gate = VerifyGate.get();
+    this.cdLeft = gate.secondsLeft();
+    this.demoCode = gate.peek();
+    if (this.cdTimer >= 0) {
+      clearInterval(this.cdTimer);
+      this.cdTimer = -1;
+    }
+    if (this.cdLeft <= 0 && this.demoCode.length === 0) {
+      return;
+    }
+    this.cdTimer = setInterval((): void => {
+      let g = VerifyGate.get();
+      this.cdLeft = g.secondsLeft();
+      this.demoCode = g.peek();
+      if (this.cdLeft <= 0 && this.demoCode.length === 0 && this.cdTimer >= 0) {
+        clearInterval(this.cdTimer);
+        this.cdTimer = -1;
       }
-      router.replaceUrl({ url: 'pages/Index' });
+    }, 1000);
+  }
+
+  enter(msg: string): void {
+    promptAction.showToast({ message: msg });
+    this.pwd = '';
+    this.pwd2 = '';
+    router.replaceUrl({ url: 'pages/Index' });
+  }
+
+  guest(): void {
+    if (!this.agree) {
+      promptAction.showToast({ message: '先勾一下用户协议与隐私政策' });
+      return;
+    }
+    StudioStore.get().signIn('续响者', this.avatar).then((): void => {
+      this.enter('以「续响者」身份进入，数据同样只存本机');
     });
   }
 
+  // 快捷登录里的「本机账号」只帮你把昵称填上，口令还得自己输
+  fillLast(): void {
+    let last = StudioStore.get().lastAccount();
+    if (last === undefined) {
+      promptAction.showToast({ message: '这台设备还没有注册过账号' });
+      return;
+    }
+    this.nick = last.nick;
+    this.avatar = last.avatar;
+    this.mode = 'login';
+    promptAction.showToast({ message: `已填入「${last.nick}」，输口令就能进` });
+  }
+
+  inputType(kind: string): InputType {
+    if (kind === 'pwd') {
+      return InputType.Password;
+    }
+    if (kind === 'phone') {
+      return InputType.PhoneNumber;
+    }
+    if (kind === 'num') {
+      return InputType.Number;
+    }
+    return InputType.Normal;
+  }
+
+  @Builder
+  field(arg: FieldArg) {
+    Column({ space: 2 }) {
+      Text(arg.label).fontSize(fs(this.ts, 11)).fontColor(SUB)
+      Row({ space: 4 }) {
+        TextInput({ placeholder: arg.holder, text: arg.value })
+          .fontSize(fs(this.ts, 15))
+          .fontColor(INK)
+          .placeholderColor('#B7A995')
+          .backgroundColor(Color.Transparent)
+          .borderRadius(0)
+          .padding({ left: 0, right: 0 })
+          .height(38)
+          .layoutWeight(1)
+          .maxLength(arg.max)
+          .type(this.inputType(arg.kind))
+          .onChange(arg.set)
+      }
+      .width('100%')
+      Column().width('100%').height(1).backgroundColor(LINE)
+    }
+    .alignItems(HorizontalAlign.Start)
+    .width('100%')
+  }
+
+  // 验证码这行跟别的字段不一样：右边挂着「获取验证码」，按钮上跑倒计时
+  @Builder
+  codeField() {
+    Column({ space: 2 }) {
+      Text('验证码').fontSize(fs(this.ts, 11)).fontColor(SUB)
+      Row({ space: 8 }) {
+        TextInput({ placeholder: '6 位数字', text: this.code })
+          .fontSize(fs(this.ts, 15))
+          .fontColor(INK)
+          .placeholderColor('#B7A995')
+          .backgroundColor(Color.Transparent)
+          .borderRadius(0)
+          .padding({ left: 0, right: 0 })
+          .height(38)
+          .layoutWeight(1)
+          .maxLength(6)
+          .type(InputType.Number)
+          .onChange((v: string): void => {
+            this.code = v;
+          })
+        Button(this.cdLeft > 0 ? `${this.cdLeft}s 后重发` : '获取验证码')
+          .fontSize(fs(this.ts, 12))
+          .fontColor(this.cdLeft > 0 ? SUB : '#FFFFFF')
+          .backgroundColor(this.cdLeft > 0 ? '#EFE6D8' : RIVER)
+          .height(30)
+          .borderRadius(15)
+          .padding({ left: 12, right: 12 })
+          .onClick((): void => {
+            this.sendCode();
+          })
+      }
+      .width('100%')
+      Column().width('100%').height(1).backgroundColor(LINE)
+    }
+    .alignItems(HorizontalAlign.Start)
+    .width('100%')
+  }
+
+  @Builder
+  quickBtn(arg: QuickArg) {
+    Column({ space: 6 }) {
+      Text(arg.glyph)
+        .fontSize(fs(this.ts, 17)).fontColor(CLAY).fontWeight(FontWeight.Medium)
+        .width(46).height(46).textAlign(TextAlign.Center)
+        .borderRadius(23)
+        .backgroundColor(PAPER)
+        .border({ width: 1, color: LINE })
+      Text(arg.label).fontSize(fs(this.ts, 10)).fontColor(SUB)
+    }
+    .onClick((): void => {
+      arg.act();
+    })
+  }
+
   build() {
-    Column() {
-      Row() {
-        Text('‹ 返回引导').fontSize(14).fontColor(SUB)
-          .onClick((): void => {
-            router.replaceUrl({ url: 'pages/GuidePage' });
-          })
-      }
-      .width('100%')
-      .padding({ left: 18, right: 18, top: 20 })
-
-      Column({ space: 8 }) {
-        Text('登个记')
-          .fontSize(26).fontColor(INK).fontWeight(FontWeight.Bold)
-        Text('没有账号体系：昵称和签名只写在这台设备上，\n换设备靠分布式同步或备份文件接上。')
-          .fontSize(12).fontColor(SUB).lineHeight(20)
-      }
-      .alignItems(HorizontalAlign.Start)
-      .width('100%')
-      .padding({ left: 24, top: 26 })
-
-      Column({ space: 18 }) {
-        Row({ space: 12 }) {
-          ForEach(AVATARS, (a: AvatarSeed, i: number): void => {
-            Column() {
-              Text(a.glyph)
-                .fontSize(17)
-                .fontColor(paletteOf(a.key).ink)
-                .fontWeight(FontWeight.Medium)
-            }
-            .width(44)
-            .height(44)
-            .borderRadius(22)
-            .justifyContent(FlexAlign.Center)
-            .backgroundColor(paletteOf(a.key).deep)
-            .border({
-              width: this.avatar === i ? 2.5 : 0,
-              color: this.avatar === i ? CLAY : Color.Transparent
-            })
+    Scroll() {
+      Column({ space: 0 }) {
+        Row() {
+          Text('‹ 返回引导').fontSize(fs(this.ts, 13)).fontColor(SUB)
+            .padding({ top: 10, bottom: 10, right: 12 })
             .onClick((): void => {
-              this.avatar = i;
+              router.replaceUrl({ url: 'pages/GuidePage' });
             })
-          }, (a: AvatarSeed): string => a.glyph)
+          Blank()
+          Text('本机档案').fontSize(fs(this.ts, 11)).fontColor(SUB)
+            .padding({ left: 10, right: 10, top: 5, bottom: 5 })
+            .borderRadius(12)
+            .border({ width: 1, color: LINE })
         }
+        .width('100%')
 
-        Column({ space: 6 }) {
-          Text('昵称').fontSize(12).fontColor(SUB)
-          TextInput({ placeholder: '比如：彩陶片收集者', text: this.nick })
-            .fontSize(15)
-            .fontColor(INK)
-            .backgroundColor($r('app.color.card_bg'))
-            .borderRadius(10)
-            .height(46)
-            .maxLength(12)
-            .onChange((v: string): void => {
+        Column({ space: 12 }) {
+          Stack({ alignContent: Alignment.BottomEnd }) {
+            Column() {
+              ArtCover({ palette: this.avatarSeed(this.avatar).key, shape: 'ding',
+                seed: this.avatar, label: '' })
+            }
+            .width(108).height(108).borderRadius(54).clip(true)
+            .border({ width: 2, color: LOESS })
+
+            Text(this.avatarSeed(this.avatar).glyph)
+              .fontSize(fs(this.ts, 12)).fontColor('#FFFFFF')
+              .width(26).height(26).textAlign(TextAlign.Center)
+              .borderRadius(13)
+              .backgroundColor(CLAY)
+              .border({ width: 2, color: PAPER })
+          }
+          .onClick((): void => {
+            this.cycleAvatar();
+          })
+
+          Column({ space: 4 }) {
+            Text(this.isRegister() ? '欢迎注册' : '欢迎登录')
+              .fontSize(fs(this.ts, 25)).fontColor(CLAY).fontWeight(FontWeight.Bold).letterSpacing(4)
+            Text('黄河续响 · 账号与笔记都只存这台设备')
+              .fontSize(fs(this.ts, 11)).fontColor(SUB).letterSpacing(1)
+          }
+          .margin({ top: 4 })
+        }
+        .width('100%')
+        .padding({ top: 20, bottom: 18 })
+
+        Column({ space: 12 }) {
+          this.field({ label: '昵称', holder: '请输入昵称，2-12 个字', value: this.nick, kind: 'text',
+            max: 12, set: (v: string): void => {
               this.nick = v;
+            } })
+          if (this.isRegister()) {
+            this.field({ label: '手机号', holder: '11 位手机号，只用于本次校验', value: this.phone,
+              kind: 'phone', max: 13, set: (v: string): void => {
+                this.phone = v;
+              } })
+            this.codeField()
+            if (this.demoCode.length > 0) {
+              Text(`本次验证码 ${this.demoCode}，5 分钟内有效`)
+                .fontSize(fs(this.ts, 11)).fontColor(RIVER).fontWeight(FontWeight.Medium)
+            }
+          }
+          this.field({ label: '口令', holder: '请输入 6-16 位口令', value: this.pwd, kind: 'pwd',
+            max: 16, set: (v: string): void => {
+              this.pwd = v;
+            } })
+          if (this.isRegister()) {
+            this.field({ label: '确认口令', holder: '再输一遍口令', value: this.pwd2, kind: 'pwd',
+              max: 16, set: (v: string): void => {
+                this.pwd2 = v;
+              } })
+          }
+
+          Button(this.isRegister() ? '注册并进入' : '登录')
+            .fontSize(fs(this.ts, 16)).fontColor('#FFFFFF')
+            .backgroundColor(CLAY)
+            .width('100%').height(46).borderRadius(23)
+            .margin({ top: 4 })
+            .onClick((): void => {
+              this.submit();
+            })
+
+          Button(this.isRegister() ? '已有账号，去登录' : '注册')
+            .fontSize(fs(this.ts, 15)).fontColor(CLAY)
+            .backgroundColor('#F3E3D3')
+            .width('100%').height(46).borderRadius(23)
+            .onClick((): void => {
+              this.mode = this.isRegister() ? 'login' : 'register';
             })
         }
-        .alignItems(HorizontalAlign.Start)
+        .width('100%')
+        .padding(18)
+        .backgroundColor($r('app.color.card_bg'))
+        .borderRadius(18)
 
-        Column({ space: 6 }) {
-          Text('一句话签名').fontSize(12).fontColor(SUB)
-          TextInput({ placeholder: '黄河岸边，一路捡旧物', text: this.bio })
-            .fontSize(15)
-            .fontColor(INK)
-            .backgroundColor($r('app.color.card_bg'))
-            .borderRadius(10)
-            .height(46)
-            .maxLength(20)
-            .onChange((v: string): void => {
-              this.bio = v;
-            })
-        }
-        .alignItems(HorizontalAlign.Start)
-
-        Button('进入档案')
-          .fontSize(16)
-          .fontColor('#FFFFFF')
-          .backgroundColor(CLAY)
+        Column({ space: 14 }) {
+          Row({ space: 10 }) {
+            Column().height(1).layoutWeight(1).backgroundColor(LINE)
+            Text('快捷登录').fontSize(fs(this.ts, 11)).fontColor(SUB)
+            Column().height(1).layoutWeight(1).backgroundColor(LINE)
+          }
           .width('100%')
-          .height(48)
-          .borderRadius(24)
-          .margin({ top: 8 })
-          .onClick((): void => {
-            this.enter();
-          })
 
-        Text('先随便看看')
-          .fontSize(13)
-          .fontColor(LOESS)
-          .padding(8)
-          .onClick((): void => {
-            promptAction.showToast({ message: '游客身份进入，数据同样只存本机' });
-            this.nick = '河边来的人';
-            this.enter();
-          })
+          Row({ space: 34 }) {
+            this.quickBtn({ glyph: '响', label: '续响者进入', act: (): void => {
+              this.guest();
+            } })
+            this.quickBtn({ glyph: '本', label: '本机账号', act: (): void => {
+              this.fillLast();
+            } })
+          }
+          .width('100%')
+          .justifyContent(FlexAlign.Center)
+        }
+        .width('100%')
+        .padding({ top: 22 })
+
+        Row({ space: 6 }) {
+          Checkbox()
+            .select(this.agree)
+            .selectedColor(CLAY)
+            .width(16).height(16)
+            .onChange((on: boolean): void => {
+              this.agree = on;
+            })
+          Text('我已阅读并同意').fontSize(fs(this.ts, 10)).fontColor(SUB)
+          Text('《用户协议》').fontSize(fs(this.ts, 10)).fontColor(RIVER)
+            .onClick((): void => {
+              promptAction.showToast({ message: '数据只写本机 preferences，不上传服务器；退出登录不会删除收藏与笔记' });
+            })
+          Text('与').fontSize(fs(this.ts, 10)).fontColor(SUB)
+          Text('《隐私政策》').fontSize(fs(this.ts, 10)).fontColor(RIVER)
+            .onClick((): void => {
+              promptAction.showToast({ message: '口令只存校验摘要，手机号只存掩码，明文不落盘、不出设备' });
+            })
+        }
+        .width('100%')
+        .justifyContent(FlexAlign.Center)
+        .padding({ top: 24, bottom: 30 })
       }
       .width('100%')
-      .padding({ left: 24, right: 24, top: 26 })
+      .padding({ left: 18, right: 18 })
     }
     .width('100%')
     .height('100%')
-    .alignItems(HorizontalAlign.Start)
+    .scrollBar(BarState.Off)
+    .align(Alignment.Top)
     .backgroundColor($r('app.color.page_bg'))
   }
 }

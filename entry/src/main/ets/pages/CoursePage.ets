@@ -1,7 +1,7 @@
 import { router } from '@kit.ArkUI';
 import { ContentRepo } from '../service/ContentRepo';
 import { Course } from '../model/Models';
-import { INK, SUB, CLAY } from '../common/Theme';
+import { fs, INK, SUB, CLAY } from '../common/Theme';
 import { goPlayer } from '../common/Nav';
 import { ArtCover } from '../view/ArtCover';
 
@@ -30,6 +30,8 @@ function coverShape(c: Course): string {
 @Entry
 @Component
 struct CoursePage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @State cat: string = '全部';
 
   list(): Course[] {
@@ -39,12 +41,12 @@ struct CoursePage {
   build() {
     Column({ space: 10 }) {
       Row({ space: 10 }) {
-        Text('‹').fontSize(24).fontColor(CLAY).width(22)
+        Text('‹').fontSize(fs(this.ts, 24)).fontColor(CLAY).width(22)
           .onClick((): void => {
             router.back();
           })
         Column({ space: 2 }) {
-          Text('课程影像').fontSize(18).fontColor(INK).fontWeight(FontWeight.Bold)
+          Text('课程影像').fontSize(fs(this.ts, 18)).fontColor(INK).fontWeight(FontWeight.Bold)
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
@@ -56,7 +58,7 @@ struct CoursePage {
         Row({ space: 8 }) {
           ForEach(CATS, (o: string): void => {
             Text(o)
-              .fontSize(12)
+              .fontSize(fs(this.ts, 12))
               .fontColor(o === this.cat ? Color.White : INK)
               .padding({ left: 14, right: 14, top: 6, bottom: 6 })
               .borderRadius(14)
@@ -74,13 +76,13 @@ struct CoursePage {
 
       if (ContentRepo.get().courses.length === 0) {
         Column({ space: 6 }) {
-          Text('课程数据包未随包提供').fontSize(14).fontColor(INK)
-          Text('遗址档案与彩陶工坊不受影响').fontSize(11).fontColor(SUB)
+          Text('课程数据包未随包提供').fontSize(fs(this.ts, 14)).fontColor(INK)
+          Text('遗址档案与彩陶工坊不受影响').fontSize(fs(this.ts, 11)).fontColor(SUB)
         }
         .width('100%')
         .margin({ top: 60 })
       } else if (this.list().length === 0) {
-        Text('这一类暂时没有课程').fontSize(13).fontColor(SUB)
+        Text('这一类暂时没有课程').fontSize(fs(this.ts, 13)).fontColor(SUB)
           .width('100%').margin({ top: 40 })
       } else {
         List({ space: 8 }) {
@@ -96,12 +98,12 @@ struct CoursePage {
                 .clip(true)
 
                 Column({ space: 5 }) {
-                  Text(c.title).fontSize(15).fontColor(INK).fontWeight(FontWeight.Medium)
+                  Text(c.title).fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
                     .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
-                  Text(c.brief).fontSize(12).fontColor(SUB)
+                  Text(c.brief).fontSize(fs(this.ts, 12)).fontColor(SUB)
                     .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
                   Text(`${c.cat} · ${c.level} · ${c.minutes} 分钟 · ${c.steps.length} 个分镜`)
-                    .fontSize(10).fontColor(CLAY)
+                    .fontSize(fs(this.ts, 10)).fontColor(CLAY)
                 }
                 .alignItems(HorizontalAlign.Start)
                 .layoutWeight(1)

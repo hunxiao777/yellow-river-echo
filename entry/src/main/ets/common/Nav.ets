@@ -63,8 +63,12 @@ export function goGoods(id: string): void {
   router.pushUrl({ url: 'pages/GoodsDetailPage', params: p });
 }
 
-export function goCourses(): void {
-  router.pushUrl({ url: 'pages/CoursePage' });
+// 文创右上角「清单」点进来：按品类分组、能勾选改数量的喜欢清单
+export function goWishlist(): void {
+  router.pushUrl({ url: 'pages/WishlistPage' });
+}
+
+export function goCourses(): void {  router.pushUrl({ url: 'pages/CoursePage' });
 }
 
 export function goPlayer(courseId: string): void {
@@ -85,12 +89,29 @@ export function goSync(): void {
   router.pushUrl({ url: 'pages/SyncPage' });
 }
 
+// 退出登录后回登录页：用 replace，别留一层能按返回键摸回主界面
+export function goLogin(): void {
+  router.replaceUrl({ url: 'pages/LoginPage' });
+}
+
+// 社群动态详情：整卡点开看全文、看评论、点赞关注
+export function goPost(postId: string): void {
+  let p: RouteParam = { id: postId };
+  router.pushUrl({ url: 'pages/PostPage', params: p });
+}
+
+// 社群「发动态」：写完落到本机动态表，回社群页置顶显示
+export function goCompose(): void {
+  router.pushUrl({ url: 'pages/ComposePage' });
+}
+
 // 首页「签到」：河道示意图上点一个点盖一个章
 export function goCheckin(): void {
   router.pushUrl({ url: 'pages/CheckinPage' });
 }
 
-// 首页「规划我的行程」：选年代/城市，把遗址顺河排成一条线
+// 行程规划页入口：首页宫格「行程规划」与长卷「＋ 创建我的行程」都走这里；
+// 选年代/城市，把遗址顺河排成一条线
 export function goRoute(): void {
   router.pushUrl({ url: 'pages/RoutePage' });
 }
@@ -101,7 +122,7 @@ export function goColor(colorKey: string): void {
   router.pushUrl({ url: 'pages/ColorPage', params: p });
 }
 
-// 「创意工坊」单独模块：默认页顶栏切工坊、选教程；tab 0 陶艺 / 1 颜色 / 2 教程
+// 创意工坊：tab 0 观文物 / 1 切工坊（展台 + 陶艺、颜色入口）/ 2 选教程
 export function goStudio(tab: number): void {
   let p: RouteParam = { tab: tab };
   router.pushUrl({ url: 'pages/StudioPage', params: p });
@@ -192,6 +213,16 @@ export function switchTab(idx: number): void {
   AppStorage.setOrCreate('mainTab', idx);
 }
 
+// 退出登录的确认面板挂在 Index 上，跟侧栏、加号面板一个层级，才盖得住底栏
+export function openSignOutAsk(): void {
+  AppStorage.setOrCreate('signOutAsk', true);
+}
+
+export function closeSignOutAsk(): void {
+  AppStorage.setOrCreate('signOutAsk', false);
+}
+
 export function params(): RouteParam {
-  return router.getParams() as RouteParam;
+  // 不带 params 的 pushUrl 会给出 undefined，直接读属性就是 jscrash（实测崩在 RoutePage）
+  return (router.getParams() ?? {}) as RouteParam;
 }

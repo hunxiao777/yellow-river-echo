@@ -38,6 +38,8 @@ const SHAPES: string[] = ['pot', 'jar', 'ding', 'tile', 'stele', 'box', 'coin', 
 @Entry
 @Component
 struct ColorPage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @State sel: string = 'yangshao';
 
   aboutToAppear(): void {
@@ -99,11 +101,11 @@ struct ColorPage {
       .height(48)
 
       Text(r.name)
-        .fontSize(fs(11))
+        .fontSize(fs(this.ts, 11))
         .fontColor(this.sel === r.key ? CLAY : INK)
         .fontWeight(this.sel === r.key ? FontWeight.Medium : FontWeight.Regular)
       Text(r.era)
-        .fontSize(fs(9))
+        .fontSize(fs(this.ts, 9))
         .fontColor(SUB)
     }
     .width(64)
@@ -116,18 +118,18 @@ struct ColorPage {
     Column() {
       Row({ space: 10 }) {
         Text('‹ 返回')
-          .fontSize(fs(15))
+          .fontSize(fs(this.ts, 15))
           .fontColor(CLAY)
           .onClick((): void => {
             router.back();
           })
         Text('颜色工坊')
-          .fontSize(fs(18))
+          .fontSize(fs(this.ts, 18))
           .fontColor(INK)
           .fontWeight(FontWeight.Bold)
           .layoutWeight(1)
         Text('六色六器')
-          .fontSize(fs(12))
+          .fontSize(fs(this.ts, 12))
           .fontColor(LOESS)
       }
       .width('100%')
@@ -162,37 +164,37 @@ struct ColorPage {
 
             Row({ space: 8 }) {
               Text(this.row().name)
-                .fontSize(fs(17))
+                .fontSize(fs(this.ts, 17))
                 .fontColor(INK)
                 .fontWeight(FontWeight.Bold)
               Text(this.row().era)
-                .fontSize(fs(10))
+                .fontSize(fs(this.ts, 10))
                 .fontColor(this.pal().ink)
                 .backgroundColor(this.pal().deep)
                 .borderRadius(7)
                 .padding({ left: 6, right: 6, top: 2, bottom: 2 })
               Blank()
               Text(`${this.goodsOf(this.sel).length} 件对应文物`)
-                .fontSize(fs(10))
+                .fontSize(fs(this.ts, 10))
                 .fontColor(SUB)
             }
             .width('100%')
 
             Text(this.row().saying)
-              .fontSize(fs(12))
+              .fontSize(fs(this.ts, 12))
               .fontColor(SUB)
               .width('100%')
-              .lineHeight(fs(19))
+              .lineHeight(fs(this.ts, 19))
 
             if (this.rep() !== undefined) {
               Column({ space: 4 }) {
                 Text(this.rep()!.name)
-                  .fontSize(fs(13))
+                  .fontSize(fs(this.ts, 13))
                   .fontColor(INK)
                   .fontWeight(FontWeight.Medium)
                   .width('100%')
                 Text(this.rep()!.sub)
-                  .fontSize(fs(11))
+                  .fontSize(fs(this.ts, 11))
                   .fontColor(SUB)
                   .width('100%')
                   .maxLines(2)
@@ -211,7 +213,7 @@ struct ColorPage {
             Flex({ wrap: FlexWrap.Wrap }) {
               ForEach(this.goodsOf(this.sel), (g: Goods): void => {
                 Text(g.name)
-                  .fontSize(fs(10))
+                  .fontSize(fs(this.ts, 10))
                   .fontColor(INK)
                   .padding({ left: 8, right: 10, top: 5, bottom: 5 })
                   .borderRadius(12)
