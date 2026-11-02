@@ -2,7 +2,7 @@ import { router } from '@kit.ArkUI';
 import { common } from '@kit.AbilityKit';
 import { Boot } from '../service/Boot';
 import { StudioStore } from '../service/StudioStore';
-import { INK, SUB, LOESS, CLAY, RIVER } from '../common/Theme';
+import { fs, INK, SUB, LOESS, CLAY, RIVER } from '../common/Theme';
 
 // 几字形河道，归一化坐标，画的时候按画布尺寸缩放
 const RIVER_PTS: number[][] = [
@@ -14,6 +14,8 @@ const RIVER_PTS: number[][] = [
 @Entry
 @Component
 struct SplashPage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   private settings: RenderingContextSettings = new RenderingContextSettings(true);
   private ctx: CanvasRenderingContext2D = new CanvasRenderingContext2D(this.settings);
   @State draw: number = 0;
@@ -148,13 +150,13 @@ struct SplashPage {
 
       Column({ space: 10 }) {
         Text('黄河续响平台')
-          .fontSize(40)
+          .fontSize(fs(this.ts, 40))
           .fontColor(INK)
           .fontWeight(FontWeight.Bold)
           .letterSpacing(8)
           .opacity(this.titleIn)
         Text('黄河文化分布式数字档案')
-          .fontSize(14)
+          .fontSize(fs(this.ts, 14))
           .fontColor(SUB)
           .letterSpacing(3)
           .opacity(this.titleIn)
@@ -170,7 +172,7 @@ struct SplashPage {
       .padding({ left: 30, bottom: 64 })
 
       Text('按时间沉淀的东西，值得再捞一次')
-        .fontSize(11)
+        .fontSize(fs(this.ts, 11))
         .fontColor(SUB)
         .opacity(this.draw * 0.8)
         .padding({ left: 30, bottom: 34 })

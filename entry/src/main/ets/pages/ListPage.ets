@@ -1,13 +1,30 @@
 import { router } from '@kit.ArkUI';
 import { SiteRepo } from '../service/SiteRepo';
 import { SiteInfo } from '../model/Models';
-import { ERAS, CITIES, TYPES, INK, SUB, LOESS, CLAY } from '../common/Theme';
+import { fs, ERAS, CITIES, TYPES, INK, SUB, CLAY, RIVER } from '../common/Theme';
 import { params } from '../common/Nav';
 import { SiteCard } from '../view/SiteCard';
+
+interface FilterRow {
+  title: string;
+  which: string;
+  options: string[];
+}
+
+// 三行筛选写死成表，行渲染只认 which 去取状态数组。
+// 不能把选中的数组当参数传进 @Builder：按值传的是建时快照，点了不重画，
+// 看着就像标签压根没反应。
+const ROWS: FilterRow[] = [
+  { title: '年代', which: 'era', options: ERAS },
+  { title: '城市', which: 'city', options: CITIES },
+  { title: '类型', which: 'type', options: TYPES }
+];
 
 @Entry
 @Component
 struct ListPage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('dataRev') rev: number = 0;
   @State kw: string = '';
   @State eras: string[] = [];
@@ -28,15 +45,41 @@ struct ListPage {
     }
   }
 
-  // 数组内容变了但引用没变，@State 不一定会刷新，干脆换个新数组
-  rebuild(which: string): void {
+  pickedOf(which: string): string[] {
     if (which === 'era') {
-      this.eras = this.eras.slice();
-    } else if (which === 'city') {
-      this.cities = this.cities.slice();
-    } else {
-      this.types = this.types.slice();
+      return this.eras;
     }
+    if (which === 'city') {
+      return this.cities;
+    }
+    return this.types;
+  }
+
+  has(which: string, opt: string): boolean {
+    return this.pickedOf(which).indexOf(opt) >= 0;
+  }
+
+  // 数组内容变了但引用没变，@State 不一定刷新，干脆换个新数组
+  toggle(which: string, opt: string): void {
+    let cur = this.pickedOf(which);
+    let next: string[] = cur.slice();
+    let i = next.indexOf(opt);
+    if (i >= 0) {
+      next.splice(i, 1);
+    } else {
+      next.push(opt);
+    }
+    if (which === 'era') {
+      this.eras = next;
+    } else if (which === 'city') {
+      this.cities = next;
+    } else {
+      this.types = next;
+    }
+  }
+
+  pickedCount(): number {
+    return this.eras.length + this.cities.length + this.types.length;
   }
 
   clearAll(): void {
@@ -46,100 +89,118 @@ struct ListPage {
     this.types = [];
   }
 
-  condText(): string {
-    let parts: string[] = [];
-    if (this.kw.trim().length > 0) {
-      parts.push('词:' + this.kw.trim());
-    }
-    if (this.eras.length > 0) {
-      parts.push('年代:' + this.eras.join('/'));
-    }
-    if (this.cities.length > 0) {
-      parts.push('城市:' + this.cities.join('/'));
-    }
-    if (this.types.length > 0) {
-      parts.push('类型:' + this.types.join('/'));
-    }
-    return parts.length === 0 ? '没有加条件，看的全河段' : parts.join('　');
-  }
-
-  @Builder
-  chipRow(title: string, options: string[], picked: string[], which: string) {
-    Row({ space: 8 }) {
-      Text(title).fontSize(12).fontColor(SUB).width(34)
-      Scroll() {
-        Row({ space: 8 }) {
-          ForEach(options, (o: string): void => {
-            Text(o)
-              .fontSize(12)
-              .fontColor(picked.indexOf(o) >= 0 ? Color.White : INK)
-              .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-              .borderRadius(12)
-              .backgroundColor(picked.indexOf(o) >= 0 ? CLAY : $r('app.color.card_bg'))
-              .onClick((): void => {
-                let i = picked.indexOf(o);
-                if (i >= 0) {
-                  picked.splice(i, 1);
-                } else {
-                  picked.push(o);
-                }
-                this.rebuild(which);
-              })
-          }, (o: string): string => o)
-        }
-      }
-      .scrollable(ScrollDirection.Horizontal)
-      .scrollBar(BarState.Off)
-      .layoutWeight(1)
-    }
-    .width('100%')
-    .padding({ left: 14, right: 14 })
-  }
-
   build() {
-    Column({ space: 8 }) {
+    Column() {
       Row({ space: 10 }) {
-        Text('‹ 返回').fontSize(15).fontColor(CLAY)
+        Text('‹ 返回').fontSize(fs(this.ts, 15)).fontColor(CLAY)
           .onClick((): void => {
             router.back();
           })
-        Text('沿河检索').fontSize(18).fontColor(INK).fontWeight(FontWeight.Bold).layoutWeight(1)
+        Text('沿河检索').fontSize(fs(this.ts, 18)).fontColor(INK).fontWeight(FontWeight.Bold).layoutWeight(1)
       }
       .width('100%')
       .padding({ left: 14, right: 14, top: 10 })
 
       Search({ value: this.kw, placeholder: '名称、别名或摘要里的词' })
         .height(38)
-        .margin({ left: 14, right: 14 })
+        .margin({ left: 14, right: 14, top: 10 })
         .onChange((v: string): void => {
           this.kw = v;
         })
 
-      Row({ space: 8 }) {
-        Text(this.condText())
-          .fontSize(12)
-          .fontColor(SUB)
-          .layoutWeight(1)
-          .maxLines(2)
-        Text(`${this.results().length} 条`).fontSize(12).fontColor(LOESS).fontWeight(FontWeight.Medium)
-        Text('清空').fontSize(12).fontColor(CLAY)
-          .onClick((): void => {
-            this.clearAll();
-          })
+      // ---- 筛选栏：条件行 + 实时条数 + 已选可单点撤销 ----
+      Column() {
+        Row({ space: 8 }) {
+          Text('筛选').fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Bold)
+          Text(`命中 ${this.results().length} 处`).fontSize(fs(this.ts, 11)).fontColor(CLAY)
+            .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+            .backgroundColor('#F4E4DE').borderRadius(10)
+          Blank()
+          if (this.pickedCount() > 0 || this.kw.trim().length > 0) {
+            Text(`已选 ${this.pickedCount()} 项`).fontSize(fs(this.ts, 11)).fontColor(SUB)
+            Text('清空').fontSize(fs(this.ts, 12)).fontColor($r('app.color.card_bg'))
+              .padding({ left: 10, right: 10, top: 4, bottom: 4 })
+              .backgroundColor(CLAY).borderRadius(12)
+              .onClick((): void => {
+                this.clearAll();
+              })
+          } else {
+            Text('点标签试条件').fontSize(fs(this.ts, 11)).fontColor(SUB)
+          }
+        }
+        .width('100%')
+        .padding({ left: 12, right: 12, top: 10, bottom: 8 })
+
+        ForEach(ROWS, (row: FilterRow): void => {
+          Row({ space: 8 }) {
+            Text(row.title).fontSize(fs(this.ts, 12)).fontColor(SUB).width(30)
+            Scroll() {
+              Row({ space: 7 }) {
+                ForEach(row.options, (opt: string): void => {
+                  // key 里带上选中态：条件一变这个节点就重建，颜色必定跟着变
+                  Text(opt)
+                    .fontSize(fs(this.ts, 12))
+                    .fontColor(this.has(row.which, opt) ? Color.White : INK)
+                    .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+                    .borderRadius(14)
+                    .backgroundColor(this.has(row.which, opt) ? CLAY : '#F7F1E6')
+                    .border({ width: 1, color: this.has(row.which, opt) ? CLAY : '#E7DCC7' })
+                    .onClick((): void => {
+                      this.toggle(row.which, opt);
+                    })
+                }, (opt: string): string => row.which + ':' + opt +
+                  (this.has(row.which, opt) ? '#1' : '#0'))
+              }
+            }
+            .scrollable(ScrollDirection.Horizontal)
+            .scrollBar(BarState.Off)
+            .layoutWeight(1)
+          }
+          .width('100%')
+          .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+        }, (row: FilterRow): string => row.which)
       }
       .width('100%')
-      .padding({ left: 14, right: 14 })
+      .alignItems(HorizontalAlign.Start)
+      .backgroundColor($r('app.color.card_bg'))
+      .borderRadius(12)
+      .border({ width: 1, color: this.pickedCount() > 0 ? CLAY : '#EFE6D6' })
+      .margin({ left: 14, right: 14, top: 10 })
+      .padding({ bottom: 6 })
 
-      this.chipRow('年代', ERAS, this.eras, 'era')
-      this.chipRow('城市', CITIES, this.cities, 'city')
-      this.chipRow('类型', TYPES, this.types, 'type')
+      // 已选条件：逐个可撤，点 × 只掉这一项
+      if (this.pickedCount() > 0) {
+        Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
+          ForEach(ROWS, (row: FilterRow): void => {
+            ForEach(this.pickedOf(row.which), (opt: string): void => {
+              Row({ space: 4 }) {
+                Text(row.title).fontSize(fs(this.ts, 10)).fontColor(RIVER)
+                Text(opt).fontSize(fs(this.ts, 12)).fontColor(INK)
+                Text('×').fontSize(fs(this.ts, 13)).fontColor(SUB)
+              }
+              .padding({ left: 9, right: 8, top: 4, bottom: 4 })
+              .margin({ right: 7, bottom: 6 })
+              .backgroundColor('#F7F1E6')
+              .border({ width: 1, color: '#E7DCC7' })
+              .borderRadius(13)
+              .onClick((): void => {
+                this.toggle(row.which, opt);
+              })
+            }, (opt: string): string => row.which + '@' + opt)
+          }, (row: FilterRow): string => 'p' + row.which)
+        }
+        .width('100%')
+        .padding({ left: 14, right: 14, top: 10 })
+      }
 
       if (this.results().length === 0) {
         Column({ space: 6 }) {
-          Text('这一带没有符合条件的').fontSize(14).fontColor(INK)
-          Text('试着去掉一个筛选条件，或换个关键词').fontSize(12).fontColor(SUB)
+          Text('这一带没有符合条件的').fontSize(fs(this.ts, 14)).fontColor(INK)
+          Text('点上面标签里的 × 撤掉一项，或换个关键词').fontSize(fs(this.ts, 12)).fontColor(SUB)
         }
+        .width('100%')
         .margin({ top: 50 })
+        .alignItems(HorizontalAlign.Center)
       } else {
         List({ space: 8 }) {
           ForEach(this.results(), (s: SiteInfo): void => {
@@ -150,7 +211,7 @@ struct ListPage {
         }
         .layoutWeight(1)
         .scrollBar(BarState.Off)
-        .padding({ left: 14, right: 14 })
+        .padding({ left: 14, right: 14, top: 10, bottom: 16 })
       }
     }
     .width('100%')

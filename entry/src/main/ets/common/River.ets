@@ -1,4 +1,3 @@
-import { deviceInfo } from '@kit.BasicServicesKit';
 import { SiteInfo } from '../model/Models';
 import { SiteRepo } from '../service/SiteRepo';
 import { StudioStore } from '../service/StudioStore';
@@ -10,17 +9,11 @@ import {
 // 河道母题（扩展设计方案 §1）：一条纯矢量干流 + 两岸遗址点，
 // 首页开篇、详情页缩略、测试结果页共用这一份几何，不各画一套。
 
-export function defaultWaterMode(): string {
-  let t = deviceInfo.deviceType;
-  return (t === 'tablet' || t === '2in1') ? WATER_STILL : WATER_FLOW;
-}
-
 export function effectiveWaterMode(): string {
-  let s = StudioStore.get().waterMode;
-  if (s === WATER_FLOW || s === WATER_STILL || s === WATER_OFF) {
-    return s;
-  }
-  return defaultWaterMode();
+  // 河道动效已按要求撤掉：河还是画出来，但不再有常开的流水帧。
+  // 侧栏那个「河道动效/静水/关闭」开关也一并删了，这里固定回静水，
+  // BasinMap 里的水花、点选缓动照旧按忙闲起停，只是不再常年占一帧。
+  return WATER_STILL;
 }
 
 // 干流中轴：u∈[0,1] 自西向东，返回归一化纵坐标。
@@ -83,6 +76,8 @@ export function siteDot(s: SiteInfo, w: number, h: number): DotPos {
 
 @Component
 export struct RiverRibbon {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @Prop activeId: string = '';
   @Prop showDots: boolean = true;
   @Prop bandHeight: number = 78;
@@ -224,7 +219,7 @@ export struct RiverRibbon {
         })
       if (this.note.length > 0) {
         Text(this.note)
-          .fontSize(fs(9))
+          .fontSize(fs(this.ts, 9))
           .fontColor(SUB)
           .opacity(0.85)
       }

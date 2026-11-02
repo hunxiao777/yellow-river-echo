@@ -2,7 +2,7 @@ import { router, promptAction } from '@kit.ArkUI';
 import { SiteRepo } from '../service/SiteRepo';
 import { MemoryStore } from '../service/MemoryStore';
 import { SiteInfo, TopicRec } from '../model/Models';
-import { ERAS, INK, SUB, LOESS, CLAY, coverRes } from '../common/Theme';
+import { fs, ERAS, INK, SUB, LOESS, CLAY, coverRes } from '../common/Theme';
 import { goDetail } from '../common/Nav';
 import { SiteCard } from '../view/SiteCard';
 
@@ -39,6 +39,8 @@ interface ChipArg {
 @Entry
 @Component
 struct TopicPage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('dataRev') @Watch('redraw') rev: number = 0;
   @State scope: string = '';
   @State netMode: boolean = true;
@@ -312,7 +314,7 @@ struct TopicPage {
   @Builder
   chip(a: ChipArg) {
     Text(a.title)
-      .fontSize(12)
+      .fontSize(fs(this.ts, 12))
       .fontColor(this.curIdx() === a.idx ? '#FFFFFF' : SUB)
       .backgroundColor(this.curIdx() === a.idx ? CLAY : '#F1E7D5')
       .borderRadius(13)
@@ -340,7 +342,7 @@ struct TopicPage {
     Row({ space: 4 }) {
       Line().width(18).height(2).startPoint([0, 1]).endPoint([18, 1])
         .stroke(color).strokeDashArray(dash ? [4, 4] : [])
-      Text(label).fontSize(11).fontColor(SUB)
+      Text(label).fontSize(fs(this.ts, 11)).fontColor(SUB)
     }
   }
 
@@ -355,14 +357,14 @@ struct TopicPage {
         .border({ width: 1.5, color: LOESS })
         .backgroundColor('#EDE3D2')
       Text(nv.name)
-        .fontSize(11)
+        .fontSize(fs(this.ts, 11))
         .fontColor(INK)
         .fontWeight(FontWeight.Medium)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
         .margin({ top: 2 })
       Text(nv.era)
-        .fontSize(9)
+        .fontSize(fs(this.ts, 9))
         .fontColor(SUB)
         .maxLines(1)
     }
@@ -383,13 +385,13 @@ struct TopicPage {
         .backgroundColor(this.colorOf(rel.kind))
         .borderRadius(2)
       Text(`${rel.aName} 与 ${rel.bName}`)
-        .fontSize(14)
+        .fontSize(fs(this.ts, 14))
         .fontColor(INK)
         .layoutWeight(1)
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       Text(rel.label)
-        .fontSize(12)
+        .fontSize(fs(this.ts, 12))
         .fontColor(this.colorOf(rel.kind))
     }
     .width('100%')
@@ -405,15 +407,15 @@ struct TopicPage {
     Stack({ alignContent: Alignment.Bottom }) {
       Column() {
         Row({ space: 10 }) {
-          Text('‹ 返回').fontSize(15).fontColor(CLAY)
+          Text('‹ 返回').fontSize(fs(this.ts, 15)).fontColor(CLAY)
             .onClick((): void => {
               router.back();
             })
-          Text(this.title()).fontSize(18).fontColor(INK).fontWeight(FontWeight.Bold).layoutWeight(1)
+          Text(this.title()).fontSize(fs(this.ts, 18)).fontColor(INK).fontWeight(FontWeight.Bold).layoutWeight(1)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           Text(this.netMode ? '看列表' : '看网络')
-            .fontSize(13).fontColor(CLAY)
+            .fontSize(fs(this.ts, 13)).fontColor(CLAY)
             .onClick((): void => {
               this.netMode = !this.netMode;
               if (this.netMode) {
@@ -440,7 +442,7 @@ struct TopicPage {
           .scrollBar(BarState.Off)
           .layoutWeight(1)
           Text(this.creating ? '收起' : '＋ 新主题')
-            .fontSize(12).fontColor(LOESS)
+            .fontSize(fs(this.ts, 12)).fontColor(LOESS)
             .border({ width: 1, color: '#E0D2B4' })
             .borderRadius(13)
             .padding({ left: 12, right: 12, top: 5, bottom: 5 })
@@ -455,12 +457,12 @@ struct TopicPage {
         if (this.creating) {
           Row({ space: 8 }) {
             TextInput({ text: this.newName, placeholder: '比如：夏商文明探访' })
-              .height(36).fontSize(13).layoutWeight(1)
+              .height(36).fontSize(fs(this.ts, 13)).layoutWeight(1)
               .onChange((v: string): void => {
                 this.newName = v;
               })
             Button('建')
-              .height(36).fontSize(13).backgroundColor(LOESS)
+              .height(36).fontSize(fs(this.ts, 13)).backgroundColor(LOESS)
               .onClick(async (): Promise<void> => {
                 await this.create();
               })
@@ -484,10 +486,10 @@ struct TopicPage {
               `${nv.id}_${Math.round(nv.x)}_${Math.round(nv.y)}_${nv.r}_${this.scope}`)
             if (this.painted && this.nodesView.length === 0) {
               Column({ space: 8 }) {
-                Text('这个主题还没有成员').fontSize(15).fontColor(INK).fontWeight(FontWeight.Medium)
-                Text('勾几处遗址进来，桥和关系清单就出来了').fontSize(11).fontColor(SUB)
+                Text('这个主题还没有成员').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
+                Text('勾几处遗址进来，桥和关系清单就出来了').fontSize(fs(this.ts, 11)).fontColor(SUB)
                 Button('去选成员')
-                  .height(34).fontSize(13).backgroundColor(CLAY)
+                  .height(34).fontSize(fs(this.ts, 13)).backgroundColor(CLAY)
                   .onClick((): void => {
                     this.editMembers = true;
                   })
@@ -510,16 +512,16 @@ struct TopicPage {
             this.legend(CLAY, '同城市架桥', false)
             this.legend(SUB, '同标签虚桥', true)
             Blank()
-            Text('点节点看详情').fontSize(10).fontColor(SUB)
+            Text('点节点看详情').fontSize(fs(this.ts, 10)).fontColor(SUB)
           }
           .width('100%')
           .padding({ left: 16, right: 16, top: 8, bottom: 4 })
 
           Row() {
-            Text('关系清单').fontSize(15).fontColor(INK).fontWeight(FontWeight.Bold)
-            Text(`${this.rels.length} 条`).fontSize(12).fontColor(SUB).margin({ left: 6 })
+            Text('关系清单').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Bold)
+            Text(`${this.rels.length} 条`).fontSize(fs(this.ts, 12)).fontColor(SUB).margin({ left: 6 })
             Blank()
-            Text('点节点看详情').fontSize(11).fontColor(CLAY)
+            Text('点节点看详情').fontSize(fs(this.ts, 11)).fontColor(CLAY)
           }
           .width('100%')
           .padding({ left: 16, right: 16, top: 6, bottom: 6 })
@@ -549,16 +551,16 @@ struct TopicPage {
 
         Row({ space: 10 }) {
           Text(`${this.netMode ? this.nodesView.length : this.nodes().length} 个节点 · ${this.rels.length} 座桥，椭圆是年代顺序的时间轨道`)
-            .fontSize(11).fontColor(SUB).layoutWeight(1)
+            .fontSize(fs(this.ts, 11)).fontColor(SUB).layoutWeight(1)
           if (this.scope.length > 0) {
-            Text('编辑成员').fontSize(13).fontColor(CLAY)
+            Text('编辑成员').fontSize(fs(this.ts, 13)).fontColor(CLAY)
               .padding({ left: 14, right: 14, top: 7, bottom: 7 })
               .border({ width: 1, color: '#E0CDBB' })
               .borderRadius(16)
               .onClick((): void => {
                 this.editMembers = true;
               })
-            Text('删主题').fontSize(13).fontColor(SUB)
+            Text('删主题').fontSize(fs(this.ts, 13)).fontColor(SUB)
               .onClick(async (): Promise<void> => {
                 let name = this.title();
                 await MemoryStore.get().deleteTopic(this.scope);
@@ -570,7 +572,7 @@ struct TopicPage {
                 }, 60);
               })
           } else {
-            Text('把常一起看的遗址存成主题').fontSize(11).fontColor(SUB)
+            Text('把常一起看的遗址存成主题').fontSize(fs(this.ts, 11)).fontColor(SUB)
           }
         }
         .width('100%')
@@ -589,17 +591,17 @@ struct TopicPage {
           })
         Column({ space: 8 }) {
           Row() {
-            Text('勾选要放进主题的遗址').fontSize(16).fontColor(INK).fontWeight(FontWeight.Medium)
+            Text('勾选要放进主题的遗址').fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Medium)
               .layoutWeight(1)
-            Text(`已选 ${this.selIds().length} 处`).fontSize(12).fontColor(SUB)
+            Text(`已选 ${this.selIds().length} 处`).fontSize(fs(this.ts, 12)).fontColor(SUB)
           }
           .width('100%')
           List() {
             ForEach(SiteRepo.get().sites, (s: SiteInfo): void => {
               ListItem() {
                 Row() {
-                  Text(s.name).fontSize(14).fontColor(INK).layoutWeight(1)
-                  Text(s.city).fontSize(11).fontColor(SUB)
+                  Text(s.name).fontSize(fs(this.ts, 14)).fontColor(INK).layoutWeight(1)
+                  Text(s.city).fontSize(fs(this.ts, 11)).fontColor(SUB)
                   Checkbox()
                     .select(this.selIds().includes(s.id))
                     .selectedColor(CLAY)

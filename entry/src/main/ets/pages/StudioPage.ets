@@ -3,11 +3,13 @@ import { INK, SUB, PAPER, CLAY, LINE, fs, coverRes, paletteOf } from '../common/
 import { goBack, params, goPlayer, goCourses, goRelic, goSandtable } from '../common/Nav';
 import { PatternBg } from '../view/PatternBg';
 import { ContentRepo } from '../service/ContentRepo';
+import { RelicBrowser } from '../view/RelicBrowser';
 import { Course } from '../model/Models';
 import { colorRowOf } from './ColorPage';
 
-// 「创意工坊」独立模块：默认页顶栏切工坊、选教程
-// 页内三块：3D 文物展台（旋转 + 倒影 + 指示点）、陶艺/颜色工坊入口、教程选单
+// 「创意工坊」独立模块：页顶栏三个页签——观文物 / 切工坊 / 选教程
+// 观文物是内嵌的查询面板（搜索 + 分类年代颜色筛选 + 两列结果），
+// 切工坊放 3D 文物展台与工坊入口，选教程是分类胶囊 + 教程列表
 interface ExhibitRec {
   img: string;
   key: string;
@@ -24,11 +26,14 @@ const SHOW: ExhibitRec[] = [
 ];
 const CATS: string[] = ['全部', '手作', '讲读', '影像'];
 const CAT_NAMES: string[] = ['全部', '手作', '讲读', '影像'];
+const TABS: string[] = ['观文物', '切工坊', '选教程'];
 
 @Entry
 @Component
 export struct StudioPage {
-  @State tab: number = 0;
+  // 字号档位变了要整页重画，否则切完「大」这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
+  @State tab: number = 1;
   @State cur: number = 0;
   @State sway: number = -5;
   @State floatY: number = 0;
@@ -36,7 +41,7 @@ export struct StudioPage {
 
   aboutToAppear(): void {
     let p = params();
-    if (p !== undefined && p.tab !== undefined && p.tab >= 0 && p.tab <= 2) {
+    if (p !== undefined && p.tab !== undefined && p.tab >= 0 && p.tab < TABS.length) {
       this.tab = p.tab;
     }
     // 展台缓摆：绕 y 轴 -5°~5° 往复；上下 8px 浮沉，像展柜里被轻托着
@@ -79,7 +84,7 @@ export struct StudioPage {
       // 页头：返回 + 居中标题
       Row() {
         Text('‹')
-          .fontSize(fs(20))
+          .fontSize(fs(this.ts, 20))
           .fontColor(INK)
           .width(34)
           .height(34)
@@ -89,7 +94,7 @@ export struct StudioPage {
           .onClick(goBack)
         Blank()
         Text('创意工坊')
-          .fontSize(fs(18))
+          .fontSize(fs(this.ts, 18))
           .fontWeight(FontWeight.Bold)
           .fontColor(INK)
           .letterSpacing(3)
@@ -99,12 +104,12 @@ export struct StudioPage {
       .width('100%')
       .padding({ left: 14, right: 14, top: 10, bottom: 6 })
 
-      // 页顶栏：切工坊 / 选教程
+      // 页顶栏：观文物 / 切工坊 / 选教程
       Row() {
-        ForEach(['切工坊', '选教程'], (t: string, i: number): void => {
+        ForEach(TABS, (t: string, i: number): void => {
           Column({ space: 5 }) {
             Text(t)
-              .fontSize(fs(14))
+              .fontSize(fs(this.ts, 14))
               .fontColor(this.tab === i ? INK : SUB)
               .fontWeight(this.tab === i ? FontWeight.Bold : FontWeight.Regular)
               .letterSpacing(1)
@@ -125,20 +130,26 @@ export struct StudioPage {
       .width('100%')
       .justifyContent(FlexAlign.Center)
 
-      Scroll() {
-        Column({ space: 14 }) {
-          if (this.tab === 0) {
-            this.stage()
-            this.works()
-          } else {
-            this.coursePick()
+      if (this.tab === 0) {
+        // 观文物自带滚动，不能再套一层 Scroll，否则内层 layoutWeight 撑不开
+        RelicBrowser()
+          .layoutWeight(1)
+      } else {
+        Scroll() {
+          Column({ space: 14 }) {
+            if (this.tab === 1) {
+              this.stage()
+              this.works()
+            } else {
+              this.coursePick()
+            }
           }
+          .width('100%')
         }
-        .width('100%')
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+        .edgeEffect(EdgeEffect.Spring)
       }
-      .layoutWeight(1)
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
     }
     .width('100%')
     .height('100%')
@@ -204,7 +215,7 @@ export struct StudioPage {
         // 左右切换箭头
         Row() {
           Text('‹')
-            .fontSize(fs(22))
+            .fontSize(fs(this.ts, 22))
             .fontColor(SUB)
             .padding(10)
             .onClick((): void => {
@@ -212,7 +223,7 @@ export struct StudioPage {
             })
           Blank()
           Text('›')
-            .fontSize(fs(22))
+            .fontSize(fs(this.ts, 22))
             .fontColor(SUB)
             .padding(10)
             .onClick((): void => {
@@ -229,7 +240,7 @@ export struct StudioPage {
 
       // 展品名 + 指示点
       Text(colorRowOf(SHOW[this.cur].key).name)
-        .fontSize(fs(15))
+        .fontSize(fs(this.ts, 15))
         .fontWeight(FontWeight.Bold)
         .fontColor(INK)
         .letterSpacing(2)
@@ -247,7 +258,7 @@ export struct StudioPage {
       }
 
       Text(colorRowOf(SHOW[this.cur].key).saying)
-        .fontSize(fs(10))
+        .fontSize(fs(this.ts, 10))
         .fontColor(SUB)
         .width('80%')
         .textAlign(TextAlign.Center)
@@ -263,19 +274,19 @@ export struct StudioPage {
       Row() {
         Column({ space: 6 }) {
           Text('陶艺工坊')
-            .fontSize(fs(15))
+            .fontSize(fs(this.ts, 15))
             .fontWeight(FontWeight.Bold)
             .fontColor(INK)
             .letterSpacing(2)
           Text('拉坯 · 上彩 · 入窑，做一件自己的彩陶')
-            .fontSize(fs(10))
+            .fontSize(fs(this.ts, 10))
             .fontColor(SUB)
           Row({ space: 4 }) {
             Text('进工坊')
-              .fontSize(fs(10))
+              .fontSize(fs(this.ts, 10))
               .fontColor(CLAY)
             Text('›')
-              .fontSize(fs(11))
+              .fontSize(fs(this.ts, 11))
               .fontColor(CLAY)
           }
         }
@@ -294,19 +305,19 @@ export struct StudioPage {
       Row() {
         Column({ space: 6 }) {
           Text('颜色工坊')
-            .fontSize(fs(15))
+            .fontSize(fs(this.ts, 15))
             .fontWeight(FontWeight.Bold)
             .fontColor(INK)
             .letterSpacing(2)
           Text('认矿物色 · 给线稿上彩，一色一类文物')
-            .fontSize(fs(10))
+            .fontSize(fs(this.ts, 10))
             .fontColor(SUB)
           Row({ space: 4 }) {
             Text('进工坊')
-              .fontSize(fs(10))
+              .fontSize(fs(this.ts, 10))
               .fontColor(CLAY)
             Text('›')
-              .fontSize(fs(11))
+              .fontSize(fs(this.ts, 11))
               .fontColor(CLAY)
           }
         }
@@ -325,19 +336,19 @@ export struct StudioPage {
       Row() {
         Column({ space: 6 }) {
           Text('3D文物工坊')
-            .fontSize(fs(15))
+            .fontSize(fs(this.ts, 15))
             .fontWeight(FontWeight.Bold)
             .fontColor(INK)
             .letterSpacing(2)
           Text('转一转 · 看黄河流域器物的釉色与纹样')
-            .fontSize(fs(10))
+            .fontSize(fs(this.ts, 10))
             .fontColor(SUB)
           Row({ space: 4 }) {
             Text('看文物')
-              .fontSize(fs(10))
+              .fontSize(fs(this.ts, 10))
               .fontColor(CLAY)
             Text('›')
-              .fontSize(fs(11))
+              .fontSize(fs(this.ts, 11))
               .fontColor(CLAY)
           }
         }
@@ -356,19 +367,19 @@ export struct StudioPage {
       Row() {
         Column({ space: 6 }) {
           Text('黄河沙盘')
-            .fontSize(fs(15))
+            .fontSize(fs(this.ts, 15))
             .fontWeight(FontWeight.Bold)
             .fontColor(INK)
             .letterSpacing(2)
           Text('拖时间轴推演四段河史：治水 · 漕运 · 改道 · 安澜')
-            .fontSize(fs(10))
+            .fontSize(fs(this.ts, 10))
             .fontColor(SUB)
           Row({ space: 4 }) {
             Text('进沙盘')
-              .fontSize(fs(10))
+              .fontSize(fs(this.ts, 10))
               .fontColor(CLAY)
             Text('›')
-              .fontSize(fs(11))
+              .fontSize(fs(this.ts, 11))
               .fontColor(CLAY)
           }
         }
@@ -396,7 +407,7 @@ export struct StudioPage {
         Row({ space: 8 }) {
           ForEach(CATS, (c: string, i: number): void => {
             Text(CAT_NAMES[i])
-              .fontSize(fs(10.5))
+              .fontSize(fs(this.ts, 10.5))
               .fontColor(this.cat === c ? PAPER : INK)
               .backgroundColor(this.cat === c ? CLAY : 'rgba(255,255,255,0.72)')
               .borderRadius(13)
@@ -424,20 +435,20 @@ export struct StudioPage {
               .border({ width: 1, color: LINE })
             Column({ space: 4 }) {
               Text(c.title)
-                .fontSize(fs(12))
+                .fontSize(fs(this.ts, 12))
                 .fontWeight(FontWeight.Medium)
                 .fontColor(INK)
                 .maxLines(1)
                 .textOverflow({ overflow: TextOverflow.Ellipsis })
               Text(c.level + ' · ' + c.minutes + ' 分钟')
-                .fontSize(fs(9.5))
+                .fontSize(fs(this.ts, 9.5))
                 .fontColor(SUB)
               Row({ space: 4 }) {
                 Text('看教程')
-                  .fontSize(fs(9.5))
+                  .fontSize(fs(this.ts, 9.5))
                   .fontColor(CLAY)
                 Text('›')
-                  .fontSize(fs(10.5))
+                  .fontSize(fs(this.ts, 10.5))
                   .fontColor(CLAY)
               }
             }
@@ -459,10 +470,10 @@ export struct StudioPage {
 
       Row({ space: 4 }) {
         Text('打开完整教程列表')
-          .fontSize(fs(10))
+          .fontSize(fs(this.ts, 10))
           .fontColor(CLAY)
         Text('›')
-          .fontSize(fs(11))
+          .fontSize(fs(this.ts, 11))
           .fontColor(CLAY)
       }
       .onClick((): void => {

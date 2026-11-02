@@ -11,7 +11,8 @@ class ExperienceBridge {
   ctx: common.UIAbilityContext;
   constructor(ctx: common.UIAbilityContext) { this.ctx = ctx; }
   back(): void { router.back(); }
-  journey(): void { router.pushUrl({ url: 'pages/JourneyPage' }); }
+  // 应用里只有一张行程页 pages/RoutePage（原本指向 pages/JourneyPage，那一页从未存在，点它没反应）。
+  journey(): void { router.pushUrl({ url: 'pages/RoutePage' }); }
   panorama(id: string): void {
     if (id === 'longmen' || id === 'kaifeng') {
       router.pushUrl({ url: 'pages/PanoramaPage', params: { id: id } });

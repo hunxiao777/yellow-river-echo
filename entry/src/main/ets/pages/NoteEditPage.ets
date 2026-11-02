@@ -4,12 +4,14 @@ import { SiteRepo } from '../service/SiteRepo';
 import { MemoryStore } from '../service/MemoryStore';
 import { SyncService } from '../service/SyncService';
 import { NoteRec } from '../model/Models';
-import { INK, SUB, LOESS, CLAY, fmtTime } from '../common/Theme';
+import { fs, INK, SUB, LOESS, CLAY, fmtTime } from '../common/Theme';
 import { params } from '../common/Nav';
 
 @Entry
 @Component
 struct NoteEditPage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('dataRev') rev: number = 0;
   @StorageLink('syncRev') syncRev: number = 0;
   @State noteId: string = '';
@@ -74,13 +76,13 @@ struct NoteEditPage {
   build() {
     Column({ space: 10 }) {
       Row({ space: 10 }) {
-        Text('‹ 返回').fontSize(15).fontColor(CLAY)
+        Text('‹ 返回').fontSize(fs(this.ts, 15)).fontColor(CLAY)
           .onClick((): void => {
             router.back();
           })
-        Text(this.noteId.length > 0 ? '编辑笔记' : '记一笔').fontSize(18).fontColor(INK)
+        Text(this.noteId.length > 0 ? '编辑笔记' : '记一笔').fontSize(fs(this.ts, 18)).fontColor(INK)
           .fontWeight(FontWeight.Bold).layoutWeight(1)
-        Text('删除').fontSize(14).fontColor(SUB)
+        Text('删除').fontSize(fs(this.ts, 14)).fontColor(SUB)
           .visibility(this.noteId.length > 0 ? Visibility.Visible : Visibility.Hidden)
           .onClick((): void => {
             AlertDialog.show({
@@ -102,18 +104,18 @@ struct NoteEditPage {
       .padding({ left: 14, right: 14, top: 10 })
 
       Row({ space: 6 }) {
-        Text('关联：').fontSize(12).fontColor(SUB)
-        Text(this.siteName()).fontSize(12).fontColor(CLAY)
+        Text('关联：').fontSize(fs(this.ts, 12)).fontColor(SUB)
+        Text(this.siteName()).fontSize(fs(this.ts, 12)).fontColor(CLAY)
         Blank()
-        Text(`${this.text.length}/5000`).fontSize(11).fontColor(this.text.length > 5000 ? CLAY : SUB)
+        Text(`${this.text.length}/5000`).fontSize(fs(this.ts, 11)).fontColor(this.text.length > 5000 ? CLAY : SUB)
       }
       .width('100%')
       .padding({ left: 14, right: 14 })
 
       TextArea({ text: this.text, placeholder: '现场看到什么就记什么，先存本机，回头再整理' })
         .height('55%')
-        .fontSize(14)
-        .lineHeight(24)
+        .fontSize(fs(this.ts, 14))
+        .lineHeight(fs(this.ts, 24))
         .backgroundColor($r('app.color.card_bg'))
         .margin({ left: 14, right: 14 })
         .onChange((v: string): void => {
@@ -126,14 +128,14 @@ struct NoteEditPage {
       Row({ space: 10 }) {
         Column({ space: 2 }) {
           if (this.cur() !== undefined) {
-            Text('建于 ' + fmtTime(this.cur()!.createdAt)).fontSize(11).fontColor(SUB)
+            Text('建于 ' + fmtTime(this.cur()!.createdAt)).fontSize(fs(this.ts, 11)).fontColor(SUB)
             Text('改于 ' + fmtTime(this.cur()!.updatedAt) +
               ` · 第 ${this.cur()!.version} 版 · 设备 ${this.cur()!.deviceId}`)
-              .fontSize(11).fontColor(SUB)
+              .fontSize(fs(this.ts, 11)).fontColor(SUB)
           } else {
-            Text('新笔记，草稿只留在本机').fontSize(11).fontColor(SUB)
+            Text('新笔记，草稿只留在本机').fontSize(fs(this.ts, 11)).fontColor(SUB)
           }
-          Text('同步状态：' + this.syncBadge()).fontSize(11).fontColor(LOESS)
+          Text('同步状态：' + this.syncBadge()).fontSize(fs(this.ts, 11)).fontColor(LOESS)
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)

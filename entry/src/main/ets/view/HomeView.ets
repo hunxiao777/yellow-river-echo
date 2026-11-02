@@ -15,7 +15,7 @@ import {
 import {
   openDrawer, switchTab, goList, goDetail, goArchive, goPottery,
   goActivity, goCheckin, goRoute, goQuiz,
-  goEngineer, goTopic, goSync, goStudio, goExperience, openAssistantSheet
+  goTopic, goStudio, goExperience, openAssistantSheet
 } from '../common/Nav';
 
 const SHAPES: string[] = ['pot', 'jar', 'ding', 'tile', 'stele', 'box', 'coin', 'kiln'];
@@ -26,10 +26,10 @@ interface TileRec {
   act: () => void;
 }
 
-// 十二枚功能印章的画法：全部用基础形叠出来，不引图片资源。
+// 宫格印章的画法：全部用基础形叠出来，不引图片资源。
 // 每一枚都是"纸底 + 双线框 + 一件小器物"，按下会缩一下再弹回来。
 @Builder
-function artOf(kind: string) {
+function artOf(kind: string, scale: number) {
   if (kind === 'scroll') {
     Column() {
       Column().width(32).height(5).borderRadius(2.5).backgroundColor(CLAY)
@@ -116,7 +116,7 @@ function artOf(kind: string) {
       }
       Stack() {
         Column().width(28).height(17).borderRadius(3).backgroundColor(INK)
-        Text('▶').fontSize(fs(8)).fontColor(PAPER)
+        Text('▶').fontSize(fs(scale, 8)).fontColor(PAPER)
       }
       .width(28).height(17)
       Row({ space: 3 }) {
@@ -144,19 +144,6 @@ function artOf(kind: string) {
         Column().width(5).height(2).backgroundColor(CLAY).margin({ top: 8 })
       }.width(5).height(25)
     }
-  } else if (kind === 'gauge') {
-    Stack({ alignContent: Alignment.Center }) {
-      Column().width(30).height(9).borderRadius({ topLeft: 5, topRight: 5 })
-        .backgroundColor('rgba(74,123,140,0.5)').margin({ top: 15 })
-      Column({ space: 3 }) {
-        Column().width(4).height(1.5).backgroundColor(INK)
-        Column().width(4).height(1.5).backgroundColor(INK)
-        Column().width(4).height(1.5).backgroundColor(INK)
-      }
-      .width(7).height(26).backgroundColor(PAPER).border({ width: 1, color: LINE })
-      .justifyContent(FlexAlign.Center).alignItems(HorizontalAlign.Start).padding({ left: 1 })
-    }
-    .width(32).height(28)
   } else if (kind === 'net') {
     Stack() {
       Column().width(30).height(1.5).backgroundColor('#D9C9A8').rotate({ angle: 45 })
@@ -168,15 +155,6 @@ function artOf(kind: string) {
       Column().width(9).height(9).borderRadius(4.5).backgroundColor(CLAY)
     }
     .width(32).height(32)
-  } else if (kind === 'sync') {
-    Stack() {
-      Column().width(14).height(20).borderRadius(3).backgroundColor(PAPER)
-        .border({ width: 1.5, color: CLAY }).offset({ x: -7 })
-      Column().width(14).height(20).borderRadius(3).backgroundColor('rgba(166,85,61,0.22)')
-        .border({ width: 1.5, color: CLAY }).offset({ x: 7 })
-      Text('⇄').fontSize(fs(9)).fontColor(CLAY)
-    }
-    .width(32).height(22)
   } else {
     Column() {
       Column().width(6).height(4).borderRadius(1).backgroundColor(INK)
@@ -191,6 +169,8 @@ function artOf(kind: string) {
 // 不描边、不加底板，像参考图那样"图 + 名"两截干净地浮着。按下沉一点再弹回。
 @Component
 struct RelicTile {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @Prop kind: string = '';
   @Prop title: string = '';
   act: () => void = (): void => {};
@@ -221,7 +201,7 @@ struct RelicTile {
             colors: [['rgba(43,38,34,0.18)', 0], ['rgba(43,38,34,0)', 1]]
           })
         Column() {
-          artOf(this.kind)
+          artOf(this.kind, this.ts)
         }
         .width(50)
         .height(44)
@@ -232,11 +212,11 @@ struct RelicTile {
       .height(50)
 
       Text(this.title)
-        .fontSize(fs(11))
+        .fontSize(fs(this.ts, 11))
         .fontColor(INK)
         .maxLines(1)
     }
-    .width('20%')
+    .width('25%')
     .padding({ top: 6, bottom: 6 })
     .scale({ x: this.sc, y: this.sc })
     .onClick((): void => {
@@ -245,9 +225,10 @@ struct RelicTile {
   }
 }
 
-// 首页照故宫式排布：通栏海报 → 「黄河数字档案」大卡（实景打卡 / 创意工坊双卡 + 行程行 + 我的档案行）
-// → 十二枚功能印章宫格 → 为你推荐 → 文创市集。被四段版收掉的入口（测验、课程、
-// 知识网络、同步、河工）全部在宫格里回来，另加行程与颜色两个新工坊。
+// 首页照故宫式排布：通栏海报 → 「黄河续响平台」大卡（实景打卡 / 创意工坊双卡 + 我的档案行）
+// → 八枚功能印章宫格（两排，一排四枚）→ 为你推荐 → 文创市集。被四段版收掉的入口（测验、课程、
+// 知识网络）全部在宫格里回来，另加行程与颜色两个新工坊。河工、同步两枚已撤出首页，
+// 侧栏里仍然进得去。
 @Component
 export struct HomeView {
   @StorageLink('dataRev') @Watch('reload') dataRev: number = 0;
@@ -259,10 +240,7 @@ export struct HomeView {
   @State hot: Goods[] = [];
   @State events: EventInfo[] = [];
   @State heroIdx: number = 0;
-  @State today: string = '';
   @State routeStops: SiteInfo[] = [];
-  @State siteN: number = 0;
-  @State goodsN: number = 0;
   @State favN: number = 0;
   @State noteN: number = 0;
   @State wSway: number = -7;
@@ -293,13 +271,9 @@ export struct HomeView {
     this.reco = SiteRepo.get().recommend(MemoryStore.get().favIds(), MemoryStore.get().views, 4, '');
     this.hot = ContentRepo.get().hotGoods(4);
     this.events = ContentRepo.get().upcomingEvents(2);
-    let d = new Date();
-    this.today = `${d.getMonth() + 1}月${d.getDate()}日`;
     let all = SiteRepo.get().sites.slice();
     all.sort((a: SiteInfo, b: SiteInfo): number => siteU(a) - siteU(b));
     this.routeStops = all.slice(0, 3);
-    this.siteN = SiteRepo.get().sites.length;
-    this.goodsN = ContentRepo.get().goods.length;
     this.favN = MemoryStore.get().favsActive().length;
     this.noteN = MemoryStore.get().notesActive().length;
   }
@@ -341,7 +315,7 @@ export struct HomeView {
   }
 
   unread(): number {
-    return StudioStore.get().unread(ContentRepo.get().posts.length);
+    return StudioStore.get().unread(ContentRepo.get().feed().length);
   }
 
   doSearch(): void {
@@ -363,11 +337,9 @@ export struct HomeView {
       { kind: 'seal', title: '河图洛书', act: (): void => { goCheckin(); } },
       { kind: 'route', title: '行程规划', act: (): void => { goRoute(); } },
       { kind: 'lantern', title: '沿河活动', act: (): void => { this.openFirstEvent(); } },
-      { kind: 'pot', title: '创意工坊', act: (): void => { goStudio(0); } },
+      { kind: 'pot', title: '创意工坊', act: (): void => { goStudio(1); } },
       { kind: 'slips', title: '趣味自测', act: (): void => { goQuiz('home'); } },
       { kind: 'net', title: '知识网络', act: (): void => { goTopic(); } },
-      { kind: 'gauge', title: '河工面板', act: (): void => { goEngineer(); } },
-      { kind: 'sync', title: '同步面板', act: (): void => { goSync(); } },
       { kind: 'brush', title: '收藏笔记', act: (): void => { goArchive(1); } }
     ];
   }
@@ -377,7 +349,7 @@ export struct HomeView {
   topBar() {
     Row({ space: 8 }) {
       Text('☰')
-        .fontSize(fs(17))
+        .fontSize(fs(this.ts, 17))
         .fontColor(Color.White)
         .width(32)
         .height(32)
@@ -390,10 +362,10 @@ export struct HomeView {
 
       TextInput({ placeholder: '搜遗址、器物或纹样', text: this.kw })
         .height(34)
-        .fontSize(fs(13))
+        .fontSize(fs(this.ts, 13))
         .fontColor(INK)
         .placeholderColor(SUB)
-        .placeholderFont({ size: fs(13) })
+        .placeholderFont({ size: fs(this.ts, 13) })
         .backgroundColor('rgba(245,239,228,0.92)')
         .borderRadius(17)
         .border({ width: 1, color: 'rgba(229,218,198,0.9)' })
@@ -408,7 +380,7 @@ export struct HomeView {
 
       Stack({ alignContent: Alignment.TopEnd }) {
         Text('问')
-          .fontSize(fs(13))
+          .fontSize(fs(this.ts, 13))
           .fontColor(Color.White)
           .fontWeight(FontWeight.Medium)
           .width(32)
@@ -436,7 +408,7 @@ export struct HomeView {
 
       Stack({ alignContent: Alignment.TopEnd }) {
         Text('✉')
-          .fontSize(fs(16))
+          .fontSize(fs(this.ts, 16))
           .fontColor(Color.White)
           .width(32)
           .height(32)
@@ -445,7 +417,7 @@ export struct HomeView {
           .textAlign(TextAlign.Center)
         if (this.unread() > 0) {
           Text(`${this.unread()}`)
-            .fontSize(fs(9))
+            .fontSize(fs(this.ts, 9))
             .fontColor(Color.White)
             .backgroundColor(CLAY)
             .borderRadius(7)
@@ -487,12 +459,12 @@ export struct HomeView {
       this.scrim()
       Column({ space: 3 }) {
         Text(title)
-          .fontSize(fs(19))
+          .fontSize(fs(this.ts, 19))
           .fontColor(Color.White)
           .fontWeight(FontWeight.Bold)
           .letterSpacing(2)
         Text(lead)
-          .fontSize(fs(11))
+          .fontSize(fs(this.ts, 11))
           .fontColor('#EFE6D6')
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -518,29 +490,29 @@ export struct HomeView {
       Column({ space: 6 }) {
         Row({ space: 6 }) {
           Text('今日一句')
-            .fontSize(fs(9))
+            .fontSize(fs(this.ts, 9))
             .fontColor('#3A2A1E')
             .backgroundColor(LOESS)
             .borderRadius(7)
             .padding({ left: 6, right: 6, top: 2, bottom: 2 })
           Text(this.verse!.real ? '库内收录' : '拟咏')
-            .fontSize(fs(9))
+            .fontSize(fs(this.ts, 9))
             .fontColor('#F0E7D8')
             .borderRadius(7)
             .border({ width: 1, color: 'rgba(240,231,216,0.6)' })
             .padding({ left: 5, right: 5, top: 1, bottom: 1 })
         }
         Text(this.verse!.text)
-          .fontSize(fs(16))
+          .fontSize(fs(this.ts, 16))
           .fontColor(Color.White)
           .fontWeight(FontWeight.Medium)
-          .lineHeight(fs(24))
+          .lineHeight(fs(this.ts, 24))
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         Row({ space: 6 }) {
-          Text(this.verse!.from).fontSize(fs(10)).fontColor('#E3D8C6')
+          Text(this.verse!.from).fontSize(fs(this.ts, 10)).fontColor('#E3D8C6')
           Blank()
-          Text(verseSiteName(this.verse!) + ' ›').fontSize(fs(10)).fontColor('#F4E9D8')
+          Text(verseSiteName(this.verse!) + ' ›').fontSize(fs(this.ts, 10)).fontColor('#F4E9D8')
         }
         .width('100%')
       }
@@ -584,7 +556,7 @@ export struct HomeView {
       })
 
       Text(`${this.heroIdx + 1}/4`)
-        .fontSize(fs(10))
+        .fontSize(fs(this.ts, 10))
         .fontColor('#F0E7D8')
         .backgroundColor('rgba(43,38,34,0.55)')
         .borderRadius(10)
@@ -597,7 +569,7 @@ export struct HomeView {
     .clip(true)
   }
 
-  // 档案卡右上角的视觉锚点：一束简牍＋一道编绳＋一枚陶印，扣「数字档案」题
+  // 大卡右上角的视觉锚点：一束简牍＋一道编绳＋一枚陶印
   @Builder
   archiveArt() {
     Stack({ alignContent: Alignment.BottomEnd }) {
@@ -623,12 +595,12 @@ export struct HomeView {
   mapCard() {
     Column({ space: 7 }) {
       Text('地图导览')
-        .fontSize(fs(15))
+        .fontSize(fs(this.ts, 15))
         .fontColor(Color.White)
         .fontWeight(FontWeight.Bold)
         .letterSpacing(1)
-      Text('八类地点 · 手绘离线导览')
-        .fontSize(fs(9))
+      Text('八类地点 · 手绘导览')
+        .fontSize(fs(this.ts, 9))
         .fontColor('rgba(233,242,240,0.85)')
       Stack({ alignContent: Alignment.Center }) {
         Image($rawfile('experience/atlas.png'))
@@ -638,7 +610,7 @@ export struct HomeView {
           .borderRadius(8)
           .translate({ y: this.mapFloat ? -3 : 3 })
         Text('●')
-          .fontSize(fs(15))
+          .fontSize(fs(this.ts, 15))
           .fontColor('#A93135')
           .translate({ x: 26, y: this.mapFloat ? -16 : -8 })
       }
@@ -648,7 +620,7 @@ export struct HomeView {
       .border({ width: 1, color: 'rgba(255,255,255,0.35)' })
 
       Text('打开导览 ›')
-        .fontSize(fs(10))
+        .fontSize(fs(this.ts, 10))
         .fontColor('#E9F2F0')
     }
     .alignItems(HorizontalAlign.Start)
@@ -667,12 +639,12 @@ export struct HomeView {
   workshopCard() {
     Column({ space: 6 }) {
       Text('创意工坊')
-        .fontSize(fs(15))
+        .fontSize(fs(this.ts, 15))
         .fontColor(INK)
         .fontWeight(FontWeight.Bold)
         .letterSpacing(1)
-      Text('3D 展台 · 陶艺 · 颜色 · 教程')
-        .fontSize(fs(9))
+      Text('3D 展台 · 陶艺 · 教程')
+        .fontSize(fs(this.ts, 9))
         .fontColor(SUB)
       Stack({ alignContent: Alignment.Center }) {
         // 展台净底：与文物图烘进去的纸色同值，边缘才融得干净
@@ -695,8 +667,8 @@ export struct HomeView {
       .width('100%')
       .height(58)
       Row({ space: 4 }) {
-        Text('进展台').fontSize(fs(10)).fontColor(CLAY)
-        Text('›').fontSize(fs(11)).fontColor(CLAY)
+        Text('进展台').fontSize(fs(this.ts, 10)).fontColor(CLAY)
+        Text('›').fontSize(fs(this.ts, 11)).fontColor(CLAY)
       }
     }
     .alignItems(HorizontalAlign.Start)
@@ -706,27 +678,21 @@ export struct HomeView {
     .linearGradient({ angle: 160, colors: [['#F8F1E3', 0], ['#EDE0C8', 1]] })
     .border({ width: 1, color: '#E0D2B8' })
     .onClick((): void => {
-      goStudio(0);
+      goStudio(1);
     })
   }
 
-  // 档案大卡：标题点明「黄河数字档案」，双卡 + 行程行 + 我的档案行，卡顶压住海报下沿
+  // 档案大卡：标题「黄河续响平台」，双卡 + 我的档案行，卡顶压住海报下沿
   @Builder
   todayCard() {
     Column({ space: 11 }) {
       Row() {
         Column({ space: 2 }) {
-          Text('黄河数字档案')
-            .fontSize(fs(19))
+          Text('黄河续响平台')
+            .fontSize(fs(this.ts, 19))
             .fontColor(INK)
             .fontWeight(FontWeight.Bold)
             .letterSpacing(2)
-          Text(`${this.today} · 全量离线在机`)
-            .fontSize(fs(11))
-            .fontColor(SUB)
-          Text(`遗址 ${this.siteN} 处 · 文创 ${this.goodsN} 件 · 收藏 ${this.favN} · 笔记 ${this.noteN}`)
-            .fontSize(fs(10))
-            .fontColor(LOESS)
         }
         .alignItems(HorizontalAlign.Start)
         Blank()
@@ -741,46 +707,18 @@ export struct HomeView {
       .width('100%')
 
       Row({ space: 8 }) {
-        Stack() {
-          Column().width(14).height(1.5).backgroundColor(CLAY)
-          Row() {
-            Column().width(5).height(5).borderRadius(2.5).backgroundColor(CLAY)
-            Blank()
-            Column().width(5).height(5).borderRadius(2.5).backgroundColor(PAPER).border({ width: 1, color: CLAY })
-          }
-          .width(14)
-        }
-        .width(16).height(8)
-        Text('规划我的行程')
-          .fontSize(fs(12))
-          .fontColor(INK)
-          .fontWeight(FontWeight.Medium)
-        Blank()
-        Text('›')
-          .fontSize(fs(13))
-          .fontColor(SUB)
-      }
-      .width('100%')
-      .padding({ left: 10, right: 10, top: 9, bottom: 9 })
-      .borderRadius(10)
-      .backgroundColor('#EFE6D5')
-      .onClick((): void => {
-        goRoute();
-      })
-
-      Row({ space: 8 }) {
         Stack({ alignContent: Alignment.Center }) {
           Column().width(14).height(14).borderRadius(4).backgroundColor(CLAY)
           Column().width(6).height(6).borderRadius(1.5).backgroundColor(PAPER)
         }
         .width(16).height(16)
         Text('我的档案 · 收藏与笔记')
-          .fontSize(fs(12))
+          .fontSize(fs(this.ts, 12))
           .fontColor(INK)
           .fontWeight(FontWeight.Medium)
         Blank()
         Text(`${this.favN} 藏 · ${this.noteN} 笔 ›`)
-          .fontSize(fs(11))
+          .fontSize(fs(this.ts, 11))
           .fontColor(SUB)
       }
       .width('100%')
@@ -814,16 +752,18 @@ export struct HomeView {
   head(title: string, hint: string, act: () => void) {
     Row() {
       Text(title)
-        .fontSize(fs(16))
+        .fontSize(fs(this.ts, 16))
         .fontColor(INK)
         .fontWeight(FontWeight.Medium)
       Blank()
-      Text(hint)
-        .fontSize(fs(11))
-        .fontColor(SUB)
-      Text(' ›')
-        .fontSize(fs(13))
-        .fontColor(SUB)
+      if (hint.length > 0) {
+        Text(hint)
+          .fontSize(fs(this.ts, 11))
+          .fontColor(SUB)
+        Text(' ›')
+          .fontSize(fs(this.ts, 13))
+          .fontColor(SUB)
+      }
     }
     .width('100%')
     .padding({ top: 4, bottom: 2 })
@@ -840,7 +780,7 @@ export struct HomeView {
           .height('100%')
           .objectFit(ImageFit.Cover)
         Text(sg.site.eras[0])
-          .fontSize(fs(9))
+          .fontSize(fs(this.ts, 9))
           .fontColor('#F0E7D8')
           .backgroundColor('rgba(43,38,34,0.42)')
           .borderRadius(7)
@@ -853,27 +793,31 @@ export struct HomeView {
       .clip(true)
 
       Text(sg.site.name)
-        .fontSize(fs(13))
+        .fontSize(fs(this.ts, 13))
         .fontColor(INK)
         .fontWeight(FontWeight.Medium)
+        .width('100%')
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       Text(`${sg.site.city} · ${sg.site.types.join('/')}`)
-        .fontSize(fs(10))
+        .fontSize(fs(this.ts, 10))
         .fontColor(SUB)
+        .width('100%')
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       // 有偏好才写"为什么推给你"；冷启动四张卡理由是同一句，写出来像 bug，不如放摘要
       if (sg.score > 0) {
         Text(sg.reason)
-          .fontSize(fs(10))
+          .fontSize(fs(this.ts, 10))
           .fontColor(CLAY)
+          .width('100%')
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       } else {
         Text(sg.site.summary)
-          .fontSize(fs(10))
+          .fontSize(fs(this.ts, 10))
           .fontColor(SUB)
+          .width('100%')
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
       }
@@ -892,7 +836,7 @@ export struct HomeView {
   @Builder
   recoGrid() {
     Column({ space: 8 }) {
-      this.head('为你推荐', MemoryStore.get().favIds().length > 0 ? '按收藏加权' : '冷启动·精选',
+      this.head('为你推荐', '',
         (): void => {
           goList('', '', '', '');
         })
@@ -920,21 +864,24 @@ export struct HomeView {
       .clip(true)
 
       Text(g.name)
-        .fontSize(fs(13))
+        .fontSize(fs(this.ts, 13))
         .fontColor(INK)
+        .width('100%')
         .maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis })
       Row({ space: 6 }) {
         Text('¥' + moneyText(g.price))
-          .fontSize(fs(12))
+          .fontSize(fs(this.ts, 12))
           .fontColor(CLAY)
           .fontWeight(FontWeight.Medium)
-        Blank()
+        // 出土地那串字给不了固定宽度就会顶出格子，压进剩余空间里省略
         Text(g.origin)
-          .fontSize(fs(10))
+          .fontSize(fs(this.ts, 10))
           .fontColor(RIVER)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .layoutWeight(1)
+          .textAlign(TextAlign.End)
       }
       .width('100%')
     }

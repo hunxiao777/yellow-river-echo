@@ -2,14 +2,16 @@ import { Goods } from '../model/Models';
 import { ContentRepo } from '../service/ContentRepo';
 import { StudioStore } from '../service/StudioStore';
 import { ArtCover } from './ArtCover';
-import { INK, SUB, CLAY, LOESS, LINE, moneyText, likeText } from '../common/Theme';
-import { goGoods } from '../common/Nav';
+import { fs, INK, SUB, CLAY, LOESS, LINE, moneyText, likeText } from '../common/Theme';
+import { goGoods, goWishlist } from '../common/Nav';
 
 const SHAPES: string[] = ['pot', 'jar', 'ding', 'tile', 'stele', 'box', 'coin', 'kiln'];
 
 // 文创列表：搜索 + 分类 + 排序的双列商品流，点赞与清单直接可操作。
 @Component
 export struct ShopView {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('dataRev') @Watch('reload') dataRev: number = 0;
   @StorageLink('studioRev') @Watch('syncMine') studioRev: number = 0;
   @State kw: string = '';
@@ -65,7 +67,7 @@ export struct ShopView {
     Row({ space: 8 }) {
       TextInput({ placeholder: '找一件带河土的物件', text: this.kw })
         .height(36)
-        .fontSize(13)
+        .fontSize(fs(this.ts, 13))
         .fontColor(INK)
         .placeholderColor(SUB)
         .placeholderFont({ size: 13 })
@@ -83,7 +85,7 @@ export struct ShopView {
         })
 
       Text(this.hotFirst ? '最热' : '上新')
-        .fontSize(12)
+        .fontSize(fs(this.ts, 12))
         .fontColor(CLAY)
         .padding({ left: 10, right: 10, top: 6, bottom: 6 })
         .backgroundColor('#F4E4DE')
@@ -93,12 +95,17 @@ export struct ShopView {
           this.apply();
         })
 
-      Text(`清单 ${this.cartIds.length}`)
-        .fontSize(12)
-        .fontColor(INK)
-        .padding({ left: 10, right: 10, top: 6, bottom: 6 })
-        .backgroundColor($r('app.color.card_bg'))
-        .borderRadius(14)
+      Row({ space: 3 }) {
+        Text(`清单 ${this.cartIds.length}`).fontSize(fs(this.ts, 12)).fontColor(INK)
+        Text('›').fontSize(fs(this.ts, 12)).fontColor(SUB)
+      }
+      .padding({ left: 10, right: 8, top: 6, bottom: 6 })
+      .backgroundColor($r('app.color.card_bg'))
+      .border({ width: 1, color: this.cartIds.length > 0 ? CLAY : LINE })
+      .borderRadius(14)
+      .onClick((): void => {
+        goWishlist();
+      })
     }
     .width('100%')
     .padding({ left: 14, right: 14, top: 8, bottom: 6 })
@@ -110,7 +117,7 @@ export struct ShopView {
       Row({ space: 8 }) {
         ForEach(this.cats, (c: string): void => {
           Text(c)
-            .fontSize(12)
+            .fontSize(fs(this.ts, 12))
             .fontColor(this.cat === c ? Color.White : INK)
             .padding({ left: 12, right: 12, top: 5, bottom: 5 })
             .borderRadius(13)
@@ -139,8 +146,8 @@ export struct ShopView {
         .height(134)
 
         Row({ space: 6 }) {
-          Text(this.cartIds.indexOf(g.id) >= 0 ? '♥ 已在清单' : '♡ 收藏')
-            .fontSize(10)
+          Text(this.cartIds.indexOf(g.id) >= 0 ? '✓ 已入清单' : '＋ 加清单')
+            .fontSize(fs(this.ts, 10))
             .fontColor(this.cartIds.indexOf(g.id) >= 0 ? CLAY : INK)
             .padding({ left: 7, right: 7, top: 3, bottom: 3 })
             .borderRadius(10)
@@ -153,7 +160,7 @@ export struct ShopView {
 
           Text(`${this.liked.indexOf(g.id) >= 0 ? '♥' : '♡'} ` +
             `${likeText(g.likes + (this.liked.indexOf(g.id) >= 0 ? 1 : 0))}`)
-            .fontSize(10)
+            .fontSize(fs(this.ts, 10))
             .fontColor(this.liked.indexOf(g.id) >= 0 ? CLAY : INK)
             .padding({ left: 7, right: 7, top: 3, bottom: 3 })
             .borderRadius(10)
@@ -175,26 +182,26 @@ export struct ShopView {
 
       Column({ space: 3 }) {
         Text(g.name)
-          .fontSize(13)
+          .fontSize(fs(this.ts, 13))
           .fontColor(INK)
           .fontWeight(FontWeight.Medium)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
         Text(g.sub)
-          .fontSize(11)
+          .fontSize(fs(this.ts, 11))
           .fontColor(SUB)
           .maxLines(2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .width('100%')
         Row() {
           Text(`¥${moneyText(g.price)}`)
-            .fontSize(14)
+            .fontSize(fs(this.ts, 14))
             .fontColor(CLAY)
             .fontWeight(FontWeight.Bold)
           Blank()
           Text(g.era)
-            .fontSize(10)
+            .fontSize(fs(this.ts, 10))
             .fontColor(LOESS)
         }
         .width('100%')
@@ -219,11 +226,11 @@ export struct ShopView {
 
       Row() {
         Text(this.total === 0 ? '共 0 件' : `${this.items.length} 件`)
-          .fontSize(11)
+          .fontSize(fs(this.ts, 11))
           .fontColor(SUB)
         Blank()
         Text(this.cat)
-          .fontSize(11)
+          .fontSize(fs(this.ts, 11))
           .fontColor(LOESS)
       }
       .width('100%')
@@ -231,16 +238,16 @@ export struct ShopView {
 
       if (this.total === 0) {
         Column({ space: 6 }) {
-          Text('文创数据包未随包提供').fontSize(14).fontColor(INK)
-          Text('huanghe_goods.json 没有读到，其余功能不受影响').fontSize(11).fontColor(SUB)
+          Text('文创数据包未随包提供').fontSize(fs(this.ts, 14)).fontColor(INK)
+          Text('huanghe_goods.json 没有读到，其余功能不受影响').fontSize(fs(this.ts, 11)).fontColor(SUB)
         }
         .width('100%')
         .layoutWeight(1)
         .justifyContent(FlexAlign.Center)
       } else if (this.items.length === 0) {
         Column({ space: 6 }) {
-          Text('这一类暂时没铺货').fontSize(14).fontColor(INK)
-          Text('换个关键词，或者点回「全部」').fontSize(11).fontColor(SUB)
+          Text('这一类暂时没铺货').fontSize(fs(this.ts, 14)).fontColor(INK)
+          Text('换个关键词，或者点回「全部」').fontSize(fs(this.ts, 11)).fontColor(SUB)
         }
         .width('100%')
         .layoutWeight(1)

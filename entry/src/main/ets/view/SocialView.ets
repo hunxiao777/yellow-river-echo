@@ -4,12 +4,14 @@ import { StudioStore } from '../service/StudioStore';
 import { SyncService } from '../service/SyncService';
 import { SiteRepo } from '../service/SiteRepo';
 import { Post, PostComment } from '../model/Models';
-import { INK, SUB, CLAY, agoText, likeText, paletteOf, eraPalette, coverRes } from '../common/Theme';
-import { openDrawer, goDetail, goSync } from '../common/Nav';
+import { fs, INK, SUB, CLAY, agoText, likeText, paletteOf, eraPalette, coverRes } from '../common/Theme';
+import { openDrawer, goDetail, goSync, goPost } from '../common/Nav';
 
-// 社区页：推荐流 + 本机提醒。动态与作者都是随包演示数据。
+// 社区页：推荐流 + 本机提醒。流里既有随包带的动态，也有这台设备自己发出去的动态。
 @Component
 export struct SocialView {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('studioRev') @Watch('syncMine') studioRev: number = 0;
   @StorageLink('dataRev') dataRev: number = 0;
   @StorageLink('syncRev') syncRev: number = 0;
@@ -62,6 +64,17 @@ export struct SocialView {
     return eraPalette(s.eras.length > 0 ? s.eras[0] : '');
   }
 
+  // 本机发的动态没有遗址可挂，头像按「我的」里选的那个走，一眼认得出是自己；
+  // 配了图也一样，图是相册里的，不挂在遗址上
+  avatarKeyOf(p: Post): string {
+    if (this.isMine(p)) {
+      let keys: string[] = ['yangshao', 'longshan', 'xiashang', 'zhou', 'hantang', 'song'];
+      let n = StudioStore.get().profile.avatar;
+      return keys[n >= 0 && n < keys.length ? n : 0];
+    }
+    return this.avatarKey(p.siteId);
+  }
+
   siteName(siteId: string): string {
     let s = SiteRepo.get().byId(siteId);
     return s === undefined ? '' : s.name;
@@ -83,7 +96,7 @@ export struct SocialView {
   @Builder
   subTab(title: string, idx: number) {
     Text(title)
-      .fontSize(14)
+      .fontSize(fs(this.ts, 14))
       .fontColor(this.sub === idx ? INK : SUB)
       .fontWeight(this.sub === idx ? FontWeight.Bold : FontWeight.Normal)
       .padding({ left: 6, right: 6, top: 4, bottom: 4 })
@@ -97,7 +110,7 @@ export struct SocialView {
   @Builder
   topicChip(title: string, val: string) {
     Text(title)
-      .fontSize(12)
+      .fontSize(fs(this.ts, 12))
       .fontColor(this.topic === val ? Color.White : SUB)
       .padding({ left: 11, right: 11, top: 5, bottom: 5 })
       .borderRadius(13)
@@ -111,10 +124,10 @@ export struct SocialView {
   commentRow(c: PostComment) {
     Column({ space: 2 }) {
       Row({ space: 6 }) {
-        Text(c.author).fontSize(11).fontColor(INK)
-        Text(agoText(c.at)).fontSize(10).fontColor(SUB)
+        Text(c.author).fontSize(fs(this.ts, 11)).fontColor(INK)
+        Text(agoText(c.at)).fontSize(fs(this.ts, 10)).fontColor(SUB)
       }
-      Text(c.text).fontSize(12).fontColor(SUB).lineHeight(18)
+      Text(c.text).fontSize(fs(this.ts, 12)).fontColor(SUB).lineHeight(fs(this.ts, 18))
     }
     .width('100%')
     .alignItems(HorizontalAlign.Start)
@@ -134,20 +147,63 @@ export struct SocialView {
   }
 
   // 瀑布流卡片：图在上、文字压在下，作者和点赞收在最后一行
+  // 本机动态的 img 存的是相册 URI，直接给 Image 用；随包动态存的是资源名，要过 coverRes
+  imgSrc(p: Post): string | Resource {
+    if (p.img.indexOf('://') >= 0) {
+      return p.img;
+    }
+    return coverRes(p.img);
+  }
+
+  isMine(p: Post): boolean {
+    return StudioStore.get().isMyPost(p.id);
+  }
+
+  askDelete(p: Post): void {
+    AlertDialog.show({
+      title: '删掉这条动态？',
+      message: '删了就找不回来了，你在这条下面的回话也一并清掉',
+      primaryButton: {
+        value: '删',
+        fontColor: CLAY,
+        action: (): void => {
+          StudioStore.get().removeUserPost(p.id);
+          promptAction.showToast({ message: '已删除' });
+        }
+      },
+      secondaryButton: { value: '留着', action: (): void => {} }
+    });
+  }
+
   @Builder
   postCard(p: Post) {
     Column() {
       Stack({ alignContent: Alignment.BottomStart }) {
-        Image(coverRes(p.img))
+        if (p.img.length > 0) {
+          Image(this.imgSrc(p))
+            .width('100%')
+            .height(this.coverH(p.id))
+            .objectFit(ImageFit.Cover)
+        } else {
+          // 本机发的纯文字动态：给一块纸色底，压一个「」符号，别去套随包的实景图
+          Column() {
+            Text('「 」')
+              .fontSize(fs(this.ts, 26))
+              .fontColor(paletteOf(this.avatarKeyOf(p)).deep)
+              .letterSpacing(2)
+          }
           .width('100%')
           .height(this.coverH(p.id))
-          .objectFit(ImageFit.Cover)
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor(paletteOf(this.avatarKeyOf(p)).paper)
+          .border({ width: 1, color: '#E5DAC6' })
+        }
 
         if (this.siteName(p.siteId).length > 0) {
           Row({ space: 3 }) {
-            Text('⌖').fontSize(9).fontColor('#F3E7D4')
+            Text('⌖').fontSize(fs(this.ts, 9)).fontColor('#F3E7D4')
             Text(this.siteName(p.siteId))
-              .fontSize(10)
+              .fontSize(fs(this.ts, 10))
               .fontColor(Color.White)
               .maxLines(1)
               .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -164,10 +220,27 @@ export struct SocialView {
         if (p.kind !== '图文') {
           Row() {
             Text(p.kind)
-              .fontSize(9)
+              .fontSize(fs(this.ts, 9))
               .fontColor(Color.White)
               .padding({ left: 6, right: 6, top: 2, bottom: 2 })
               .backgroundColor(p.kind === '问答' ? 'rgba(176,94,67,0.9)' : 'rgba(74,123,140,0.9)')
+              .borderRadius({ topLeft: 0, topRight: 0, bottomLeft: 8, bottomRight: 0 })
+          }
+          .width('100%')
+          .height(this.coverH(p.id))
+          .padding({ top: 7 })
+          .justifyContent(FlexAlign.End)
+          .alignItems(VerticalAlign.Top)
+          .hitTestBehavior(HitTestMode.Transparent)
+        }
+
+        if (this.isMine(p)) {
+          Row() {
+            Text('本机发布')
+              .fontSize(fs(this.ts, 9))
+              .fontColor('#FFFFFF')
+              .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+              .backgroundColor('rgba(166,85,61,0.9)')
               .borderRadius({ topLeft: 0, topRight: 0, bottomLeft: 8, bottomRight: 0 })
           }
           .width('100%')
@@ -182,16 +255,16 @@ export struct SocialView {
 
       Column({ space: 6 }) {
         Text(p.text)
-          .fontSize(12)
+          .fontSize(fs(this.ts, 12))
           .fontColor(INK)
-          .lineHeight(18)
+          .lineHeight(fs(this.ts, 18))
           .width('100%')
           .maxLines(this.isOpen(p.id) ? 10 : 2)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
 
         if (!this.isOpen(p.id) && p.text.length > 34) {
           Text('全文')
-            .fontSize(11)
+            .fontSize(fs(this.ts, 11))
             .fontColor(CLAY)
             .onClick((): void => {
               this.openIds = this.flip(this.openIds, p.id);
@@ -205,7 +278,7 @@ export struct SocialView {
               this.commentRow(c)
             }, (c: PostComment, idx: number): string => `${p.id}_c${idx}`)
             if (p.comments.length === 0) {
-              Text('还没有人回话').fontSize(10).fontColor(SUB)
+              Text('还没有人回话').fontSize(fs(this.ts, 10)).fontColor(SUB)
             }
           }
           .width('100%')
@@ -214,18 +287,18 @@ export struct SocialView {
         Row({ space: 5 }) {
           Column() {
             Text(p.author.substring(0, 1))
-              .fontSize(10)
-              .fontColor(paletteOf(this.avatarKey(p.siteId)).ink)
+              .fontSize(fs(this.ts, 10))
+              .fontColor(paletteOf(this.avatarKeyOf(p)).ink)
               .fontWeight(FontWeight.Bold)
           }
           .width(18)
           .height(18)
           .borderRadius(9)
           .justifyContent(FlexAlign.Center)
-          .backgroundColor(paletteOf(this.avatarKey(p.siteId)).deep)
+          .backgroundColor(paletteOf(this.avatarKeyOf(p)).deep)
 
           Text(p.author)
-            .fontSize(11)
+            .fontSize(fs(this.ts, 11))
             .fontColor(SUB)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -233,7 +306,7 @@ export struct SocialView {
 
           Text(this.myLikes.indexOf('p_' + p.id) >= 0 ?
             `♥ ${likeText(p.likes + 1)}` : `♡ ${likeText(p.likes)}`)
-            .fontSize(11)
+            .fontSize(fs(this.ts, 11))
             .fontColor(this.myLikes.indexOf('p_' + p.id) >= 0 ? CLAY : SUB)
             .onClick((): void => {
               StudioStore.get().toggleLike('p_' + p.id);
@@ -243,25 +316,38 @@ export struct SocialView {
 
         Row({ space: 8 }) {
           Text(agoText(p.at))
-            .fontSize(10)
+            .fontSize(fs(this.ts, 10))
             .fontColor(SUB)
           Text(`评论 ${p.comments.length}`)
-            .fontSize(10)
+            .fontSize(fs(this.ts, 10))
             .fontColor(this.showCmt(p.id) ? INK : SUB)
             .onClick((): void => {
               this.cmtIds = this.flip(this.cmtIds, p.id);
               StudioStore.get().markPostRead(p.id);
             })
           Blank()
-          Text(this.myFollows.indexOf(p.author) >= 0 ? '已关注' : '+ 关注')
-            .fontSize(10)
-            .fontColor(this.myFollows.indexOf(p.author) >= 0 ? SUB : CLAY)
-            .padding({ left: 8, right: 8, top: 2, bottom: 2 })
-            .border({ width: 1, color: this.myFollows.indexOf(p.author) >= 0 ? '#D9CDB6' : CLAY })
-            .borderRadius(9)
-            .onClick((): void => {
-              StudioStore.get().toggleFollow(p.author);
-            })
+          if (this.isMine(p)) {
+            // 自己这条只留一个「删除」：半屏卡片再挤一个关注，大字号下就顶出格子了
+            Text('删除')
+              .fontSize(fs(this.ts, 10))
+              .fontColor(SUB)
+              .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+              .border({ width: 1, color: '#D9CDB6' })
+              .borderRadius(9)
+              .onClick((): void => {
+                this.askDelete(p);
+              })
+          } else {
+            Text(this.myFollows.indexOf(p.author) >= 0 ? '已关注' : '+ 关注')
+              .fontSize(fs(this.ts, 10))
+              .fontColor(this.myFollows.indexOf(p.author) >= 0 ? SUB : CLAY)
+              .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+              .border({ width: 1, color: this.myFollows.indexOf(p.author) >= 0 ? '#D9CDB6' : CLAY })
+              .borderRadius(9)
+              .onClick((): void => {
+                StudioStore.get().toggleFollow(p.author);
+              })
+          }
         }
         .width('100%')
       }
@@ -274,7 +360,8 @@ export struct SocialView {
     .borderRadius(12)
     .clip(true)
     .onClick((): void => {
-      StudioStore.get().markPostRead(p.id);
+      // 整卡点开进详情页：全文 + 点赞关注 + 评论回话
+      goPost(p.id);
     })
   }
 
@@ -282,14 +369,14 @@ export struct SocialView {
   noteRow(title: string, desc: string, act: string, onTap: () => void) {
     Row({ space: 10 }) {
       Column({ space: 3 }) {
-        Text(title).fontSize(14).fontColor(INK).fontWeight(FontWeight.Medium)
-        Text(desc).fontSize(12).fontColor(SUB).lineHeight(18)
+        Text(title).fontSize(fs(this.ts, 14)).fontColor(INK).fontWeight(FontWeight.Medium)
+        Text(desc).fontSize(fs(this.ts, 12)).fontColor(SUB).lineHeight(fs(this.ts, 18))
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
       if (act.length > 0) {
         Text(act)
-          .fontSize(12)
+          .fontSize(fs(this.ts, 12))
           .fontColor(CLAY)
           .padding({ left: 10, right: 10, top: 4, bottom: 4 })
           .border({ width: 1, color: '#D9CDB6' })
@@ -309,13 +396,13 @@ export struct SocialView {
   msgPane() {
     Column({ space: 10 }) {
       Text('本机提醒，非聊天')
-        .fontSize(12)
+        .fontSize(fs(this.ts, 12))
         .fontColor(SUB)
         .width('100%')
 
       this.noteRow('社区动态',
-        `未读 ${StudioStore.get().unread(ContentRepo.get().posts.length)} 条 · ` +
-        `已读 ${ContentRepo.get().posts.length - StudioStore.get().unread(ContentRepo.get().posts.length)} 条`,
+        `未读 ${StudioStore.get().unread(ContentRepo.get().feed().length)} 条 · ` +
+        `已读 ${ContentRepo.get().feed().length - StudioStore.get().unread(ContentRepo.get().feed().length)} 条`,
         '去看动态', (): void => {
           this.sub = 0;
         })
@@ -352,14 +439,14 @@ export struct SocialView {
     Column() {
       Row({ space: 10 }) {
         Text('☰')
-          .fontSize(18)
+          .fontSize(fs(this.ts, 18))
           .fontColor(INK)
           .padding({ right: 2 })
           .onClick((): void => {
             openDrawer();
           })
         Text('社群')
-          .fontSize(20)
+          .fontSize(fs(this.ts, 20))
           .fontColor(INK)
           .fontWeight(FontWeight.Bold)
           .layoutWeight(1)
@@ -370,7 +457,7 @@ export struct SocialView {
       .padding({ left: 14, right: 14, top: 12, bottom: 8 })
 
       if (this.sub === 0) {
-        if (ContentRepo.get().posts.length > 0) {
+        if (ContentRepo.get().feed().length > 0) {
           Scroll() {
             Row({ space: 8 }) {
               this.topicChip('全部', '')
@@ -387,8 +474,8 @@ export struct SocialView {
 
         if (this.shown().length === 0) {
           Column({ space: 8 }) {
-            Text('社区数据未随包提供').fontSize(15).fontColor(INK)
-            Text('先去档案库看看沿河的遗存').fontSize(12).fontColor(SUB)
+            Text('社区数据未随包提供').fontSize(fs(this.ts, 15)).fontColor(INK)
+            Text('先去档案库看看沿河的遗存').fontSize(fs(this.ts, 12)).fontColor(SUB)
           }
           .width('100%')
           .layoutWeight(1)

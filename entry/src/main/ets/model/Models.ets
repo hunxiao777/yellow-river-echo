@@ -176,7 +176,21 @@ export interface Post {
   comments: PostComment[];
 }
 
+// 本机补的评论：动态包里的评论是只读的，用户自己回的写在这台设备上
+export interface LocalComment {
+  id: string;
+  postId: string;
+  text: string;
+  at: number;
+}
+
 // ---- 本机创作与互动数据（不参与跨端同步） ----
+
+// 清单里的一件：id 对应随包 goods，n 是想要的数量
+export interface CartLine {
+  id: string;
+  n: number;
+}
 
 export interface WorkRec {
   id: string;
@@ -194,6 +208,18 @@ export interface Profile {
   avatar: number;
   bio: string;
   joinedAt: number;
+}
+
+// 本机账号：昵称 + 口令摘要 + 掩码手机号，写在这台设备的 preferences 里，没有服务端。
+// 退出登录只把 joinedAt 归零，账号与收藏笔记都留着，下次凭口令回来。
+export interface AccountRec {
+  nick: string;
+  digest: string;
+  avatar: number;
+  createdAt: number;
+  lastAt: number;
+  // 注册时校验过的那个号，只存 138****5678 这种掩码；早于验证码功能注册的账号是空串
+  phone: string;
 }
 
 // 备份文件结构

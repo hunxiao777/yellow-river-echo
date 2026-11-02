@@ -8,8 +8,8 @@ import { ContentRepo } from '../service/ContentRepo';
 import { SyncService } from '../service/SyncService';
 import { BackupService } from '../service/BackupService';
 import { ArtCover } from './ArtCover';
-import { INK, SUB, LOESS, CLAY, fmtTime, agoText, moneyText, coverRes, coverOf, paletteOf } from '../common/Theme';
-import { openDrawer, goSync, goTopic, goCourses, goPottery, goDetail, goNote, goArchive, goGoods, switchTab } from '../common/Nav';
+import { fs, INK, SUB, LOESS, CLAY, fmtTime, agoText, moneyText, coverRes, coverOf, paletteOf } from '../common/Theme';
+import { openDrawer, goSync, goTopic, goCourses, goPottery, goDetail, goNote, goArchive, goGoods, switchTab, openSignOutAsk } from '../common/Nav';
 
 const SHAPES: string[] = ['pot', 'jar', 'ding', 'tile', 'stele', 'tower', 'cave', 'scroll', 'coin', 'box', 'bridge', 'kiln'];
 
@@ -28,6 +28,8 @@ interface FuncArg {
 
 @Component
 export struct MineView {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('dataRev') @Watch('syncCount') dataRev: number = 0;
   @StorageLink('syncRev') @Watch('syncCount') syncRev: number = 0;
   @StorageLink('studioRev') @Watch('syncCount') studioRev: number = 0;
@@ -45,6 +47,7 @@ export struct MineView {
   @State bio: string = '';
   @State viewN: number = 0;
   @State localOn: boolean = false;
+  @State accN: number = 0;
 
   aboutToAppear(): void {
     this.syncCount();
@@ -64,6 +67,7 @@ export struct MineView {
     this.bio = st.profile.bio;
     this.viewN = mem.views.length;
     this.localOn = SyncService.get().localOnly;
+    this.accN = st.accounts.length;
   }
 
   async doExport(): Promise<void> {
@@ -172,8 +176,8 @@ export struct MineView {
   @Builder
   statCell(arg: StatArg) {
     Column({ space: 2 }) {
-      Text(arg.value).fontSize(16).fontColor(INK).fontWeight(FontWeight.Bold)
-      Text(arg.title).fontSize(10).fontColor(SUB)
+      Text(arg.value).fontSize(fs(this.ts, 16)).fontColor(INK).fontWeight(FontWeight.Bold)
+      Text(arg.title).fontSize(fs(this.ts, 10)).fontColor(SUB)
     }
     .layoutWeight(1)
   }
@@ -181,7 +185,7 @@ export struct MineView {
   @Builder
   tabCell(idx: number, title: string) {
     Column({ space: 5 }) {
-      Text(title).fontSize(15)
+      Text(title).fontSize(fs(this.ts, 15))
         .fontColor(this.sub === idx ? INK : SUB)
         .fontWeight(this.sub === idx ? FontWeight.Bold : FontWeight.Normal)
       Column().width(20).height(3).borderRadius(2)
@@ -197,8 +201,8 @@ export struct MineView {
   @Builder
   guide(text: string, btn: string, act: () => void) {
     Column({ space: 10 }) {
-      Text(text).fontSize(13).fontColor(SUB)
-      Text(btn).fontSize(13).fontColor('#FFFFFF')
+      Text(text).fontSize(fs(this.ts, 13)).fontColor(SUB)
+      Text(btn).fontSize(fs(this.ts, 13)).fontColor('#FFFFFF')
         .padding({ left: 16, right: 16, top: 8, bottom: 8 })
         .backgroundColor(CLAY).borderRadius(18)
         .onClick((): void => {
@@ -213,12 +217,12 @@ export struct MineView {
   @Builder
   funcRow(arg: FuncArg) {
     Row({ space: 12 }) {
-      Text(arg.icon).fontSize(15).fontColor(LOESS).width(20)
-      Text(arg.title).fontSize(15).fontColor(INK).layoutWeight(1)
+      Text(arg.icon).fontSize(fs(this.ts, 15)).fontColor(LOESS).width(20)
+      Text(arg.title).fontSize(fs(this.ts, 15)).fontColor(INK).layoutWeight(1)
       if (arg.value.length > 0) {
-        Text(arg.value).fontSize(12).fontColor(SUB)
+        Text(arg.value).fontSize(fs(this.ts, 12)).fontColor(SUB)
       }
-      Text('›').fontSize(16).fontColor(SUB)
+      Text('›').fontSize(fs(this.ts, 16)).fontColor(SUB)
     }
     .width('100%')
     .height(48)
@@ -234,7 +238,7 @@ export struct MineView {
       Stack({ alignContent: Alignment.TopEnd }) {
         ArtCover({ palette: w.glaze, shape: this.shapeOf(w.shape), seed: seed, label: w.word })
           .width('100%').height('100%')
-        Text('✕').fontSize(11).fontColor('#FFFFFF')
+        Text('✕').fontSize(fs(this.ts, 11)).fontColor('#FFFFFF')
           .width(20).height(20).textAlign(TextAlign.Center)
           .backgroundColor('rgba(43,38,34,0.45)').borderRadius(10)
           .margin(5)
@@ -243,9 +247,9 @@ export struct MineView {
           })
       }
       .width('100%').aspectRatio(1).borderRadius(10).clip(true)
-      Text(w.name).fontSize(12).fontColor(INK).maxLines(1)
+      Text(w.name).fontSize(fs(this.ts, 12)).fontColor(INK).maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%').margin({ top: 4 })
-      Text(fmtTime(w.createdAt).substring(0, 10)).fontSize(10).fontColor(SUB)
+      Text(fmtTime(w.createdAt).substring(0, 10)).fontSize(fs(this.ts, 10)).fontColor(SUB)
     }
     .layoutWeight(1)
     .alignItems(HorizontalAlign.Start)
@@ -256,9 +260,9 @@ export struct MineView {
     Column({ space: 3 }) {
       Image(coverRes(this.coverName(s)))
         .width('100%').aspectRatio(1).objectFit(ImageFit.Cover).borderRadius(10)
-      Text(s.name).fontSize(12).fontColor(INK).maxLines(1)
+      Text(s.name).fontSize(fs(this.ts, 12)).fontColor(INK).maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
-      Text(s.city).fontSize(10).fontColor(SUB)
+      Text(s.city).fontSize(fs(this.ts, 10)).fontColor(SUB)
     }
     .layoutWeight(1)
     .alignItems(HorizontalAlign.Start)
@@ -272,12 +276,12 @@ export struct MineView {
     Column({ space: 4 }) {
       ArtCover({ palette: g.palette, shape: 'box', seed: idx, label: '' })
         .width('100%').aspectRatio(1).borderRadius(10)
-      Text(g.name).fontSize(12).fontColor(INK).maxLines(1)
+      Text(g.name).fontSize(fs(this.ts, 12)).fontColor(INK).maxLines(1)
         .textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
       Row() {
-        Text('¥' + moneyText(g.price)).fontSize(12).fontColor(CLAY).fontWeight(FontWeight.Medium)
+        Text('¥' + moneyText(g.price)).fontSize(fs(this.ts, 12)).fontColor(CLAY).fontWeight(FontWeight.Medium)
         Blank()
-        Text('取消点赞').fontSize(10).fontColor(SUB)
+        Text('取消点赞').fontSize(fs(this.ts, 10)).fontColor(SUB)
           .padding({ left: 8, right: 8, top: 4, bottom: 4 })
           .backgroundColor($r('app.color.page_bg')).borderRadius(10)
           .onClick((): void => {
@@ -297,15 +301,15 @@ export struct MineView {
   noteCell(n: NoteRec) {
     Column({ space: 5 }) {
       Row() {
-        Text(this.noteSite(n.siteId)).fontSize(13).fontColor(CLAY)
+        Text(this.noteSite(n.siteId)).fontSize(fs(this.ts, 13)).fontColor(CLAY)
           .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).layoutWeight(1)
-        Text(this.noteTag(n.id)).fontSize(10).fontColor(SUB)
+        Text(this.noteTag(n.id)).fontSize(fs(this.ts, 10)).fontColor(SUB)
           .padding({ left: 7, right: 7, top: 3, bottom: 3 })
           .backgroundColor($r('app.color.page_bg')).borderRadius(8)
-        Text(agoText(n.updatedAt)).fontSize(10).fontColor(SUB).margin({ left: 8 })
+        Text(agoText(n.updatedAt)).fontSize(fs(this.ts, 10)).fontColor(SUB).margin({ left: 8 })
       }
       .width('100%')
-      Text(n.text).fontSize(13).fontColor(INK).maxLines(2)
+      Text(n.text).fontSize(fs(this.ts, 13)).fontColor(INK).maxLines(2)
         .textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
     }
     .width('100%')
@@ -324,7 +328,7 @@ export struct MineView {
       Row({ space: 12 }) {
         Column() {
           Text(this.nick.substring(0, 1))
-            .fontSize(22).fontColor(paletteOf(this.avatarKey()).ink).fontWeight(FontWeight.Bold)
+            .fontSize(fs(this.ts, 22)).fontColor(paletteOf(this.avatarKey()).ink).fontWeight(FontWeight.Bold)
         }
         .width(56).height(56).borderRadius(28)
         .justifyContent(FlexAlign.Center)
@@ -332,15 +336,15 @@ export struct MineView {
 
         Column({ space: 3 }) {
           Text(this.nick.length > 0 ? this.nick : '未命名')
-            .fontSize(18).fontColor(INK).fontWeight(FontWeight.Bold).maxLines(1)
+            .fontSize(fs(this.ts, 18)).fontColor(INK).fontWeight(FontWeight.Bold).maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(this.bio).fontSize(12).fontColor(SUB).maxLines(1)
+          Text(this.bio).fontSize(fs(this.ts, 12)).fontColor(SUB).maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
 
-        Text('编辑').fontSize(13).fontColor(INK)
+        Text('编辑').fontSize(fs(this.ts, 13)).fontColor(INK)
           .padding({ left: 12, right: 12, top: 6, bottom: 6 })
           .border({ width: 1, color: $r('app.color.line') }).borderRadius(16)
           .onClick((): void => {
@@ -350,17 +354,15 @@ export struct MineView {
       }
       .width('100%')
 
-      Text('本机档案 · 数据不上传服务器').fontSize(10).fontColor(SUB)
-
       if (this.bioEdit) {
         Column({ space: 8 }) {
           TextInput({ text: this.bioText, placeholder: '写一句签名' })
-            .fontSize(13).fontColor(INK).backgroundColor($r('app.color.page_bg'))
+            .fontSize(fs(this.ts, 13)).fontColor(INK).backgroundColor($r('app.color.page_bg'))
             .onChange((v: string): void => {
               this.bioText = v;
             })
           Row({ space: 10 }) {
-            Text('保存').fontSize(13).fontColor('#FFFFFF')
+            Text('保存').fontSize(fs(this.ts, 13)).fontColor('#FFFFFF')
               .padding({ left: 14, right: 14, top: 7, bottom: 7 })
               .backgroundColor(CLAY).borderRadius(16)
               .onClick((): void => {
@@ -368,7 +370,7 @@ export struct MineView {
                 this.bioEdit = false;
                 promptAction.showToast({ message: '签名已更新' });
               })
-            Text('取消').fontSize(13).fontColor(SUB)
+            Text('取消').fontSize(fs(this.ts, 13)).fontColor(SUB)
               .padding({ left: 14, right: 14, top: 7, bottom: 7 })
               .backgroundColor($r('app.color.page_bg')).borderRadius(16)
               .onClick((): void => {
@@ -391,13 +393,13 @@ export struct MineView {
   build() {
     Column() {
       Row() {
-        Text('☰').fontSize(20).fontColor(INK).width(48).textAlign(TextAlign.Start)
+        Text('☰').fontSize(fs(this.ts, 20)).fontColor(INK).width(48).textAlign(TextAlign.Start)
           .onClick((): void => {
             openDrawer();
           })
-        Text('我的').fontSize(17).fontColor(INK).fontWeight(FontWeight.Bold)
+        Text('我的').fontSize(fs(this.ts, 17)).fontColor(INK).fontWeight(FontWeight.Bold)
           .layoutWeight(1).textAlign(TextAlign.Center)
-        Text('同步').fontSize(14).fontColor(SUB).width(48).textAlign(TextAlign.End)
+        Text('同步').fontSize(fs(this.ts, 14)).fontColor(SUB).width(48).textAlign(TextAlign.End)
           .onClick((): void => {
             goSync();
           })
@@ -534,8 +536,8 @@ export struct MineView {
             } })
             Divider().color($r('app.color.line'))
             Row({ space: 12 }) {
-              Text('◎').fontSize(15).fontColor(LOESS).width(20)
-              Text('离线模式').fontSize(15).fontColor(INK).layoutWeight(1)
+              Text('◎').fontSize(fs(this.ts, 15)).fontColor(LOESS).width(20)
+              Text('离线模式').fontSize(fs(this.ts, 15)).fontColor(INK).layoutWeight(1)
               Toggle({ type: ToggleType.Switch, isOn: this.localOn })
                 .selectedColor(LOESS)
                 .onChange((on: boolean): void => {
@@ -559,13 +561,27 @@ export struct MineView {
               MemoryStore.get().clearViews();
               promptAction.showToast({ message: '已清空，推荐会回到精选' });
             } })
+
+            Divider().color($r('app.color.line'))
+            Row({ space: 12 }) {
+              Text('⏻').fontSize(fs(this.ts, 15)).fontColor(CLAY).width(20)
+              Text('退出登录').fontSize(fs(this.ts, 15)).fontColor(CLAY).layoutWeight(1)
+              Text(this.nick.length > 0 ? this.nick : '未登录').fontSize(fs(this.ts, 12)).fontColor(SUB)
+              Text('›').fontSize(fs(this.ts, 16)).fontColor(SUB)
+            }
+            .width('100%')
+            .height(48)
+            .padding({ left: 14, right: 14 })
+            .onClick((): void => {
+              openSignOutAsk();
+            })
           }
           .padding({ top: 6, bottom: 6 })
           .backgroundColor($r('app.color.card_bg'))
           .borderRadius(12)
 
           Text('黄河续响平台')
-            .fontSize(10).fontColor(SUB).textAlign(TextAlign.Center)
+            .fontSize(fs(this.ts, 10)).fontColor(SUB).textAlign(TextAlign.Center)
             .margin({ top: 8, bottom: 18 })
         }
         .width('100%')

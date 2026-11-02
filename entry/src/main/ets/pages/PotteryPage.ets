@@ -1,7 +1,7 @@
 import { router, promptAction } from '@kit.ArkUI';
 import { StudioStore } from '../service/StudioStore';
 import { WorkRec } from '../model/Models';
-import { INK, SUB, CLAY, RIVER, PAPER, LINE, paletteOf } from '../common/Theme';
+import { fs, INK, SUB, CLAY, RIVER, PAPER, LINE, paletteOf } from '../common/Theme';
 import { PotteryCanvas } from '../view/PotteryCanvas';
 import { goCourses } from '../common/Nav';
 
@@ -15,6 +15,8 @@ const BOXES: string[] = ['素台', '木座', '圆几', '无'];
 @Entry
 @Component
 struct PotteryPage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('studioRev') rev: number = 0;
   @State shape: string = '罐';
   @State motif: string = '鱼纹';
@@ -99,17 +101,17 @@ struct PotteryPage {
   build() {
     Column({ space: 10 }) {
       Row({ space: 10 }) {
-        Text('‹').fontSize(24).fontColor(CLAY).width(22)
+        Text('‹').fontSize(fs(this.ts, 24)).fontColor(CLAY).width(22)
           .onClick((): void => {
             router.back();
           })
         Column({ space: 2 }) {
-          Text('彩陶工坊').fontSize(18).fontColor(INK).fontWeight(FontWeight.Bold)
+          Text('彩陶工坊').fontSize(fs(this.ts, 18)).fontColor(INK).fontWeight(FontWeight.Bold)
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
 
-        Text('课程 ›').fontSize(13).fontColor(RIVER)
+        Text('课程 ›').fontSize(fs(this.ts, 13)).fontColor(RIVER)
           .onClick((): void => {
             goCourses();
           })
@@ -136,9 +138,9 @@ struct PotteryPage {
             .clip(true)
 
             Row({ space: 8 }) {
-              Text('作品名').fontSize(12).fontColor(SUB)
+              Text('作品名').fontSize(fs(this.ts, 12)).fontColor(SUB)
               TextInput({ text: this.name, placeholder: '给这件起个名' })
-                .height(36).fontSize(13).layoutWeight(1)
+                .height(36).fontSize(fs(this.ts, 13)).layoutWeight(1)
                 .backgroundColor(PAPER)
                 .onChange((v: string): void => {
                   this.name = v;
@@ -147,7 +149,7 @@ struct PotteryPage {
             .width('100%')
 
             Text(`${this.shape} · ${this.motif} · ${this.glazeName()} · 题字${this.word.length === 0 ? '无' : this.word} · ${this.box}`)
-              .fontSize(11).fontColor(SUB).width('100%')
+              .fontSize(fs(this.ts, 11)).fontColor(SUB).width('100%')
           }
           .width('100%')
           .padding(10)
@@ -156,8 +158,8 @@ struct PotteryPage {
 
           Column({ space: 6 }) {
             Row({ space: 6 }) {
-              Text('器型').fontSize(13).fontColor(INK).fontWeight(FontWeight.Medium)
-              Text('口沿、鼓腹、底足各不相同').fontSize(10).fontColor(SUB).layoutWeight(1)
+              Text('器型').fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text('口沿、鼓腹、底足各不相同').fontSize(fs(this.ts, 10)).fontColor(SUB).layoutWeight(1)
             }
             .width('100%')
 
@@ -165,7 +167,7 @@ struct PotteryPage {
               Row({ space: 7 }) {
                 ForEach(SHAPES, (o: string): void => {
                   Text(o)
-                    .fontSize(12)
+                    .fontSize(fs(this.ts, 12))
                     .fontColor(o === this.shape ? Color.White : INK)
                     .padding({ left: 12, right: 12, top: 6, bottom: 6 })
                     .borderRadius(14)
@@ -187,8 +189,8 @@ struct PotteryPage {
 
           Column({ space: 6 }) {
             Row({ space: 6 }) {
-              Text('纹样').fontSize(13).fontColor(INK).fontWeight(FontWeight.Medium)
-              Text('画在腹部纹样带上').fontSize(10).fontColor(SUB).layoutWeight(1)
+              Text('纹样').fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text('画在腹部纹样带上').fontSize(fs(this.ts, 10)).fontColor(SUB).layoutWeight(1)
             }
             .width('100%')
 
@@ -196,7 +198,7 @@ struct PotteryPage {
               Row({ space: 7 }) {
                 ForEach(MOTIFS, (o: string): void => {
                   Text(o)
-                    .fontSize(12)
+                    .fontSize(fs(this.ts, 12))
                     .fontColor(o === this.motif ? Color.White : INK)
                     .padding({ left: 12, right: 12, top: 6, bottom: 6 })
                     .borderRadius(14)
@@ -218,8 +220,8 @@ struct PotteryPage {
 
           Column({ space: 6 }) {
             Row({ space: 6 }) {
-              Text('配色').fontSize(13).fontColor(INK).fontWeight(FontWeight.Medium)
-              Text('按时代的釉色调子').fontSize(10).fontColor(SUB).layoutWeight(1)
+              Text('配色').fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text('按时代的釉色调子').fontSize(fs(this.ts, 10)).fontColor(SUB).layoutWeight(1)
             }
             .width('100%')
 
@@ -227,7 +229,7 @@ struct PotteryPage {
               Row({ space: 7 }) {
                 ForEach(GLAZE_NAMES, (o: string): void => {
                   Text(o)
-                    .fontSize(12)
+                    .fontSize(fs(this.ts, 12))
                     .fontColor(o === this.glazeName() ? Color.White : INK)
                     .padding({ left: 12, right: 12, top: 6, bottom: 6 })
                     .borderRadius(14)
@@ -249,8 +251,8 @@ struct PotteryPage {
 
           Column({ space: 6 }) {
             Row({ space: 6 }) {
-              Text('题字').fontSize(13).fontColor(INK).fontWeight(FontWeight.Medium)
-              Text('字会写在器物腹部').fontSize(10).fontColor(SUB).layoutWeight(1)
+              Text('题字').fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text('字会写在器物腹部').fontSize(fs(this.ts, 10)).fontColor(SUB).layoutWeight(1)
             }
             .width('100%')
 
@@ -258,7 +260,7 @@ struct PotteryPage {
               Row({ space: 7 }) {
                 ForEach(WORD_OPTS, (o: string): void => {
                   Text(o)
-                    .fontSize(12)
+                    .fontSize(fs(this.ts, 12))
                     .fontColor(o === (this.word.length === 0 ? '不题字' : this.word) ? Color.White : INK)
                     .padding({ left: 12, right: 12, top: 6, bottom: 6 })
                     .borderRadius(14)
@@ -282,8 +284,8 @@ struct PotteryPage {
 
           Column({ space: 6 }) {
             Row({ space: 6 }) {
-              Text('展示座').fontSize(13).fontColor(INK).fontWeight(FontWeight.Medium)
-              Text('器物下面垫什么').fontSize(10).fontColor(SUB).layoutWeight(1)
+              Text('展示座').fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text('器物下面垫什么').fontSize(fs(this.ts, 10)).fontColor(SUB).layoutWeight(1)
             }
             .width('100%')
 
@@ -291,7 +293,7 @@ struct PotteryPage {
               Row({ space: 7 }) {
                 ForEach(BOXES, (o: string): void => {
                   Text(o)
-                    .fontSize(12)
+                    .fontSize(fs(this.ts, 12))
                     .fontColor(o === this.box ? Color.White : INK)
                     .padding({ left: 12, right: 12, top: 6, bottom: 6 })
                     .borderRadius(14)
@@ -313,15 +315,15 @@ struct PotteryPage {
 
           Column({ space: 6 }) {
             Row({ space: 6 }) {
-              Text('已存作品').fontSize(13).fontColor(INK).fontWeight(FontWeight.Medium)
-              Text(`${this.works().length} 件 · 点开可复原五个维度`).fontSize(10).fontColor(SUB)
+              Text('已存作品').fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text(`${this.works().length} 件 · 点开可复原五个维度`).fontSize(fs(this.ts, 10)).fontColor(SUB)
                 .layoutWeight(1)
             }
             .width('100%')
 
             if (this.works().length === 0) {
               Text('还没有存过作品，配好了点下面的「保存这件」')
-                .fontSize(11).fontColor(SUB).width('100%').padding({ top: 8, bottom: 8 })
+                .fontSize(fs(this.ts, 11)).fontColor(SUB).width('100%').padding({ top: 8, bottom: 8 })
             } else {
               List({ space: 8 }) {
                 ForEach(this.works(), (w: WorkRec): void => {
@@ -340,7 +342,7 @@ struct PotteryPage {
                         }
                         .width(88).height(88).borderRadius(8).clip(true)
                         Text('✕')
-                          .fontSize(12).fontColor(INK)
+                          .fontSize(fs(this.ts, 12)).fontColor(INK)
                           .width(20).height(20).borderRadius(10)
                           .backgroundColor('rgba(255,255,255,0.88)')
                           .textAlign(TextAlign.Center)
@@ -350,7 +352,7 @@ struct PotteryPage {
                       }
                       .width(88)
 
-                      Text(w.name).fontSize(10).fontColor(SUB).width(88).maxLines(1)
+                      Text(w.name).fontSize(fs(this.ts, 10)).fontColor(SUB).width(88).maxLines(1)
                         .textOverflow({ overflow: TextOverflow.Ellipsis })
                     }
                     .alignItems(HorizontalAlign.Start)
@@ -380,13 +382,13 @@ struct PotteryPage {
 
       Row({ space: 10 }) {
         Button('再来一件')
-          .layoutWeight(1).height(42).fontSize(14)
+          .layoutWeight(1).height(42).fontSize(fs(this.ts, 14))
           .backgroundColor($r('app.color.line')).fontColor(INK)
           .onClick((): void => {
             this.reset();
           })
         Button('保存这件')
-          .layoutWeight(1).height(42).fontSize(14)
+          .layoutWeight(1).height(42).fontSize(fs(this.ts, 14))
           .backgroundColor(paletteOf(this.glaze).deep).fontColor(Color.White)
           .onClick((): void => {
             this.save();

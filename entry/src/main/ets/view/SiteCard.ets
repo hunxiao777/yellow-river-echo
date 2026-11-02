@@ -1,9 +1,11 @@
 import { SiteInfo } from '../model/Models';
-import { coverRes, INK, SUB, CLAY } from '../common/Theme';
+import { fs, coverRes, INK, SUB, CLAY } from '../common/Theme';
 import { goDetail } from '../common/Nav';
 
 @Component
 export struct SiteCard {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @Require @Prop site: SiteInfo;
   @Prop note: string = '';
 
@@ -16,23 +18,23 @@ export struct SiteCard {
         .objectFit(ImageFit.Cover)
       Column({ space: 4 }) {
         Text(this.site.name)
-          .fontSize(16)
+          .fontSize(fs(this.ts, 16))
           .fontColor(INK)
           .fontWeight(FontWeight.Medium)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         Text(`${this.site.city} · ${this.site.eras.join('/')} · ${this.site.types.join('/')}`)
-          .fontSize(12)
+          .fontSize(fs(this.ts, 12))
           .fontColor(SUB)
         if (this.note.length > 0) {
           Text(this.note)
-            .fontSize(11)
+            .fontSize(fs(this.ts, 11))
             .fontColor(CLAY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         } else {
           Text(this.site.summary)
-            .fontSize(12)
+            .fontSize(fs(this.ts, 12))
             .fontColor(SUB)
             .maxLines(2)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -42,7 +44,7 @@ export struct SiteCard {
       .layoutWeight(1)
 
       Text('›')
-        .fontSize(20)
+        .fontSize(fs(this.ts, 20))
         .fontColor(SUB)
     }
     .width('100%')

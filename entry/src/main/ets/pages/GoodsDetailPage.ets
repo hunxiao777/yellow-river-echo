@@ -5,7 +5,7 @@ import { SiteRepo } from '../service/SiteRepo';
 import { StudioStore } from '../service/StudioStore';
 import { ArtCover } from '../view/ArtCover';
 import { SiteCard } from '../view/SiteCard';
-import { INK, SUB, LOESS, CLAY, RIVER, LINE, PAPER, moneyText, likeText } from '../common/Theme';
+import { fs, INK, SUB, LOESS, CLAY, RIVER, LINE, PAPER, moneyText, likeText } from '../common/Theme';
 import { params, goDetail } from '../common/Nav';
 
 const SHAPES: string[] = ['pot', 'jar', 'ding', 'tile', 'stele', 'box', 'coin', 'kiln'];
@@ -15,6 +15,8 @@ const ANGLES: string[] = ['正面', '侧面', '细节'];
 @Entry
 @Component
 struct GoodsDetailPage {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @StorageLink('studioRev') @Watch('syncMine') studioRev: number = 0;
   @State g: Goods | undefined = undefined;
   @State mates: SiteInfo[] = [];
@@ -82,7 +84,7 @@ struct GoodsDetailPage {
   @Builder
   chip(text: string, on: boolean) {
     Text(text)
-      .fontSize(11)
+      .fontSize(fs(this.ts, 11))
       .fontColor(on ? Color.White : INK)
       .padding({ left: 10, right: 10, top: 4, bottom: 4 })
       .borderRadius(11)
@@ -92,7 +94,7 @@ struct GoodsDetailPage {
   @Builder
   blockTitle(t: string) {
     Text(t)
-      .fontSize(15)
+      .fontSize(fs(this.ts, 15))
       .fontColor(INK)
       .fontWeight(FontWeight.Medium)
       .width('100%')
@@ -103,10 +105,10 @@ struct GoodsDetailPage {
     Column() {
       if (this.g === undefined) {
         Column({ space: 14 }) {
-          Text('没找到这件文创').fontSize(15).fontColor(INK)
-          Text('它是从数据包里读出来的，回去再看看').fontSize(12).fontColor(SUB)
+          Text('没找到这件文创').fontSize(fs(this.ts, 15)).fontColor(INK)
+          Text('它是从数据包里读出来的，回去再看看').fontSize(fs(this.ts, 12)).fontColor(SUB)
           Text('返回')
-            .fontSize(13)
+            .fontSize(fs(this.ts, 13))
             .fontColor(Color.White)
             .padding({ left: 18, right: 18, top: 8, bottom: 8 })
             .backgroundColor(CLAY)
@@ -130,7 +132,7 @@ struct GoodsDetailPage {
           .loop(false)
 
           Text('‹ 返回')
-            .fontSize(14)
+            .fontSize(fs(this.ts, 14))
             .fontColor(Color.White)
             .padding({ left: 12, right: 12, top: 6, bottom: 6 })
             .margin({ left: 10, top: 10 })
@@ -149,19 +151,19 @@ struct GoodsDetailPage {
               Row() {
                 Column({ space: 4 }) {
                   Text(this.g!.name)
-                    .fontSize(19)
+                    .fontSize(fs(this.ts, 19))
                     .fontColor(INK)
                     .fontWeight(FontWeight.Bold)
                   Text(this.g!.sub)
-                    .fontSize(12)
+                    .fontSize(fs(this.ts, 12))
                     .fontColor(SUB)
-                    .lineHeight(19)
+                    .lineHeight(fs(this.ts, 19))
                 }
                 .alignItems(HorizontalAlign.Start)
                 .layoutWeight(1)
 
                 Text(`¥${moneyText(this.g!.price)}`)
-                  .fontSize(20)
+                  .fontSize(fs(this.ts, 20))
                   .fontColor(CLAY)
                   .fontWeight(FontWeight.Bold)
               }
@@ -184,10 +186,10 @@ struct GoodsDetailPage {
 
               Row({ space: 6 }) {
                 Text('灵感来源')
-                  .fontSize(11)
+                  .fontSize(fs(this.ts, 11))
                   .fontColor(SUB)
                 Text(this.g!.origin)
-                  .fontSize(11)
+                  .fontSize(fs(this.ts, 11))
                   .fontColor(RIVER)
                   .layoutWeight(1)
               }
@@ -203,7 +205,7 @@ struct GoodsDetailPage {
 
             Row({ space: 10 }) {
               Text(`${this.liked() ? '♥' : '♡'} 点赞 ${this.likeCount()}`)
-                .fontSize(12)
+                .fontSize(fs(this.ts, 12))
                 .fontColor(this.liked() ? CLAY : INK)
                 .padding({ left: 12, right: 12, top: 7, bottom: 7 })
                 .backgroundColor(this.liked() ? '#F4E4DE' : $r('app.color.card_bg'))
@@ -212,8 +214,9 @@ struct GoodsDetailPage {
                   StudioStore.get().toggleLike(this.g!.id);
                 })
 
-              Text(this.inCart() ? '♥ 已收藏' : '♡ 收藏')
-                .fontSize(12)
+              // 这颗是进清单的，跟旁边那颗「点赞」不是一回事，别都写成收藏
+              Text(this.inCart() ? '✓ 已入清单' : '＋ 加清单')
+                .fontSize(fs(this.ts, 12))
                 .fontColor(this.inCart() ? CLAY : INK)
                 .padding({ left: 12, right: 12, top: 7, bottom: 7 })
                 .backgroundColor(this.inCart() ? '#F4E4DE' : $r('app.color.card_bg'))
@@ -224,7 +227,7 @@ struct GoodsDetailPage {
 
               Blank()
               Text(`${this.g!.cat}｜${this.g!.era}`)
-                .fontSize(11)
+                .fontSize(fs(this.ts, 11))
                 .fontColor(LOESS)
             }
             .width('100%')
@@ -235,11 +238,11 @@ struct GoodsDetailPage {
                 Column() {
                   Row({ space: 10 }) {
                     Text(s.k)
-                      .fontSize(12)
+                      .fontSize(fs(this.ts, 12))
                       .fontColor(SUB)
                       .width(58)
                     Text(s.v)
-                      .fontSize(12)
+                      .fontSize(fs(this.ts, 12))
                       .fontColor(INK)
                       .layoutWeight(1)
                   }
@@ -261,11 +264,11 @@ struct GoodsDetailPage {
             Column({ space: 8 }) {
               this.blockTitle('它从哪里来')
               Text(this.g!.story)
-                .fontSize(13)
+                .fontSize(fs(this.ts, 13))
                 .fontColor(INK)
-                .lineHeight(23)
+                .lineHeight(fs(this.ts, 23))
               Text('资料：' + this.g!.source)
-                .fontSize(10)
+                .fontSize(fs(this.ts, 10))
                 .fontColor(SUB)
             }
             .width('100%')
@@ -277,7 +280,7 @@ struct GoodsDetailPage {
             Column({ space: 8 }) {
               this.blockTitle(`${this.g!.era}的去处`)
               if (this.mates.length === 0) {
-                Text('这个年代暂时没有可推荐的遗址').fontSize(11).fontColor(SUB)
+                Text('这个年代暂时没有可推荐的遗址').fontSize(fs(this.ts, 11)).fontColor(SUB)
               } else {
                 Scroll() {
                   Row({ space: 10 }) {
@@ -311,13 +314,13 @@ struct GoodsDetailPage {
 
         Row({ space: 10 }) {
           Text(`¥${moneyText(this.g!.price)}`)
-            .fontSize(18)
+            .fontSize(fs(this.ts, 18))
             .fontColor(CLAY)
             .fontWeight(FontWeight.Bold)
             .width(78)
 
           Button(this.inCart() ? '已在清单' : '加入清单')
-            .fontSize(14)
+            .fontSize(fs(this.ts, 14))
             .fontColor(INK)
             .backgroundColor('#EFE2C6')
             .layoutWeight(1)
@@ -326,7 +329,7 @@ struct GoodsDetailPage {
             })
 
           Button('立即购买')
-            .fontSize(14)
+            .fontSize(fs(this.ts, 14))
             .fontColor(Color.White)
             .backgroundColor(CLAY)
             .layoutWeight(1)

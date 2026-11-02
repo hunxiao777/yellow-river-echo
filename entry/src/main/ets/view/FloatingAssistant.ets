@@ -34,6 +34,8 @@ const FOCUS_DELAY: number = 430;   // 卡片铺好再让输入框抢焦点，太
 // 气泡里的「去全屏」只做跳转，conversation_id 本来就在 AiStore 里，全屏页接着聊。
 @Component
 export struct FloatingAssistant {
+  // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
+  @StorageLink('textScale') ts: number = 1;
   @Prop bottomGap: number = 24;
   // 挂在哪个页面。首页和地图页各一个实例，同一时刻只有"当前页"那个能弹卡片
   @Prop tag: string = 'home';
@@ -604,17 +606,17 @@ export struct FloatingAssistant {
         .objectFit(ImageFit.Contain)
       Column({ space: 2 }) {
         Text('河小导')
-          .fontSize(fs(15))
+          .fontSize(fs(this.ts, 15))
           .fontColor(INK)
           .fontWeight(FontWeight.Medium)
         Text(this.busy ? '正在翻档案…' : '黄河续响平台 · 文化向导')
-          .fontSize(fs(10))
+          .fontSize(fs(this.ts, 10))
           .fontColor(SUB)
       }
       .alignItems(HorizontalAlign.Start)
       Blank()
       Text(this.msgs.length === 0 ? '已清空' : (this.clearAsk ? '确认清空' : '清空历史'))
-        .fontSize(fs(11))
+        .fontSize(fs(this.ts, 11))
         .fontColor(this.msgs.length === 0 ? '#C4BAAC' : (this.clearAsk ? CLAY : SUB))
         .padding({ left: 10, right: 10, top: 5, bottom: 5 })
         .borderRadius(12)
@@ -643,7 +645,7 @@ export struct FloatingAssistant {
           this.clearHistory();
         })
       Text('去全屏 ›')
-        .fontSize(fs(11))
+        .fontSize(fs(this.ts, 11))
         .fontColor(RIVER)
         .padding({ left: 10, right: 10, top: 5, bottom: 5 })
         .borderRadius(12)
@@ -652,7 +654,7 @@ export struct FloatingAssistant {
           this.goFull();
         })
       Text('×')
-        .fontSize(fs(18))
+        .fontSize(fs(this.ts, 18))
         .fontColor(SUB)
         .padding({ left: 6, right: 2 })
         .onClick((): void => {
@@ -666,7 +668,7 @@ export struct FloatingAssistant {
   @Builder
   tipChip(tip: string) {
     Text(tip)
-      .fontSize(fs(11))
+      .fontSize(fs(this.ts, 11))
       .fontColor(RIVER)
       .padding({ left: 10, right: 10, top: 7, bottom: 7 })
       .borderRadius(14)
@@ -685,11 +687,11 @@ export struct FloatingAssistant {
         .height(84)
         .objectFit(ImageFit.Contain)
       Text('问我沿线的事')
-        .fontSize(fs(15))
+        .fontSize(fs(this.ts, 15))
         .fontColor(INK)
         .fontWeight(FontWeight.Medium)
       Text('遗址、器物、路线，都可以直接问')
-        .fontSize(fs(11))
+        .fontSize(fs(this.ts, 11))
         .fontColor(SUB)
       Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Center }) {
         ForEach(TIPS, (tip: string): void => {
@@ -708,7 +710,7 @@ export struct FloatingAssistant {
   @Builder
   citeChip(c: Citation) {
     Text('引 · ' + c.name)
-      .fontSize(fs(10))
+      .fontSize(fs(this.ts, 10))
       .fontColor(c.type === 'site' ? RIVER : '#8B6B2A')
       .padding({ left: 8, right: 8, top: 3, bottom: 3 })
       .borderRadius(9)
@@ -738,9 +740,9 @@ export struct FloatingAssistant {
       Row() {
         Blank()
         Text(t.text)
-          .fontSize(fs(13))
+          .fontSize(fs(this.ts, 13))
           .fontColor('#FFFFFF')
-          .lineHeight(fs(19))
+          .lineHeight(fs(this.ts, 19))
           .padding({ left: 12, right: 12, top: 8, bottom: 8 })
           .backgroundColor(CLAY)
           .borderRadius({ topLeft: 12, topRight: 4, bottomLeft: 12, bottomRight: 12 })
@@ -750,13 +752,13 @@ export struct FloatingAssistant {
     } else {
       Column({ space: 5 }) {
         Text(t.text)
-          .fontSize(fs(13))
+          .fontSize(fs(this.ts, 13))
           .fontColor(INK)
-          .lineHeight(fs(20))
+          .lineHeight(fs(this.ts, 20))
           .width('100%')
         if (t.isAborted === true) {
           Text('· 回答已中断')
-            .fontSize(fs(10))
+            .fontSize(fs(this.ts, 10))
             .fontColor(SUB)
             .width('100%')
         }
@@ -781,9 +783,9 @@ export struct FloatingAssistant {
   liveBubble() {
     Column() {
       Text(this.live.length > 0 ? this.live + '▍' : '河小导正在翻档案…')
-        .fontSize(fs(13))
+        .fontSize(fs(this.ts, 13))
         .fontColor(INK)
-        .lineHeight(fs(20))
+        .lineHeight(fs(this.ts, 20))
         .width('100%')
     }
     .width('100%')
@@ -821,13 +823,13 @@ export struct FloatingAssistant {
         .objectFit(ImageFit.Contain)
       Column({ space: 2 }) {
         Text(errCopyOf(this.err).line)
-          .fontSize(fs(11))
+          .fontSize(fs(this.ts, 11))
           .fontColor(INK)
-          .lineHeight(fs(17))
+          .lineHeight(fs(this.ts, 17))
           .width('100%')
         if (errCopyOf(this.err).sub.length > 0) {
           Text(errCopyOf(this.err).sub)
-            .fontSize(fs(9))
+            .fontSize(fs(this.ts, 9))
             .fontColor(SUB)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
@@ -838,7 +840,7 @@ export struct FloatingAssistant {
       .alignItems(HorizontalAlign.Start)
       if (this.lastQ.length > 0) {
         Text('再问一次')
-          .fontSize(fs(11))
+          .fontSize(fs(this.ts, 11))
           .fontColor(RIVER)
           .padding({ left: 10, right: 10, top: 5, bottom: 5 })
           .borderRadius(12)
@@ -850,7 +852,7 @@ export struct FloatingAssistant {
           })
       } else {
         Text('去设置 ›')
-          .fontSize(fs(11))
+          .fontSize(fs(this.ts, 11))
           .fontColor(RIVER)
           .padding({ left: 10, right: 10, top: 5, bottom: 5 })
           .borderRadius(12)
@@ -880,7 +882,7 @@ export struct FloatingAssistant {
         .height(42)
         .borderRadius(21)
         .backgroundColor($r('app.color.page_bg'))
-        .fontSize(fs(13))
+        .fontSize(fs(this.ts, 13))
         .fontColor(INK)
         .placeholderColor(SUB)
         .padding({ left: 14, right: 14 })
@@ -895,7 +897,7 @@ export struct FloatingAssistant {
         .width(42)
         .height(42)
         .textAlign(TextAlign.Center)
-        .fontSize(fs(13))
+        .fontSize(fs(this.ts, 13))
         .fontColor(this.busy ? CLAY : '#FFFFFF')
         .backgroundColor(this.busy ? $r('app.color.page_bg') : CLAY)
         .borderRadius(21)
@@ -955,7 +957,7 @@ export struct FloatingAssistant {
   @Builder
   guideBubble() {
     Text('有不懂的随时问我哦')
-      .fontSize(fs(12))
+      .fontSize(fs(this.ts, 12))
       .fontColor(INK)
       .textAlign(TextAlign.Center)
       .width(GUIDE_W)
