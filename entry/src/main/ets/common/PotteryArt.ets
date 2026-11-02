@@ -335,3 +335,124 @@ export function drawWord(c: CanvasRenderingContext2D, p: Palette, word: string,
     c.fillText(cs[i], w / 2 - total / 2 + size * 0.59 + i * size * 1.18, wy);
   }
 }
+
+// 纸底：竖向渐变 + 五道横向水波纹。转台把它压到器物后面（destination-over），
+// 二维版还是老样子先铺底再画器，两种顺序画出来的纸底是同一张。
+export function drawPaper(c: CanvasRenderingContext2D, p: Palette, seed: number,
+  w: number, h: number): void {
+  let g: CanvasGradient = c.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, p.paper);
+  g.addColorStop(1, p.base);
+  c.fillStyle = g;
+  c.fillRect(0, 0, w, h);
+  c.fillStyle = 'rgba(255,255,255,0.22)';
+  for (let i = 0; i < 5; i++) {
+    let yy = h * (0.10 + i * 0.19) + (seed % 5) * h * 0.01;
+    c.beginPath();
+    c.moveTo(0, yy);
+    c.quadraticCurveTo(w * 0.5, yy - h * 0.04, w, yy + h * 0.02);
+    c.lineTo(w, yy + h * 0.03);
+    c.quadraticCurveTo(w * 0.5, yy - h * 0.01, 0, yy + h * 0.03);
+    c.closePath();
+    c.fill();
+  }
+}
+
+// 纹样带的一层：底光 + 纹样本体 + 上下两道边线。
+// 二维版整幅调一次（x0=0, x1=w）；转台按弧度切成若干竖条，每条调一到两次，
+// 所以这里不能读组件状态，也不能假设 x0 一定是 0。
+export function drawBand(c: CanvasRenderingContext2D, p: Palette, motif: string,
+  seed: number, x0: number, x1: number, y0: number, y1: number, h: number): void {
+  c.fillStyle = 'rgba(255,255,255,0.16)';
+  c.fillRect(x0, y0, x1 - x0, y1 - y0);
+  motifPainter(motif)(c, p, x0, x1, y0, y1, seed);
+  c.strokeStyle = p.accent;
+  c.lineWidth = Math.max(h * 0.006, 1);
+  c.beginPath();
+  c.moveTo(x0, y0 + (y1 - y0) * 0.03);
+  c.lineTo(x1, y0 + (y1 - y0) * 0.03);
+  c.moveTo(x0, y1 - (y1 - y0) * 0.03);
+  c.lineTo(x1, y1 - (y1 - y0) * 0.03);
+  c.stroke();
+}
+
+// 口沿的双椭圆和底足的椭圆。
+// 特意不含器耳：二维版靠这两段弧线描出耳来，转台的耳已经烘进 3D 灰模帧里了，
+// 再描一遍会变成图上长出一对扁平的纸耳朵。
+export function drawRimFoot(c: CanvasRenderingContext2D, p: Palette, shape: string,
+  w: number, h: number): void {
+  let top = h * V_TOP;
+  let bot = h * V_BOT;
+  let prof = profileOf(shape);
+  let rx = prof[0][1] * w;
+  c.fillStyle = p.deep;
+  c.beginPath();
+  c.ellipse(w / 2, top, rx, Math.max(rx * 0.22, 2), 0, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = p.ink;
+  c.beginPath();
+  c.ellipse(w / 2, top, rx * 0.74, Math.max(rx * 0.15, 1.4), 0, 0, Math.PI * 2);
+  c.fill();
+  let fr = prof[prof.length - 1][1] * w;
+  c.strokeStyle = p.deep;
+  c.lineWidth = Math.max(w * 0.006, 1);
+  c.beginPath();
+  c.ellipse(w / 2, bot, fr, Math.max(fr * 0.16, 1.6), 0, 0, Math.PI * 2);
+  c.stroke();
+}
+
+// 展示座。bot 传器物底边的 y：二维版是 h * V_BOT，转台是帧映射到画布后的底边，
+// 两者都落在同一处（帧的 topPx/botPx 就是按 0.12/0.76 烘的）。
+export function drawPedestal(c: CanvasRenderingContext2D, p: Palette, shape: string,
+  pedestal: string, bot: number, w: number, h: number): void {
+  let base = bot + (h - bot) * 0.42;
+  if (shape === '鼎式') {
+    base = bot + (h - bot) * 0.53;
+  }
+  if (pedestal === '无') {
+    c.fillStyle = 'rgba(43,38,34,0.10)';
+    c.beginPath();
+    c.ellipse(w / 2, base, w * 0.30, h * 0.03, 0, 0, Math.PI * 2);
+    c.fill();
+    return;
+  }
+  c.fillStyle = 'rgba(43,38,34,0.12)';
+  c.beginPath();
+  c.ellipse(w / 2, base + h * 0.055, w * 0.36, h * 0.035, 0, 0, Math.PI * 2);
+  c.fill();
+  if (pedestal === '木座') {
+    c.fillStyle = '#5A4030';
+    c.beginPath();
+    c.moveTo(w * 0.24, base);
+    c.lineTo(w * 0.76, base);
+    c.lineTo(w * 0.70, base + h * 0.055);
+    c.lineTo(w * 0.30, base + h * 0.055);
+    c.closePath();
+    c.fill();
+    c.fillRect(w * 0.30, base + h * 0.055, w * 0.055, h * 0.045);
+    c.fillRect(w * 0.645, base + h * 0.055, w * 0.055, h * 0.045);
+    c.fillRect(w * 0.47, base + h * 0.055, w * 0.06, h * 0.035);
+  } else if (pedestal === '圆几') {
+    c.strokeStyle = p.accent;
+    c.lineWidth = Math.max(w * 0.012, 1.5);
+    let rx = w * 0.30;
+    c.beginPath();
+    c.ellipse(w / 2, base, rx, h * 0.045, 0, 0, Math.PI * 2);
+    c.fillStyle = 'rgba(255,255,255,0.35)';
+    c.fill();
+    c.stroke();
+    for (let i = -1; i <= 1; i++) {
+      c.beginPath();
+      c.moveTo(w / 2 + i * rx * 0.66, base + h * 0.03);
+      c.lineTo(w / 2 + i * rx * 0.80, base + h * 0.09);
+      c.stroke();
+    }
+  } else {
+    c.fillStyle = 'rgba(255,255,255,0.55)';
+    c.fillRect(w * 0.20, base, w * 0.60, h * 0.055);
+    c.strokeStyle = p.deep;
+    c.lineWidth = Math.max(w * 0.008, 1);
+    c.strokeRect(w * 0.20, base, w * 0.60, h * 0.055);
+  }
+}
+

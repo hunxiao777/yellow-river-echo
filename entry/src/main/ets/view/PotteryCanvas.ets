@@ -1,6 +1,7 @@
 import { paletteOf, Palette } from '../common/Theme';
 import {
-  V_TOP, V_BOT, profileOf, bandOf, tracePath, motifPainter, drawWord
+  V_TOP, V_BOT, profileOf, bandOf, tracePath, drawWord,
+  drawPaper, drawBand, drawRimFoot, drawPedestal
 } from '../common/PotteryArt';
 
 // 彩陶组装预览：器型、纹样、配色、题字、展示座全部按画布尺寸归一化现画。
@@ -26,25 +27,6 @@ export struct PotteryCanvas {
     this.paint();
   }
 
-  private bg(c: CanvasRenderingContext2D, p: Palette, w: number, h: number): void {
-    let g: CanvasGradient = c.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, p.paper);
-    g.addColorStop(1, p.base);
-    c.fillStyle = g;
-    c.fillRect(0, 0, w, h);
-    c.fillStyle = 'rgba(255,255,255,0.22)';
-    for (let i = 0; i < 5; i++) {
-      let yy = h * (0.10 + i * 0.19) + (this.seed % 5) * h * 0.01;
-      c.beginPath();
-      c.moveTo(0, yy);
-      c.quadraticCurveTo(w * 0.5, yy - h * 0.04, w, yy + h * 0.02);
-      c.lineTo(w, yy + h * 0.03);
-      c.quadraticCurveTo(w * 0.5, yy - h * 0.01, 0, yy + h * 0.03);
-      c.closePath();
-      c.fill();
-    }
-  }
-
   private feet(c: CanvasRenderingContext2D, p: Palette, w: number, h: number): void {
     if (this.shape !== '鼎式') {
       return;
@@ -66,58 +48,6 @@ export struct PotteryCanvas {
     }
   }
 
-  private drawPedestal(c: CanvasRenderingContext2D, p: Palette, w: number, h: number): void {
-    let base = h * V_BOT + (h - h * V_BOT) * 0.42;
-    if (this.shape === '鼎式') {
-      base = h * V_BOT + (h - h * V_BOT) * 0.53;
-    }
-    if (this.pedestal === '无') {
-      c.fillStyle = 'rgba(43,38,34,0.10)';
-      c.beginPath();
-      c.ellipse(w / 2, base, w * 0.30, h * 0.03, 0, 0, Math.PI * 2);
-      c.fill();
-      return;
-    }
-    c.fillStyle = 'rgba(43,38,34,0.12)';
-    c.beginPath();
-    c.ellipse(w / 2, base + h * 0.055, w * 0.36, h * 0.035, 0, 0, Math.PI * 2);
-    c.fill();
-    if (this.pedestal === '木座') {
-      c.fillStyle = '#5A4030';
-      c.beginPath();
-      c.moveTo(w * 0.24, base);
-      c.lineTo(w * 0.76, base);
-      c.lineTo(w * 0.70, base + h * 0.055);
-      c.lineTo(w * 0.30, base + h * 0.055);
-      c.closePath();
-      c.fill();
-      c.fillRect(w * 0.30, base + h * 0.055, w * 0.055, h * 0.045);
-      c.fillRect(w * 0.645, base + h * 0.055, w * 0.055, h * 0.045);
-      c.fillRect(w * 0.47, base + h * 0.055, w * 0.06, h * 0.035);
-    } else if (this.pedestal === '圆几') {
-      c.strokeStyle = p.accent;
-      c.lineWidth = Math.max(w * 0.012, 1.5);
-      let rx = w * 0.30;
-      c.beginPath();
-      c.ellipse(w / 2, base, rx, h * 0.045, 0, 0, Math.PI * 2);
-      c.fillStyle = 'rgba(255,255,255,0.35)';
-      c.fill();
-      c.stroke();
-      for (let i = -1; i <= 1; i++) {
-        c.beginPath();
-        c.moveTo(w / 2 + i * rx * 0.66, base + h * 0.03);
-        c.lineTo(w / 2 + i * rx * 0.80, base + h * 0.09);
-        c.stroke();
-      }
-    } else {
-      c.fillStyle = 'rgba(255,255,255,0.55)';
-      c.fillRect(w * 0.20, base, w * 0.60, h * 0.055);
-      c.strokeStyle = p.deep;
-      c.lineWidth = Math.max(w * 0.008, 1);
-      c.strokeRect(w * 0.20, base, w * 0.60, h * 0.055);
-    }
-  }
-
   private drawMotif(c: CanvasRenderingContext2D, p: Palette, w: number, h: number): void {
     let top = h * V_TOP;
     let bot = h * V_BOT;
@@ -128,17 +58,7 @@ export struct PotteryCanvas {
     c.beginPath();
     c.rect(0, y0, w, y1 - y0);
     c.clip();
-    c.fillStyle = 'rgba(255,255,255,0.16)';
-    c.fillRect(0, y0, w, y1 - y0);
-    motifPainter(this.motif)(c, p, 0, w, y0, y1, this.seed);
-    c.strokeStyle = p.accent;
-    c.lineWidth = Math.max(h * 0.006, 1);
-    c.beginPath();
-    c.moveTo(0, y0 + (y1 - y0) * 0.03);
-    c.lineTo(w, y0 + (y1 - y0) * 0.03);
-    c.moveTo(0, y1 - (y1 - y0) * 0.03);
-    c.lineTo(w, y1 - (y1 - y0) * 0.03);
-    c.stroke();
+    drawBand(c, p, this.motif, this.seed, 0, w, y0, y1, h);
     c.restore();
   }
 
@@ -153,7 +73,7 @@ export struct PotteryCanvas {
     let top = h * V_TOP;
     let bot = h * V_BOT;
     c.clearRect(0, 0, w, h);
-    this.bg(c, p, w, h);
+    drawPaper(c, p, this.seed, w, h);
     this.feet(c, p, w, h);
 
     tracePath(c, this.shape, w, h);
@@ -178,17 +98,10 @@ export struct PotteryCanvas {
     c.lineWidth = Math.max(w * 0.008, 1.2);
     c.stroke();
 
-    let prof = profileOf(this.shape);
-    let rx = prof[0][1] * w;
-    c.fillStyle = p.deep;
-    c.beginPath();
-    c.ellipse(w / 2, top, rx, Math.max(rx * 0.22, 2), 0, 0, Math.PI * 2);
-    c.fill();
-    c.fillStyle = p.ink;
-    c.beginPath();
-    c.ellipse(w / 2, top, rx * 0.74, Math.max(rx * 0.15, 1.4), 0, 0, Math.PI * 2);
-    c.fill();
+    drawRimFoot(c, p, this.shape, w, h);
 
+    // 器耳只有二维版要描：转台的耳已经烘进 3D 灰模帧里，再描一遍等于在图上长出一对纸耳朵
+    let rx = profileOf(this.shape)[0][1] * w;
     if (this.shape === '鼎式') {
       c.strokeStyle = p.deep;
       c.lineWidth = Math.max(w * 0.022, 2);
@@ -209,14 +122,7 @@ export struct PotteryCanvas {
       c.stroke();
     }
 
-    let fr = prof[prof.length - 1][1] * w;
-    c.strokeStyle = p.deep;
-    c.lineWidth = Math.max(w * 0.006, 1);
-    c.beginPath();
-    c.ellipse(w / 2, bot, fr, Math.max(fr * 0.16, 1.6), 0, 0, Math.PI * 2);
-    c.stroke();
-
-    this.drawPedestal(c, p, w, h);
+    drawPedestal(c, p, this.shape, this.pedestal, bot, w, h);
   }
 
   build() {
