@@ -336,19 +336,19 @@ export struct StudioPage {
       Row() {
         Column({ space: 6 }) {
           Text('3D文物工坊')
-            .fontSize(fs(15))
+            .fontSize(fs(this.ts, 15))
             .fontWeight(FontWeight.Bold)
             .fontColor(INK)
             .letterSpacing(2)
           Text('转一转 · 看黄河流域器物的釉色与纹样')
-            .fontSize(fs(10))
+            .fontSize(fs(this.ts, 10))
             .fontColor(SUB)
           Row({ space: 4 }) {
             Text('看文物')
-              .fontSize(fs(10))
+              .fontSize(fs(this.ts, 10))
               .fontColor(CLAY)
             Text('›')
-              .fontSize(fs(11))
+              .fontSize(fs(this.ts, 11))
               .fontColor(CLAY)
           }
         }
@@ -367,19 +367,19 @@ export struct StudioPage {
       Row() {
         Column({ space: 6 }) {
           Text('黄河沙盘')
-            .fontSize(fs(15))
+            .fontSize(fs(this.ts, 15))
             .fontWeight(FontWeight.Bold)
             .fontColor(INK)
             .letterSpacing(2)
           Text('拖时间轴推演四段河史：治水 · 漕运 · 改道 · 安澜')
-            .fontSize(fs(10))
+            .fontSize(fs(this.ts, 10))
             .fontColor(SUB)
           Row({ space: 4 }) {
             Text('进沙盘')
-              .fontSize(fs(10))
+              .fontSize(fs(this.ts, 10))
               .fontColor(CLAY)
             Text('›')
-              .fontSize(fs(11))
+              .fontSize(fs(this.ts, 11))
               .fontColor(CLAY)
           }
         }
