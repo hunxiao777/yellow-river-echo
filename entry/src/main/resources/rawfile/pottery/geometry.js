@@ -84,6 +84,29 @@ function smoothProfile(THREE, profile, samples) {
 }
 
 /*
+ * 把 LatheGeometry 默认的 v = j/(点数-1) 换成「帧像素」口径：
+ *   v = 1 - (topPx + t·(botPx - topPx)) / h
+ * （three 的 v 从图的下边往上数，画布 y 从上往下数，所以有个 1-；
+ *   t 是轮廓参数，0=口沿、1.004=器底，和 bodyOf 里那条折线一一对应）
+ * u 不动，仍是 i/segments（φ=2πu，u=0 正对 +z 的镜头）。
+ *
+ * 为什么要换：App 端罩层和二维版的纹样带位置全按 y = topPx + t·(botPx-topPx) 算，
+ * 默认 v 是「第几个点 / 总点数」，点在 t 上不均匀（口心、唇口、底足、器底是额外塞进去的），
+ * 直接用默认 v 贴出来的纹样带会整体偏下几像素，鼎式这种点疏密悬殊的能偏出一个纹样高。
+ * 换成像素口径后，真 3D 贴的这张展开图和降级转台罩的那张是同一张，不用各调各的。
+ */
+export function retexLathe(geometry, ts, view, topPx, botPx) {
+  const uv = geometry.attributes.uv;
+  const n = ts.length;
+  for (let idx = 0; idx < uv.count; idx++) {
+    const j = Math.min(n - 1, Math.max(0, Math.round(uv.getY(idx) * (n - 1))));
+    uv.setY(idx, 1 - (topPx + (botPx - topPx) * ts[j]) / view.h);
+  }
+  uv.needsUpdate = true;
+  return geometry;
+}
+
+/*
  * 器身：LatheGeometry 旋转体。轮廓是一条不自交的折线：
  *   口心 → 唇口 → 外壁 → 底足 → 器底心
  * 口做成平的封顶，不做内腔——相机与器口齐平，内腔在帧里只会糊成一坨「帽子」，
@@ -114,11 +137,14 @@ export function bodyOf(THREE, shape, view) {
     const i = Math.max(0, Math.min(sm.length - 1, Math.round(t * (sm.length - 1))));
     return sm[i].hw * view.w;
   };
+  const topPx = view.h * view.vTop;
+  const botPx = view.h * (view.vTop + (view.vBot - view.vTop) * 1.004);
+  retexLathe(geometry, pts.map(([, t]) => t), view, topPx, botPx);
   return {
     geometry,
     samples: sm,
-    topPx: view.h * view.vTop,
-    botPx: view.h * (view.vTop + (view.vBot - view.vTop) * 1.004),
+    topPx,
+    botPx,
     maxHalfPx: Math.max(...sm.map((p) => p.hw * view.w)),
     rimHalfPx: rimHw * view.w,
     baseHalfPx: half(1)
@@ -130,7 +156,11 @@ export function bodyOf(THREE, shape, view) {
  * 盆、瓶没有附件，是纯旋转体——它们各帧只差在刻面与灯光的相对角度上，
  * 轮廓完全一致，转动反馈由 App 端叠加的纹样带提供。
  */
-export function attach(THREE, group, shape, body, view, material) {
+export function attach(THREE, group, shape, body, view, material, trim) {
+  // 耳和足是贴在器身上的小件：真 3D 的器身用展开图做贴图，但 Tube/Torus/Cylinder
+  // 自己的 UV 跟器身那套像素口径完全不搭，直接共用贴图会把纹样拉成一条面条。
+  // 所以附件一律走 trim（纯色釉料），不传就跟器身一致（灰模烘焙时是同一个材质）。
+  const part = trim || material;
   const u = pxToUnit(THREE, view);
   const px = (v) => v * u;
   const yAt = (t) => -(view.h * (view.vTop + t * (view.vBot - view.vTop)) - view.h / 2) * u;
@@ -159,7 +189,7 @@ export function attach(THREE, group, shape, body, view, material) {
         base1
       ]);
       const g = new THREE.TubeGeometry(curve, 28, tube, 12, false);
-      const m = new THREE.Mesh(g, material);
+      const m = new THREE.Mesh(g, part);
       m.userData.part = 'ear';
       group.add(m);
     }
@@ -174,7 +204,7 @@ export function attach(THREE, group, shape, body, view, material) {
     const rx = body.rimHalfPx;
     for (const side of [-1, 1]) {
       const g = new THREE.TorusGeometry(px(rx * 0.18), px(rx * 0.06), 12, 28, Math.PI);
-      const m = new THREE.Mesh(g, material);
+      const m = new THREE.Mesh(g, part);
       m.position.set(side * px(rx * 0.86), yAt(0), 0);
       m.userData.part = 'ear';
       group.add(m);
@@ -189,7 +219,7 @@ export function attach(THREE, group, shape, body, view, material) {
       const ang = (i / 3) * Math.PI * 2;
       const g = new THREE.CylinderGeometry(px(body.maxHalfPx * 0.052),
         px(body.maxHalfPx * 0.085), len, 16);
-      const m = new THREE.Mesh(g, material);
+      const m = new THREE.Mesh(g, part);
       m.position.set(Math.sin(ang) * r, botY - len / 2, Math.cos(ang) * r);
       m.rotation.x = Math.cos(ang) * 0.10;
       m.rotation.z = -Math.sin(ang) * 0.10;
@@ -229,15 +259,29 @@ export function greyMaterial(THREE) {
   });
 }
 
-export function lights(THREE, scene) {
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xb9b1a2, 0.62));
-  const key = new THREE.DirectionalLight(0xffffff, 1.9);
+/*
+ * 真 3D 主路径的釉色材质：颜色一律来自那张展开贴图（pottery.js 用 art.js 画的），
+ * 所以 color 必须是纯白——再乘一遍釉色等于把仰韶红罩成酱色。
+ * 哑光（roughness 0.95 / metalness 0）和灰模一致：彩陶是低温陶衣，不是瓷器那种高光。
+ */
+export function glazeMaterial(THREE, map) {
+  return new THREE.MeshStandardMaterial({
+    color: 0xffffff, roughness: 0.95, metalness: 0.0, map, side: THREE.DoubleSide
+  });
+}
+
+export function lights(THREE, scene, k) {
+  // k 是给真 3D 页留的亮度系数：灰模帧的底色接近白，灯光按它调过；
+  // 换成带釉色的贴图后同样的光会把红陶照成粉陶，所以贴图那条链路要压一档。
+  const s = k === undefined ? 1 : k;
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xb9b1a2, 0.62 * s));
+  const key = new THREE.DirectionalLight(0xffffff, 1.9 * s);
   key.position.set(2.8, 3.4, 4.2);
   scene.add(key);
-  const rim = new THREE.DirectionalLight(0xffffff, 0.55);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.55 * s);
   rim.position.set(-3.2, 1.0, -2.4);
   scene.add(rim);
-  const fill = new THREE.DirectionalLight(0xffffff, 0.25);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.25 * s);
   fill.position.set(0, -2.6, 2.4);
   scene.add(fill);
 }
@@ -245,7 +289,7 @@ export function lights(THREE, scene) {
 /*
  * 组装一件器物：返回 Group，userData 里带 ArkTS 侧叠加纹样/釉色需要的像素级元数据。
  */
-export function buildVessel(THREE, key, view, material) {
+export function buildVessel(THREE, key, view, material, trim) {
   const shape = shapeOf(key);
   const v = view || VIEW;
   const body = bodyOf(THREE, shape, v);
@@ -253,7 +297,7 @@ export function buildVessel(THREE, key, view, material) {
   const mesh = new THREE.Mesh(body.geometry, material);
   mesh.userData.part = 'body';
   group.add(mesh);
-  attach(THREE, group, shape, body, v, material);
+  attach(THREE, group, shape, body, v, material, trim);
   group.userData = {
     shapeKey: shape.key,
     label: shape.label,
