@@ -43,16 +43,27 @@ def pts(seq):
     return '[' + ','.join('[%.2f,%.2f]' % (ux(p[0]), uy(p[1])) for p in seq) + ']'
 
 
+def city_js(t):
+    n, lon, lat, k = t[0], t[1], t[2], t[3]
+    extra = ",a:'%s'" % t[4] if len(t) > 4 else ''
+    return "{n:'%s',p:[%.2f,%.2f],k:'%s'%s}" % (n, ux(lon), uy(lat), k, extra)
+
+
 # 城镇与分段标注：坐标一律经度/纬度，改这里再重跑本脚本，别直接动 HTML 里的数字
-# big=题目要求的两枚人文标注；small=按用户选的"叙事点为主"补的次级城点
-# 次级城一律放在河槽南岸：汉唐段河宽按叙事放大到 50km 级别，贴着中心线画会被河带盖住
+# 城市集合按赛题口径来：黄河在河南流经 三门峡/洛阳/郑州/开封/濮阳 五市，
+# 且与 rawfile/huanghe_sites.json 的 20 处遗址分布一致（洛阳5 郑州5 开封4 三门峡3 濮阳3）。
+# big=四段河史的剧情支点（汴渠西端与商胡之决），small=其余沿黄城市。
+# 次级城一律放在河槽南岸：汉唐段河宽按叙事放大到 50km 级别，贴着中心线画会被河带盖住。
+# 商丘是唯一的例外：它属淮河流域，只因为汴渠（通济渠）穿城而过才留在图上，「注」里已交代。
+# 第 5 项可选：标签锚位，缺省 'bottom'（点下方），'top'=点上方。
+# 濮阳的标签必须朝上：当代段与汉唐段的河带正好从濮阳点南边穿过，朝下会被河盖住。
 CITIES = [
     ('洛阳',   112.45, 34.62, 'big'),
     ('开封',   114.35, 34.79, 'big'),
     ('三门峡', 111.20, 34.68, 'small'),
     ('郑州',   113.65, 34.70, 'small'),
+    ('濮阳',   115.03, 35.76, 'small', 'top'),
     ('商丘',   115.64, 34.44, 'small'),
-    ('南阳',   112.53, 33.01, 'small'),
 ]
 # s=所属阶段（0 大禹 / 1 汉唐 / 2 宋元 / 3 当代）
 # 注记字号 1.85 单位，一个汉字≈1.85 单位宽；1 单位≈7km，390px 屏上 1 单位≈4.2px。
@@ -107,7 +118,7 @@ def main():
     lines.append('  var CANAL = %s;' % pts(riv['canal']))
     m = ', '.join("{n:'%s',p:[%.2f,%.2f]}" % (n, ux(lon), uy(lat)) for n, (lon, lat) in riv['mountains'].items())
     lines.append('  var MOUNTAINS = [%s];' % m)
-    c = ', '.join("{n:'%s',p:[%.2f,%.2f],k:'%s'}" % (n, ux(lon), uy(lat), k) for n, lon, lat, k in CITIES)
+    c = ', '.join(city_js(t) for t in CITIES)
     lines.append('  var CITIES = [%s];' % c)
     a = ', '.join("{s:%d,t:'%s',p:[%.2f,%.2f]}" % (s, t, ux(lon), uy(lat)) for s, t, lon, lat in ANNO)
     lines.append('  var ANNO = [%s];' % a)
@@ -133,8 +144,9 @@ def main():
     print('省界包围盒单位 x %.1f..%.1f  y %.1f..%.1f'
           % (min(ux(a_) for a_, b_ in ring), max(ux(a_) for a_, b_ in ring),
              min(uy(b_) for a_, b_ in ring), max(uy(b_) for a_, b_ in ring)))
-    for n, lon, lat, k in CITIES:
-        print('  %-4s %8.2f,%7.2f -> %6.2f,%6.2f' % (n, lon, lat, ux(lon), uy(lat)))
+    for t in CITIES:
+        print('  %-4s %8.2f,%7.2f -> %6.2f,%6.2f  %s'
+              % (t[0], t[1], t[2], ux(t[1]), uy(t[2]), t[4] if len(t) > 4 else 'bottom'))
 
 
 if __name__ == '__main__':
