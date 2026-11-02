@@ -4,6 +4,7 @@ import { WorkRec } from '../model/Models';
 import { fs, INK, SUB, CLAY, RIVER, PAPER, LINE, paletteOf } from '../common/Theme';
 import { PotteryCanvas } from '../view/PotteryCanvas';
 import { PotteryTurntable } from '../view/PotteryTurntable';
+import { Pottery3D, PROBE_MS } from '../view/Pottery3D';
 import { goCourses } from '../common/Nav';
 
 const SHAPES: string[] = ['罐', '盆', '壶', '瓶', '鼎式'];
@@ -26,9 +27,47 @@ struct PotteryPage {
   @State word: string = '';
   @State seed: number = 1;
   @State name: string = '未命名第 1 件';
+  // 渲染链路：probe = 探针还没出结论（此刻看到的是转台），3d = 页内 WebGL 起来了，
+  // fallback = 页内明确报错或超时没吭声。只有 '3d' 才撤掉盖在 Web 上面的转台。
+  @State mode3d: string = 'probe';
+  @State err3d: string = '';
+  private probeTimer: number = -1;
 
   aboutToAppear(): void {
     this.name = `未命名第 ${StudioStore.get().works.length + 1} 件`;
+    // 探针的第三种结局是「没有结局」：rawfile 读不到、模块 import 失败、ArkWeb 自己起不来，
+    // 这几种情况下页里那行 Native.setMode 永远不会被调到，只能靠超时收口。
+    this.probeTimer = setTimeout((): void => {
+      this.probeTimer = -1;
+      if (this.mode3d === 'probe') {
+        this.mode3d = 'fallback';
+      }
+    }, PROBE_MS);
+  }
+
+  aboutToDisappear(): void {
+    if (this.probeTimer >= 0) {
+      clearTimeout(this.probeTimer);
+      this.probeTimer = -1;
+    }
+  }
+
+  // 探针回话。撤转台是一次真实的组件销毁：那 1.3MB 灰模帧的解码位图会一起释放，
+  // 正好还给真 3D 用。反过来（3d 再退回转台）不存在——结论一旦出来就锁死。
+  onProbe(m: string): void {
+    if (this.probeTimer >= 0) {
+      clearTimeout(this.probeTimer);
+      this.probeTimer = -1;
+    }
+    if (m === '3d') {
+      this.mode3d = '3d';
+    } else if (this.mode3d !== '3d') {
+      this.mode3d = 'fallback';
+    }
+  }
+
+  renderName(): string {
+    return this.mode3d === '3d' ? '实时 3D' : '转台序列';
   }
 
   works(): WorkRec[] {
@@ -123,19 +162,42 @@ struct PotteryPage {
       Scroll() {
         Column({ space: 12 }) {
           Column({ space: 8 }) {
-            // 预览位交给转台：灰模序列帧打底，釉色和纹样在 App 端现罩，能左右拖着转。
-            // 帧拿不到时组件自己退回二维 PotteryCanvas，这里不用判断。
+            // 预览位两条链路叠在一起：底下是 ArkWeb 真 3D（同时也是探针），
+            // 上面盖一层伪 3D 转台：灰模序列帧打底，釉色和纹样在 App 端现罩，能左右拖着转。
+            // 探针没出结论、或者结论是 fallback，用户看到的一直是转台；
+            // 只有 '3d' 才把转台撤掉，露出下面已经铺好的 3D 页。
+            // 转台自己仍带「帧拿不到就退回二维 PotteryCanvas」的兜底，三层都不会白屏。
             // 下面「已存作品」的缩略图仍然走二维：88vp 一格看不出立体感，
             // 却要为每件作品解一两张 1.3MB 的位图，不划算。
             Column() {
-              PotteryTurntable({
-                shape: this.shape,
-                motif: this.motif,
-                glaze: this.glaze,
-                pedestal: this.box,
-                word: this.word,
-                seed: this.seed
-              })
+              Stack() {
+                Pottery3D({
+                  shape: this.shape,
+                  motif: this.motif,
+                  glaze: this.glaze,
+                  pedestal: this.box,
+                  word: this.word,
+                  seed: this.seed,
+                  onMode: (m: string): void => {
+                    this.onProbe(m);
+                  },
+                  onErr: (msg: string): void => {
+                    this.err3d = msg;
+                  }
+                })
+                if (this.mode3d !== '3d') {
+                  PotteryTurntable({
+                    shape: this.shape,
+                    motif: this.motif,
+                    glaze: this.glaze,
+                    pedestal: this.box,
+                    word: this.word,
+                    seed: this.seed
+                  })
+                }
+              }
+              .width('100%')
+              .height('100%')
             }
             .width('100%')
             .height(300)
@@ -155,6 +217,12 @@ struct PotteryPage {
 
             Text(`${this.shape} · ${this.motif} · ${this.glazeName()} · 题字${this.word.length === 0 ? '无' : this.word} · ${this.box}`)
               .fontSize(fs(this.ts, 11)).fontColor(SUB).width('100%')
+            // 走的是哪条链路要写在脸上：演示和兼容测试时，这一行就是「这台设备
+            // 到底有没有 WebGL」的读数，不用去翻日志。fallback 还把页内报的原因带上。
+            Text(this.mode3d === 'fallback' && this.err3d.length > 0
+              ? `${this.renderName()} · 3D 不可用：${this.err3d}`
+              : this.renderName())
+              .fontSize(fs(this.ts, 10)).fontColor(SUB).width('100%').opacity(0.75)
           }
           .width('100%')
           .padding(10)
