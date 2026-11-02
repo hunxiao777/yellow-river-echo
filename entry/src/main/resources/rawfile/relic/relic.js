@@ -6,16 +6,27 @@ import { MeshoptDecoder } from '../experience/vendor/MeshoptDecoder.js';
 
 /* 六件扫描文物：模型均为公开藏品扫描，已离线压缩。
    顺序即工坊里的 1/6…6/6，转台帧目录 turntable/<序号>/ 与 stills/<序号>.jpg
-   按这里的下标取图，改动顺序时必须一起重排。theme 是信息条上方的主题标签 */
+   按这里的下标取图，改动顺序时必须一起重排。theme 是信息条上方的主题标签
+
+   文案模板（2026-11-02 统一，六件必须同格式，新增文物照抄）：
+     theme      四字主题标签，六件等长
+     note       一句话、20~28 字，只讲形制与工艺；不重复 era 的年代、不写收藏机构
+                （出土地看 scope，馆藏看 collection）
+     scope      「<文化圈> · <出土地或窑口>（<年代 · 类别>）」；出土地不明写（出土地未著录）
+     material   材质短语；多段用顿号「、」连接——信息条里字段之间已经用「 · 」分隔，
+                材质内部再用「 · 」会和分隔符撞在一起看不出边界
+     collection 只写收藏机构中文名（必要时装原文括注），不写出土地、不写扫描方
+     credit     「藏品扫描：<来源> · <许可> · 压缩版」；压缩版属实——六个 glb 都带
+                EXT_meshopt_compression + KHR_mesh_quantization */
 const RELICS = [
   {
     file: 'models/dancer-brick.glb',
     name: '修定寺塔舞者砖',
     era: '唐',
-    material: '模制陶胎、施化妆土',
+    material: '模制陶胎 · 施化妆土',
     collection: '克利夫兰艺术博物馆',
-    note: '砖面浮雕蓄须舞者，披帛翻卷，为修定寺塔塔身模制砖。',
-    scope: '黄河流域文化圈 · 河南安阳修定寺塔（870 年前）',
+    note: '砖面浮雕蓄须舞者，披帛翻卷，为塔身砌砖。',
+    scope: '黄河流域文化圈 · 河南安阳修定寺塔（唐 · 塔身模制砖）',
     theme: '丝路交融',
     credit: '藏品扫描：Cleveland Museum of Art · CC BY 4.0 · 压缩版',
     recomputeNormals: false,
@@ -31,7 +42,7 @@ const RELICS = [
     material: '三彩陶',
     collection: '芝加哥艺术博物馆',
     note: '双龙形耳贴塑于瓶颈两侧，黄绿釉在肩部交融。',
-    scope: '黄河流域文化圈 · 唐三彩窑口工艺（出土地未著录）',
+    scope: '黄河流域文化圈 · 唐三彩窑口（出土地未著录）',
     theme: '三彩窑火',
     credit: '藏品扫描：Art Institute of Chicago · CC BY 4.0 · 压缩版',
     recomputeNormals: true,
@@ -45,9 +56,9 @@ const RELICS = [
     name: '青铜镈钟',
     era: '东周',
     material: '青铜',
-    collection: '河南出土 · 大英博物馆',
-    note: '出土于河南，公元前 5 世纪的大型镈钟，现藏大英博物馆。',
-    scope: '黄河流域文化圈 · 河南出土（东周青铜礼乐器）',
+    collection: '大英博物馆',
+    note: '舞部饰透雕交龙钮，篆间列枚，鼓部满布细纹。',
+    scope: '黄河流域文化圈 · 河南出土（东周 · 青铜礼乐器）',
     theme: '礼乐文明',
     credit: '藏品扫描：artfletch · CC BY 4.0 · 压缩版',
     recomputeNormals: false,
@@ -61,11 +72,11 @@ const RELICS = [
     name: '兽面纹青铜方彝',
     era: '西周早期',
     material: '青铜',
-    collection: '河南洛阳出土',
-    note: '出土于河南洛阳。器身饰有饕餮纹、蛇纹与鸟纹，是西周早期黄河流域青铜礼器与祭祀文化的典型代表。',
-    scope: '黄河流域文化圈 · 河南洛阳（西周早期青铜礼器）',
+    collection: '史密森尼学会（美国）',
+    note: '器身满饰饕餮纹、蛇纹与鸟纹，属盛酒礼器。',
+    scope: '黄河流域文化圈 · 河南洛阳出土（西周早期 · 青铜礼器）',
     theme: '青铜礼器',
-    credit: '藏品扫描：Smithsonian Institution · Public Domain（Zenodo）',
+    credit: '藏品扫描：Smithsonian Institution · Public Domain（Zenodo）· 压缩版',
     recomputeNormals: false,
     /* 源模型的前脸正对 +Z，转到 -30° 才是能同时看见两个面的展示角度 */
     yaw: -Math.PI / 6,
@@ -79,8 +90,8 @@ const RELICS = [
     era: '新石器时代',
     material: '陶',
     collection: '世界文化博物馆（瑞典）',
-    note: '安特生 1923–1924 年在甘肃、青海调查时采集，编号 K-05716。',
-    scope: '黄河上游文化圈 · 甘青史前文化（仰韶—马家窑系统）',
+    note: '口沿外侈，颈侧置双耳，腹表留有烧成黑斑。',
+    scope: '黄河上游文化圈 · 甘肃—青海采集（仰韶—马家窑系统 · 盛储器）',
     theme: '文明溯源',
     credit: '藏品扫描：Världskulturmuseerna · CC BY 4.0 · 压缩版',
     recomputeNormals: false,
@@ -94,9 +105,9 @@ const RELICS = [
     name: '三彩马',
     era: '唐',
     material: '三彩陶',
-    collection: '公开三维扫描（shining3dTC）',
+    collection: '馆藏未著录（公开扫描）',
     note: '马身施黄褐釉，鞍鞯俱全，是唐三彩里常见的出行题材。',
-    scope: '黄河流域文化圈 · 唐三彩窑口工艺（出土地未著录）',
+    scope: '黄河流域文化圈 · 唐三彩窑口（出土地未著录）',
     theme: '出行风尚',
     credit: '藏品扫描：shining3dTC · CC BY 4.0 · 压缩版',
     recomputeNormals: false,
