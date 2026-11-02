@@ -144,8 +144,22 @@ export function withAlpha(hex: string, a: number): string {
   let r = parseInt(hex.substring(1, 3), 16);
   let g = parseInt(hex.substring(3, 5), 16);
   let b = parseInt(hex.substring(5, 7), 16);
-  let al = Math.round(Math.max(0, Math.min(1, a)) * 255);
+  // alpha 一律写成 0~1 的小数：rgba() 的第四个分量按 CSS 口径是比例，
+  // 填 0~255 会被当成大于 1 直接夹成完全不透明，透明度看着就“没生效”。
+  let al = Math.round(Math.max(0, Math.min(1, a)) * 1000) / 1000;
   return `rgba(${r},${g},${b},${al})`;
+}
+
+// #RRGGBB → 感知亮度（Rec.601 加权，0~255）。转台罩釉色时用它判断这套釉有多深：
+// 灰模是固定亮度的底，越深的釉越要压得实，否则黑陶罩出来变灰陶。
+export function hexLum(hex: string): number {
+  if (hex.length !== 7 || !hex.startsWith('#')) {
+    return 128;
+  }
+  let r = parseInt(hex.substring(1, 3), 16);
+  let g = parseInt(hex.substring(3, 5), 16);
+  let b = parseInt(hex.substring(5, 7), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b;
 }
 
 export function eraPalette(era: string): string {
