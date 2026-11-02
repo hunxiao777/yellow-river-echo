@@ -3,6 +3,7 @@ import { StudioStore } from '../service/StudioStore';
 import { WorkRec } from '../model/Models';
 import { fs, INK, SUB, CLAY, RIVER, PAPER, LINE, paletteOf } from '../common/Theme';
 import { PotteryCanvas } from '../view/PotteryCanvas';
+import { PotteryTurntable } from '../view/PotteryTurntable';
 import { goCourses } from '../common/Nav';
 
 const SHAPES: string[] = ['罐', '盆', '壶', '瓶', '鼎式'];
@@ -122,8 +123,12 @@ struct PotteryPage {
       Scroll() {
         Column({ space: 12 }) {
           Column({ space: 8 }) {
+            // 预览位交给转台：灰模序列帧打底，釉色和纹样在 App 端现罩，能左右拖着转。
+            // 帧拿不到时组件自己退回二维 PotteryCanvas，这里不用判断。
+            // 下面「已存作品」的缩略图仍然走二维：88vp 一格看不出立体感，
+            // 却要为每件作品解一两张 1.3MB 的位图，不划算。
             Column() {
-              PotteryCanvas({
+              PotteryTurntable({
                 shape: this.shape,
                 motif: this.motif,
                 glaze: this.glaze,

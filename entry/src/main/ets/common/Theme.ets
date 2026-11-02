@@ -134,6 +134,20 @@ export function paletteOf(key: string): Palette {
   return p === undefined ? (PALETTES.get('yangshao') as Palette) : p;
 }
 
+// #RRGGBB → rgba(...)。转台给灰模帧罩釉色要用带透明度的色：
+// ArkUI 的 Canvas 只支持 Porter-Duff 十一种混合，没有 multiply，压暗提亮只能靠
+// 「半透明色 + source-atop」，灰模的明暗才透得出来。传进非 # 开头的值就原样返回。
+export function withAlpha(hex: string, a: number): string {
+  if (hex.length !== 7 || !hex.startsWith('#')) {
+    return hex;
+  }
+  let r = parseInt(hex.substring(1, 3), 16);
+  let g = parseInt(hex.substring(3, 5), 16);
+  let b = parseInt(hex.substring(5, 7), 16);
+  let al = Math.round(Math.max(0, Math.min(1, a)) * 255);
+  return `rgba(${r},${g},${b},${al})`;
+}
+
 export function eraPalette(era: string): string {
   if (era === '龙山') {
     return 'longshan';
