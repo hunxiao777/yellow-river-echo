@@ -1,7 +1,7 @@
 import { image } from '@kit.ImageKit';
 import { common } from '@kit.AbilityKit';
 import { fs, paletteOf, Palette, withAlpha, hexLum, SUB } from '../common/Theme';
-import { drawBand, drawPaper, drawPedestal, drawWord } from '../common/PotteryArt';
+import { drawBand, drawPaper, drawPedestal, drawWord, tracePath } from '../common/PotteryArt';
 import { ShapeMeta, TurntableFrames, TurntableIndex } from '../service/TurntableFrames';
 import { PotteryCanvas } from './PotteryCanvas';
 
@@ -20,6 +20,8 @@ import { PotteryCanvas } from './PotteryCanvas';
  * 没有 multiply/overlay 可用，所以釉色靠「带透明度的渐变 + source-atop」压色，
  * 灰模自身的明暗从半透明色底下透出来，就是上釉的效果。
  * 也正因为 source-atop 只认 alpha，帧的轮廓必须无损 —— 见 tools/bake_pottery_frames.mjs。
+ * 一个 ArkUI 特有的坑：source-atop 下 fillText 一个字都不出（矢量照出），
+ * 所以题字走的是「器身轮廓 clip + source-over」，见 wrap() 里那段。
  *
  * 罩层画在「帧坐标系」里：先把画布变换成 scale(s)+居中偏移，之后一律按 512×640 的帧像素
  * 坐标作画。烘帧时器物的 topPx/botPx 就是按二维版的 0.12/0.76 归一化投影出来的，
@@ -257,14 +259,24 @@ export struct PotteryTurntable {
     let per = Math.PI * r;
     let y0 = m.topPx + (m.botPx - m.topPx) * m.band[0];
     let y1 = m.topPx + (m.botPx - m.topPx) * m.band[1];
-    let phi = this.angle * Math.PI / 180;
+    // 角度取负喂给展开坐标：烘帧脚本是 holder.rotation.y = +deg（tools/bake_pottery_frames.mjs），
+    // three.js 里 +Y 旋转把正面那点推向 +X，也就是屏上向右；而展开式 s=P/2+R(a+φ) 里 φ 变大
+    // 图案是往左滑的。两个符号不拧过来，转台一转就成了「耳朵往右走、鱼纹往左溜」，
+    // 釉色纹样像是浮在器表上没粘住（模拟器实测：拖 900px 帧号动 8 档、纹样带几乎不动）。
+    let phi = -this.angle * Math.PI / 180;
     let da = Math.PI / SLABS;
     // 题字不跟周期走：按二维版的宽高比取号，再平移回展开带的正中，
     // 否则它会跟纹样一起被拉伸 1.44 倍，两个字就把罐肚占满了
     let wordW = 2 * r / 0.92;
     let wordLo = per / 2 - wordW / 2;
     let wordHi = per / 2 + wordW / 2;
-    c.globalCompositeOperation = 'source-atop';
+    // 先把 8 段的「屏上窗口 / 展开窗口 / 压缩比」算一遍存下来：纹样带和题字是两遍
+    // 绘制（见下），两遍必须用同一套分段，否则字和纹样会错缝；顺手也省掉一半三角函数。
+    let xL: number[] = [];
+    let xR: number[] = [];
+    let sL: number[] = [];
+    let sR: number[] = [];
+    let sq: number[] = [];
     for (let k = 0; k < SLABS; k++) {
       let a0 = -Math.PI / 2 + k * da;
       let a1 = a0 + da;
@@ -272,23 +284,71 @@ export struct PotteryTurntable {
       let x1 = this.fw / 2 + r * Math.sin(a1);
       let s0 = per / 2 + r * (a0 + phi);
       let s1 = per / 2 + r * (a1 + phi);
+      xL.push(x0);
+      xR.push(x1);
+      sL.push(s0);
+      sR.push(s1);
+      sq.push((x1 - x0) / (s1 - s0));
+    }
+    // 第一遍：纹样带。矢量走 source-atop，只落在灰模的不透明像素里，耳、口沿都能挂上。
+    c.globalCompositeOperation = 'source-atop';
+    for (let k = 0; k < SLABS; k++) {
       c.save();
       c.beginPath();
-      c.rect(x0, 0, x1 - x0, this.fh);
+      c.rect(xL[k], 0, xR[k] - xL[k], this.fh);
       c.clip();
-      c.translate(x0, 0);
-      c.scale((x1 - x0) / (s1 - s0), 1);
-      c.translate(-s0, 0);
-      let j0 = Math.floor(s0 / per);
-      let j1 = Math.floor(s1 / per);
+      c.translate(xL[k], 0);
+      c.scale(sq[k], 1);
+      c.translate(-sL[k], 0);
+      let j0 = Math.floor(sL[k] / per);
+      let j1 = Math.floor(sR[k] / per);
       for (let j = j0; j <= j1; j++) {
         drawBand(c, p, this.motif, this.seed, j * per, (j + 1) * per, y0, y1, this.fh);
       }
-      if (this.word.length > 0 && s1 > wordLo && s0 < wordHi) {
-        c.translate(per / 2 - wordW / 2, 0);
-        drawWord(c, p, this.word, this.shape, this.seed, wordW, this.fh);
+      c.restore();
+    }
+    // 第二遍：题字。单独一遍是因为 ArkUI 的 Canvas 在 source-atop 下不画文字 ——
+    // 同一个 slab 变换里写两笔、只差这一句合成模式：source-atop 的蓝 S 是 0 像素，
+    // source-over 的红 O 正好落在算出来的位置（帧坐标 318,349 vs 314.5,350）。
+    // 浏览器没这个限制，所以 headless 那套对照查不出来，只有上设备才看得见。
+    // 换成 source-over 就没了 alpha 那道闸，所以自己按器身轮廓 clip 一道补上；
+    // 这道 clip 必须走在 slab 变换之前，不然轮廓路径会跟着展开变换一起被歪曲到别处。
+    //
+    // 字还要按「整圈」复制着比：this.angle 是累加的（自动转台每 120ms 走 15°），
+    // 只比一份窗口的话转过 ~152° 后 s0 永远大于 wordHi，字就再也不出来了。
+    // 周期取 2·per（= 一整圈），所以字只出现在正面，转到背面自然消失。
+    // 「只出现在正面」是量出来的，不是猜的：headless 按 15° 扫一整圈 24 档
+    // （node .tmp/pot_preview/preview.mjs wordprobe），0°~45° 完整、60° 只剩 16×20、
+    // 75°~285° 全被轮廓切掉，300° 起又回来；模拟器同一批角度逐档对得上，
+    // 累加角 1050° 与裸角 330° 的暗像素数一模一样（4002）—— 说明 2·per 复制没有误差。
+    if (this.word.length > 0) {
+      c.save();
+      tracePath(c, this.shape, this.fw, this.fh);
+      c.clip();
+      c.globalCompositeOperation = 'source-over';
+      let nBase = Math.round(r * phi / (2 * per));
+      for (let k = 0; k < SLABS; k++) {
+        c.save();
+        c.beginPath();
+        c.rect(xL[k], 0, xR[k] - xL[k], this.fh);
+        c.clip();
+        c.translate(xL[k], 0);
+        c.scale(sq[k], 1);
+        c.translate(-sL[k], 0);
+        for (let n = nBase - 1; n <= nBase + 1; n++) {
+          let wLo = wordLo + 2 * n * per;
+          let wHi = wordHi + 2 * n * per;
+          if (sR[k] > wLo && sL[k] < wHi) {
+            c.save();
+            c.translate(wLo, 0);
+            drawWord(c, p, this.word, this.shape, this.seed, wordW, this.fh);
+            c.restore();
+          }
+        }
+        c.restore();
       }
       c.restore();
+      c.globalCompositeOperation = 'source-atop';
     }
   }
 
@@ -298,6 +358,13 @@ export struct PotteryTurntable {
         Canvas(this.c2d)
           .width('100%')
           .height('100%')
+          // 压一层不透明的纸色。画布在首笔落下之前是全透明的，而预览位是个 Stack，
+          // 底下还垫着 ArkWeb 真 3D 页（探针，WebGL 建不起来、rAF 又被系统按不可见节流），
+          // 于是那一瞬漏出来的是「白底 + 没擦干净的上一帧器物」—— 模拟器实测：退到桌面
+          // 再拉回彩陶页，预览位十几秒里显示的就是这张没有纸底的罐子，点配色也不动
+          // （取证 .tmp/em_verify/link_龙山黑_full.png，纸底 #ffffff、纯白占比 53%）。
+          // 底色取当前釉色的纸色，首笔之前最多是一整张纸，跟罩完的纸底接得上。
+          .backgroundColor(paletteOf(this.glaze).paper)
           .onReady((): void => {
             this.paint();
           })

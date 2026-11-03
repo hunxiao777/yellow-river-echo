@@ -185,6 +185,11 @@ struct PotteryPage {
                     this.err3d = msg;
                   }
                 })
+                  // 探针结论一旦是 fallback，这层就不该再参与成像：它建不起 WebGL 就只剩
+                  // 一张二维底图，而系统还会把不可见的 Web 页 rAF 节流掉，于是它停在一个
+                  // 「擦了纸底、没擦器物」的半帧上，从上面转台画布的透明区漏出来。
+                  // 隐藏只断成像，Web 节点和探针回调都还在（结论已经拿到，不需要它再报）。
+                  .visibility(this.mode3d === 'fallback' ? Visibility.Hidden : Visibility.Visible)
                 if (this.mode3d !== '3d') {
                   PotteryTurntable({
                     shape: this.shape,
