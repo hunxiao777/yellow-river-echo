@@ -80,6 +80,11 @@ export struct PotteryTurntable {
   // 而且要 source-over + 轮廓 clip（见 wrap 第二遍），留在矢量那条路走。
   private strip: image.PixelMap | null = null;
   private stripKey: string = '';
+  // 拼纹样带用的小离屏画布（常驻复用）和上一帧取出来的位图（下一帧再放，见 composeBand）
+  private bandCtx: OffscreenCanvasRenderingContext2D | null = null;
+  private bandW: number = 0;
+  private bandH: number = 0;
+  private bandPm: image.PixelMap | null = null;
 
   aboutToAppear(): void {
     let svc = TurntableFrames.get();
@@ -109,6 +114,12 @@ export struct PotteryTurntable {
     this.stripKey = '';
     if (s !== null) {
       s.release().then((): void => {});
+    }
+    let bp = this.bandPm;
+    this.bandPm = null;
+    this.bandCtx = null;
+    if (bp !== null) {
+      bp.release().then((): void => {});
     }
     TurntableFrames.get().releaseAll();
   }
@@ -340,11 +351,14 @@ export struct PotteryTurntable {
       // 出来的位图就是「只有带子那一条」，行号和贴图那边一一对上。
       o.scale(STRIP_SS, STRIP_SS);
       o.translate(0, -y0);
-      drawBand(o, p, this.motif, this.seed, 0, per, y0, y1, this.fh);
-      let pm = o.getPixelMap(0, 0, wPx, hPx);
-      let got = pm.getImageInfoSync().size;
-      console.info('STRIP want ' + wPx + 'x' + hPx + ' got ' + got.width + 'x' + got.height);
-      this.strip = pm;
+      // 连左右各多画一个周期：带子内边按「一个周期」取，画布宽是 ceil 出来的，
+      // 右端会留最多 1 像素全透明。段与段跨接缝时那 1 像素就成了一道竖细线
+      // （盆 + 漩涡纹 + 龙山黑 实测看得见，取证 .tmp/em_jank/b2_crop.png 带子里那道竖线）。
+      // 纹样本来就是半周一循环，多画的两段和中间那段严丝合缝，只是烘的时候多两笔。
+      for (let j = -1; j <= 1; j++) {
+        drawBand(o, p, this.motif, this.seed, j * per, (j + 1) * per, y0, y1, this.fh);
+      }
+      this.strip = o.getPixelMap(0, 0, wPx, hPx);
       this.stripKey = key;
     } catch (e) {
       console.warn('band strip unavailable: keep vector wrap');
@@ -358,6 +372,84 @@ export struct PotteryTurntable {
       old.release().then((): void => {});
     }
     return this.strip !== null;
+  }
+
+  /* 八段柱面贴图：把展开带按 SLABS 段分别压扁贴回器表。形参收 CanvasRenderer，
+     因为同一套画法要能喂给主画布（离屏建不起来时直接上屏）和离屏画布（正常路径）。
+     合成模式由调用方在进门前设好，这里只管 clip 和贴图。
+     贴图用「整张带子铺满 per·slope 宽、再按段 clip」而不是带源矩形的八参形式：
+     官方 d.ts 里 drawImage 源矩形的单位跟着 API 版本变（18 以前 px、以后 vp），而
+     OffscreenCanvas 建出来的位图按不按 density 放大查不到实锤，两头都不敢猜 ——
+     八参那版上设备实测就是纹样缩成一小块浮在罐肚右边（取证 .tmp/em_jank/crop2.png），
+     只给目标矩形的五参形式压根没有源坐标，单位问题直接消失。 */
+  private blitSlabs(o: CanvasRenderer, bmp: image.PixelMap, per: number, sw: number, y0: number,
+    bh: number, xL: number[], xR: number[], sL: number[], sq: number[]): void {
+    for (let k = 0; k < SLABS; k++) {
+      // 展开坐标按一个周期取模回到带子里
+      let u = sL[k] - per * Math.floor(sL[k] / per);
+      let wide = per * sq[k];
+      let x0 = xL[k] - u * sq[k];
+      o.save();
+      o.beginPath();
+      // 不让边、不多叠：段与段按同一个线性映射首尾相接，dst 矩形严丝合缝。
+      // 试过左右各让 0.5 单位去补抗锯齿缝 —— 反而更糟：带子的底是一层 16% 白，
+      // 两段一叠就成了 29% 白，盆 + 漩涡纹 实测每一段接缝都多出一道亮竖线
+      // （取证 .tmp/em_jank/b3_band.png，七道竖线全在段界上）。
+      o.rect(xL[k], y0, xR[k] - xL[k], bh);
+      o.clip();
+      o.drawImage(bmp, x0, y0, wide, bh);
+      // 跨接缝的那一段：左边贴完还差一截，把同一张带子往右平移一个周期再贴一笔
+      if (u + sw > per) {
+        o.drawImage(bmp, x0 + wide, y0, wide, bh);
+      }
+      o.restore();
+    }
+  }
+
+  /* 把八段纹样带拼到一张小离屏画布上，取成位图给主画布贴一笔。返回 null = 这条路走不通。
+     画布按 LengthMetricsUnit.PX 建，尺寸 = 器身宽 × 带高再乘 STRIP_SS（一个展开单位烘几像素）；
+     画布本身常驻复用，只有尺寸变了（换器型/换带位）才重建。
+     取出来的位图不能贴完立刻 release：drawImage 只是把命令记进画布，真正取样在光栅化时，
+     所以留到下一帧换新的时候再放（官方对 release 的原话是「确保所有异步操作已结束」）。 */
+  private composeBand(bmp: image.PixelMap, r: number, y0: number, y1: number, per: number,
+    sw: number, xL: number[], xR: number[], sL: number[], sq: number[]): image.PixelMap | null {
+    let bwPx = Math.ceil(2 * r * STRIP_SS);
+    let bhPx = Math.ceil((y1 - y0) * STRIP_SS);
+    if (this.bandCtx === null || this.bandW !== bwPx || this.bandH !== bhPx) {
+      try {
+        let off = new OffscreenCanvas(bwPx, bhPx, LengthMetricsUnit.PX);
+        this.bandCtx = off.getContext('2d', new RenderingContextSettings(true));
+        this.bandW = bwPx;
+        this.bandH = bhPx;
+      } catch (e) {
+        this.bandCtx = null;
+        return null;
+      }
+    }
+    let o = this.bandCtx;
+    if (o === null) {
+      return null;
+    }
+    try {
+      o.setTransform(1, 0, 0, 1, 0, 0);
+      o.clearRect(0, 0, bwPx, bhPx);
+      // 离屏按「帧坐标」作画：原点落在器身左缘、带上沿，缩放 STRIP_SS
+      o.setTransform(STRIP_SS, 0, 0, STRIP_SS,
+        -(this.fw / 2 - r) * STRIP_SS, -y0 * STRIP_SS);
+      o.globalCompositeOperation = 'source-over';
+      this.blitSlabs(o, bmp, per, sw, y0, y1 - y0, xL, xR, sL, sq);
+      let pm = o.getPixelMap(0, 0, bwPx, bhPx);
+      let old = this.bandPm;
+      this.bandPm = pm;
+      if (old !== null) {
+        old.release().then((): void => {});
+      }
+      return pm;
+    } catch (e) {
+      console.warn('band offscreen unavailable: blit slabs onto the canvas');
+      this.bandCtx = null;
+      return null;
+    }
   }
 
   // 纹样带按弧度覆盖：把器表正对的半周展开成一条带，等角度切成 SLABS 段，
@@ -399,17 +491,16 @@ export struct PotteryTurntable {
       sR.push(s1);
       sq.push((x1 - x0) / (s1 - s0));
     }
-    // 展开带缓存这条路：带子先烘成一张一个周期宽的位图，每帧只剩 8~16 次贴图而不是重画矢量。
-    // 按位拆罩层能定位到这一层（同一协议、同一台模拟器，累计 jank 帧）：
-    // 去掉纹样带这一层 → 13；只留它、别的全关 → 1023；全开 → 464~1093。
-    // 但换成位图之后并没有立刻变快，三臂各复测（每臂 2~5 轮）：
-    //   矢量 · 八段 clip      325 / 333 / 642
-    //   位图 · 八段 clip      295 / 328 / 364 / 410 / 624
-    //   位图 · 一笔贴平        0 / 0   （画面是错的：没有柱面压缩，纹样横着铺满）
-    // 所以这笔钱是按「主画布上落了几笔」收的，跟几何是矢量还是贴图关系不大：
-    // 缓存把卡顿从中位 333 压到 364，等于没压下来；真要丝滑得把八段并到一屏一笔里去。
-    // 这一层先按「画面正确」定下来（纹样贴在器表上、到边缘自然压扁），减笔数单独一轮，
-    // 不在这里顺手改画面。
+    // 纹样带这两步（烘展开带 + 离屏拼带）是量出来的，不是猜的。同一协议、同一台模拟器，
+    // 看 RSJankStats 的累计丢帧数（每行一轮）：
+    //   按位拆罩层先定位    去掉纹样带 13；只留纹样带 1023；四层全开 464~1093
+    //   矢量 · 八段 clip 直接上屏        325 / 333 / 642
+    //   位图 · 八段 clip 直接上屏        295 / 328 / 364 / 410 / 624  ← 光把矢量换成贴图等于没换
+    //   位图 · 一笔贴平（画面是错的）      0 / 0
+    //   位图 · 八段先拼离屏、一笔上屏      0 / 0 / 0 / 0
+    // 所以这笔钱是按「一帧往主画布上落了几笔」收的，跟画的是矢量还是贴图、画多大面积都不大相干。
+    // 带子缓存本身不是提速那一刀（它只是让「拼一次、贴一笔」成为可能），
+    // 真正丝滑起来靠 composeBand 把八笔挪进离屏、主画布只留一笔。
     let blitted = false;
     if (this.ensureStrip(p, m, y0, y1)) {
       let bmp = this.strip;
@@ -417,26 +508,16 @@ export struct PotteryTurntable {
         blitted = true;
         let bh = y1 - y0;
         let sw = r * da;
+        // 八段先在一张「器身宽 × 带高」的小离屏画布上拼好，主画布只贴一笔。
+        // 为什么要挪：上一轮三臂实测（同一协议、同一台模拟器，累计 jank 帧）——
+        // 主画布上一笔贴图 = 0，主画布上八笔 clip = 300+，同样的八笔挪进离屏就只剩一笔上屏。
+        let band = this.composeBand(bmp, r, y0, y1, per, sw, xL, xR, sL, sq);
         c.globalCompositeOperation = 'source-atop';
-        for (let k = 0; k < SLABS; k++) {
-          // 展开坐标按一个周期取模回到带子里。贴图用「整张带子铺满 per·slope 宽、再按段 clip」
-          // 而不是带源矩形的八参形式：官方 d.ts 里 drawImage 源矩形的单位跟着 API 版本变
-          // （18 以前 px、以后 vp），而 OffscreenCanvas 建出来的位图按不按 density 放大查不到实锤，
-          // 两头都不敢猜 —— 八参那版上设备实测就是纹样缩成一小块浮在罐肚右边（取证
-          // .tmp/em_jank/crop2.png），只给目标矩形的五参形式压根没有源坐标，单位问题直接消失。
-          let u = sL[k] - per * Math.floor(sL[k] / per);
-          let wide = per * sq[k];
-          let x0 = xL[k] - u * sq[k];
-          c.save();
-          c.beginPath();
-          c.rect(xL[k], y0, xR[k] - xL[k], bh);
-          c.clip();
-          c.drawImage(bmp, x0, y0, wide, bh);
-          // 跨接缝的那一段：左边贴完还差一截，把同一张带子往右平移一个周期再贴一笔
-          if (u + sw > per) {
-            c.drawImage(bmp, x0 + wide, y0, wide, bh);
-          }
-          c.restore();
+        if (band !== null) {
+          c.drawImage(band, this.fw / 2 - r, y0, 2 * r, bh);
+        } else {
+          // 离屏建不起来（拿不到 OffscreenCanvas / getPixelMap）：照旧八笔直接上屏，画面一样、只是慢
+          this.blitSlabs(c, bmp, per, sw, y0, bh, xL, xR, sL, sq);
         }
       }
     }
