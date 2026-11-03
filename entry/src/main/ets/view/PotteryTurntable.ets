@@ -262,7 +262,12 @@ export struct PotteryTurntable {
     // 量过帧的不透明包围盒：top=71 / bot=491 / 半宽 237，与映射表 77 / 488 / 236 对得上，
     // 所以不是位置算错，是这一笔根本不该画（复现：node .tmp/pot_preview/preview.mjs measure）。
     c.globalCompositeOperation = 'destination-over';
-    drawPedestal(c, p, this.shape, this.pedestal, m.botPx, this.fw, this.fh);
+    // 鼎式的接触点在三足尖，不在器身底边：映射表 botPx=488 是归一化轮廓的底，
+    // 但灰模帧的不透明包围盒实测到 571~573（fh=640，
+    // node .tmp/pot_preview/preview.mjs measure），座面按足尖画；
+    // 不然 488 处的座面会从三足中间穿过去（用户截图 2026-11-03 144218）。
+    let contact = this.shape === '鼎式' ? this.fh * 0.895 : m.botPx;
+    drawPedestal(c, p, this.shape, this.pedestal, contact, this.fw, this.fh);
     c.restore();
 
     // 纸底留在画布坐标铺满整块预览区：帧只有器物那一圈是不透明的，别的都归纸底

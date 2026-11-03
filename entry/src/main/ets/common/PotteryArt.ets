@@ -485,21 +485,34 @@ export function drawPedestal(c: CanvasRenderer, p: Palette, shape: string,
     c.ellipse(w / 2, base, w * 0.24, h * 0.02, 0, 0, Math.PI * 2);
     c.fill();
   } else if (pedestal === '圆几') {
-    c.strokeStyle = p.accent;
-    c.lineWidth = Math.max(w * 0.012, 1.5);
+    // 圆几和素台同一套立体语言：几面有厚度（面椭圆亮一档、前沿暗一档），
+    // 三足是带宽度的填充而不是描线，原来的「椭圆圈+火柴棍腿」是平面图。
     let rx = w * 0.30;
-    // 先腿后面：几面椭圆压住腿的上端，接榫才看不出缝
+    let ry = h * 0.024;
+    // 先画腿：上端被几面前沿压住，接榫才看不出缝；中间一腿正对、两侧外撇
+    c.fillStyle = 'rgba(255,255,255,0.60)';
     for (let i = -1; i <= 1; i++) {
+      let lx = w / 2 + i * rx * 0.62;
+      let fx = w / 2 + i * rx * 0.84;
       c.beginPath();
-      c.moveTo(w / 2 + i * rx * 0.66, base + h * 0.02);
-      c.lineTo(w / 2 + i * rx * 0.80, base + h * 0.085);
-      c.stroke();
+      c.moveTo(lx - w * 0.014, base + ry * 0.5);
+      c.lineTo(lx + w * 0.014, base + ry * 0.5);
+      c.lineTo(fx + w * 0.011, base + h * 0.085);
+      c.lineTo(fx - w * 0.011, base + h * 0.085);
+      c.closePath();
+      c.fill();
     }
+    // 几面厚度：座身矩形 + 下椭圆，和素台座身同一档颜色
+    c.fillStyle = 'rgba(255,255,255,0.45)';
+    c.fillRect(w / 2 - rx, base, rx * 2, h * 0.018);
     c.beginPath();
-    c.ellipse(w / 2, base, rx, h * 0.045, 0, 0, Math.PI * 2);
-    c.fillStyle = 'rgba(255,255,255,0.35)';
+    c.ellipse(w / 2, base + h * 0.018, rx, ry, 0, 0, Math.PI * 2);
     c.fill();
-    c.stroke();
+    // 几面：亮一档的椭圆盖住上沿
+    c.fillStyle = 'rgba(255,255,255,0.78)';
+    c.beginPath();
+    c.ellipse(w / 2, base, rx, ry, 0, 0, Math.PI * 2);
+    c.fill();
   } else {
     // 素台：实心底座 = 座身矩形 + 底椭圆 + 亮一档的座面椭圆，一律填充不描边
     let rx = w * 0.28;

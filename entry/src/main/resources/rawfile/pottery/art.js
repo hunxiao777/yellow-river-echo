@@ -531,21 +531,34 @@ export function drawPedestal(c, p, shape,
     c.ellipse(w / 2, base, w * 0.24, h * 0.02, 0, 0, Math.PI * 2);
     c.fill();
   } else if (pedestal === '圆几') {
-    c.strokeStyle = p.accent;
-    c.lineWidth = Math.max(w * 0.012, 1.5);
-    let rx = w * 0.30;
     
+    
+    let rx = w * 0.30;
+    let ry = h * 0.024;
+    
+    c.fillStyle = 'rgba(255,255,255,0.60)';
     for (let i = -1; i <= 1; i++) {
+      let lx = w / 2 + i * rx * 0.62;
+      let fx = w / 2 + i * rx * 0.84;
       c.beginPath();
-      c.moveTo(w / 2 + i * rx * 0.66, base + h * 0.02);
-      c.lineTo(w / 2 + i * rx * 0.80, base + h * 0.085);
-      c.stroke();
+      c.moveTo(lx - w * 0.014, base + ry * 0.5);
+      c.lineTo(lx + w * 0.014, base + ry * 0.5);
+      c.lineTo(fx + w * 0.011, base + h * 0.085);
+      c.lineTo(fx - w * 0.011, base + h * 0.085);
+      c.closePath();
+      c.fill();
     }
+    
+    c.fillStyle = 'rgba(255,255,255,0.45)';
+    c.fillRect(w / 2 - rx, base, rx * 2, h * 0.018);
     c.beginPath();
-    c.ellipse(w / 2, base, rx, h * 0.045, 0, 0, Math.PI * 2);
-    c.fillStyle = 'rgba(255,255,255,0.35)';
+    c.ellipse(w / 2, base + h * 0.018, rx, ry, 0, 0, Math.PI * 2);
     c.fill();
-    c.stroke();
+    
+    c.fillStyle = 'rgba(255,255,255,0.78)';
+    c.beginPath();
+    c.ellipse(w / 2, base, rx, ry, 0, 0, Math.PI * 2);
+    c.fill();
   } else {
     
     let rx = w * 0.28;
