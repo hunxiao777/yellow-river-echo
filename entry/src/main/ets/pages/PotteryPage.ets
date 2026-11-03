@@ -11,7 +11,6 @@ const SHAPES: string[] = ['罐', '盆', '壶', '瓶', '鼎式'];
 const MOTIFS: string[] = ['鱼纹', '鸟纹', '漩涡纹', '网格纹', '锯齿纹', '花瓣纹'];
 const GLAZE_KEYS: string[] = ['yangshao', 'longshan', 'xiashang', 'zhou', 'hantang', 'song'];
 const GLAZE_NAMES: string[] = ['仰韶红', '龙山黑', '夏商青绿', '周玉色', '汉唐赭黄', '宋天青'];
-const WORD_OPTS: string[] = ['不题字', '黄', '河', '记', '忆', '陶', '泥', '水', '岸'];
 const BOXES: string[] = ['素台', '木座', '圆几', '无'];
 
 @Entry
@@ -24,13 +23,11 @@ struct PotteryPage {
   @State motif: string = '鱼纹';
   @State glaze: string = 'yangshao';
   @State box: string = '素台';
-  @State word: string = '';
   @State seed: number = 1;
   @State name: string = '未命名第 1 件';
   // 渲染链路：probe = 探针还没出结论（此刻看到的是转台），3d = 页内 WebGL 起来了，
   // fallback = 页内明确报错或超时没吭声。只有 '3d' 才撤掉盖在 Web 上面的转台。
   @State mode3d: string = 'probe';
-  @State err3d: string = '';
   private probeTimer: number = -1;
 
   aboutToAppear(): void {
@@ -66,10 +63,6 @@ struct PotteryPage {
     }
   }
 
-  renderName(): string {
-    return this.mode3d === '3d' ? '实时 3D' : '转台序列';
-  }
-
   works(): WorkRec[] {
     if (this.rev < 0) {
       return [];
@@ -92,8 +85,6 @@ struct PotteryPage {
       this.glaze = i < 0 ? GLAZE_KEYS[0] : GLAZE_KEYS[i];
     } else if (which === 'box') {
       this.box = v;
-    } else {
-      this.word = v === '不题字' ? '' : v;
     }
   }
 
@@ -102,7 +93,6 @@ struct PotteryPage {
     this.motif = MOTIFS[(this.seed + 1) % MOTIFS.length];
     this.glaze = GLAZE_KEYS[(this.seed + 2) % GLAZE_KEYS.length];
     this.box = BOXES[this.seed % BOXES.length];
-    this.word = '';
     this.seed += 1;
     this.name = `未命名第 ${this.works().length + 1} 件`;
     promptAction.showToast({ message: '已清空，从头再配' });
@@ -119,7 +109,7 @@ struct PotteryPage {
       shape: this.shape,
       motif: this.motif,
       glaze: this.glaze,
-      word: this.word,
+      word: '',
       box: this.box,
       createdAt: Date.now()
     };
@@ -133,7 +123,6 @@ struct PotteryPage {
     this.motif = w.motif;
     this.glaze = w.glaze;
     this.box = w.box;
-    this.word = w.word;
     this.name = w.name;
     promptAction.showToast({ message: `已载入「${w.name}」的参数` });
   }
@@ -141,17 +130,17 @@ struct PotteryPage {
   build() {
     Column({ space: 10 }) {
       Row({ space: 10 }) {
-        Text('‹').fontSize(fs(this.ts, 24)).fontColor(CLAY).width(22)
+        Text('‹').fontSize(fs(this.ts, 26)).fontColor(CLAY).width(22)
           .onClick((): void => {
             router.back();
           })
         Column({ space: 2 }) {
-          Text('彩陶工坊').fontSize(fs(this.ts, 18)).fontColor(INK).fontWeight(FontWeight.Bold)
+          Text('彩陶工坊').fontSize(fs(this.ts, 20)).fontColor(INK).fontWeight(FontWeight.Bold)
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
 
-        Text('课程 ›').fontSize(fs(this.ts, 13)).fontColor(RIVER)
+        Text('课程 ›').fontSize(fs(this.ts, 15)).fontColor(RIVER)
           .onClick((): void => {
             goCourses();
           })
@@ -176,13 +165,9 @@ struct PotteryPage {
                   motif: this.motif,
                   glaze: this.glaze,
                   pedestal: this.box,
-                  word: this.word,
                   seed: this.seed,
                   onMode: (m: string): void => {
                     this.onProbe(m);
-                  },
-                  onErr: (msg: string): void => {
-                    this.err3d = msg;
                   }
                 })
                   // 探针结论一旦是 fallback，这层就不该再参与成像：它建不起 WebGL 就只剩
@@ -196,7 +181,6 @@ struct PotteryPage {
                     motif: this.motif,
                     glaze: this.glaze,
                     pedestal: this.box,
-                    word: this.word,
                     seed: this.seed
                   })
                 }
@@ -210,9 +194,9 @@ struct PotteryPage {
             .clip(true)
 
             Row({ space: 8 }) {
-              Text('作品名').fontSize(fs(this.ts, 12)).fontColor(SUB)
+              Text('作品名').fontSize(fs(this.ts, 14)).fontColor(SUB)
               TextInput({ text: this.name, placeholder: '给这件起个名' })
-                .height(36).fontSize(fs(this.ts, 13)).layoutWeight(1)
+                .height(40).fontSize(fs(this.ts, 15)).layoutWeight(1)
                 .backgroundColor(PAPER)
                 .onChange((v: string): void => {
                   this.name = v;
@@ -220,14 +204,8 @@ struct PotteryPage {
             }
             .width('100%')
 
-            Text(`${this.shape} · ${this.motif} · ${this.glazeName()} · 题字${this.word.length === 0 ? '无' : this.word} · ${this.box}`)
-              .fontSize(fs(this.ts, 11)).fontColor(SUB).width('100%')
-            // 走的是哪条链路要写在脸上：演示和兼容测试时，这一行就是「这台设备
-            // 到底有没有 WebGL」的读数，不用去翻日志。fallback 还把页内报的原因带上。
-            Text(this.mode3d === 'fallback' && this.err3d.length > 0
-              ? `${this.renderName()} · 3D 不可用：${this.err3d}`
-              : this.renderName())
-              .fontSize(fs(this.ts, 10)).fontColor(SUB).width('100%').opacity(0.75)
+            Text(`${this.shape} · ${this.motif} · ${this.glazeName()} · ${this.box}`)
+              .fontSize(fs(this.ts, 13)).fontColor(SUB).width('100%')
           }
           .width('100%')
           .padding(10)
@@ -236,8 +214,8 @@ struct PotteryPage {
 
           Column({ space: 6 }) {
             Row({ space: 6 }) {
-              Text('器型').fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Medium)
-              Text('口沿、鼓腹、底足各不相同').fontSize(fs(this.ts, 10)).fontColor(SUB).layoutWeight(1)
+              Text('器型').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text('口沿、鼓腹、底足各不相同').fontSize(fs(this.ts, 12)).fontColor(SUB).layoutWeight(1)
             }
             .width('100%')
 
@@ -245,7 +223,7 @@ struct PotteryPage {
               Row({ space: 7 }) {
                 ForEach(SHAPES, (o: string): void => {
                   Text(o)
-                    .fontSize(fs(this.ts, 12))
+                    .fontSize(fs(this.ts, 14))
                     .fontColor(o === this.shape ? Color.White : INK)
                     .padding({ left: 12, right: 12, top: 6, bottom: 6 })
                     .borderRadius(14)
@@ -267,8 +245,8 @@ struct PotteryPage {
 
           Column({ space: 6 }) {
             Row({ space: 6 }) {
-              Text('纹样').fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Medium)
-              Text('画在腹部纹样带上').fontSize(fs(this.ts, 10)).fontColor(SUB).layoutWeight(1)
+              Text('纹样').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text('画在腹部纹样带上').fontSize(fs(this.ts, 12)).fontColor(SUB).layoutWeight(1)
             }
             .width('100%')
 
@@ -276,7 +254,7 @@ struct PotteryPage {
               Row({ space: 7 }) {
                 ForEach(MOTIFS, (o: string): void => {
                   Text(o)
-                    .fontSize(fs(this.ts, 12))
+                    .fontSize(fs(this.ts, 14))
                     .fontColor(o === this.motif ? Color.White : INK)
                     .padding({ left: 12, right: 12, top: 6, bottom: 6 })
                     .borderRadius(14)
@@ -298,8 +276,8 @@ struct PotteryPage {
 
           Column({ space: 6 }) {
             Row({ space: 6 }) {
-              Text('配色').fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Medium)
-              Text('按时代的釉色调子').fontSize(fs(this.ts, 10)).fontColor(SUB).layoutWeight(1)
+              Text('配色').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text('按时代的釉色调子').fontSize(fs(this.ts, 12)).fontColor(SUB).layoutWeight(1)
             }
             .width('100%')
 
@@ -307,7 +285,7 @@ struct PotteryPage {
               Row({ space: 7 }) {
                 ForEach(GLAZE_NAMES, (o: string): void => {
                   Text(o)
-                    .fontSize(fs(this.ts, 12))
+                    .fontSize(fs(this.ts, 14))
                     .fontColor(o === this.glazeName() ? Color.White : INK)
                     .padding({ left: 12, right: 12, top: 6, bottom: 6 })
                     .borderRadius(14)
@@ -329,41 +307,8 @@ struct PotteryPage {
 
           Column({ space: 6 }) {
             Row({ space: 6 }) {
-              Text('题字').fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Medium)
-              Text('字会写在器物腹部').fontSize(fs(this.ts, 10)).fontColor(SUB).layoutWeight(1)
-            }
-            .width('100%')
-
-            Scroll() {
-              Row({ space: 7 }) {
-                ForEach(WORD_OPTS, (o: string): void => {
-                  Text(o)
-                    .fontSize(fs(this.ts, 12))
-                    .fontColor(o === (this.word.length === 0 ? '不题字' : this.word) ? Color.White : INK)
-                    .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-                    .borderRadius(14)
-                    .backgroundColor(o === (this.word.length === 0 ? '不题字' : this.word)
-                      ? CLAY : $r('app.color.card_bg'))
-                    .border({ width: 1,
-                      color: o === (this.word.length === 0 ? '不题字' : this.word) ? CLAY : LINE })
-                    .onClick((): void => {
-                      this.setDim('word', o);
-                    })
-                }, (o: string): string => 'word_' + o)
-              }
-              .padding({ right: 10 })
-            }
-            .scrollable(ScrollDirection.Horizontal)
-            .scrollBar(BarState.Off)
-            .width('100%')
-          }
-          .width('100%')
-          .alignItems(HorizontalAlign.Start)
-
-          Column({ space: 6 }) {
-            Row({ space: 6 }) {
-              Text('展示座').fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Medium)
-              Text('器物下面垫什么').fontSize(fs(this.ts, 10)).fontColor(SUB).layoutWeight(1)
+              Text('展示座').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text('器物下面垫什么').fontSize(fs(this.ts, 12)).fontColor(SUB).layoutWeight(1)
             }
             .width('100%')
 
@@ -371,7 +316,7 @@ struct PotteryPage {
               Row({ space: 7 }) {
                 ForEach(BOXES, (o: string): void => {
                   Text(o)
-                    .fontSize(fs(this.ts, 12))
+                    .fontSize(fs(this.ts, 14))
                     .fontColor(o === this.box ? Color.White : INK)
                     .padding({ left: 12, right: 12, top: 6, bottom: 6 })
                     .borderRadius(14)
@@ -393,15 +338,15 @@ struct PotteryPage {
 
           Column({ space: 6 }) {
             Row({ space: 6 }) {
-              Text('已存作品').fontSize(fs(this.ts, 13)).fontColor(INK).fontWeight(FontWeight.Medium)
-              Text(`${this.works().length} 件 · 点开可复原五个维度`).fontSize(fs(this.ts, 10)).fontColor(SUB)
+              Text('已存作品').fontSize(fs(this.ts, 15)).fontColor(INK).fontWeight(FontWeight.Medium)
+              Text(`${this.works().length} 件 · 点开可重新编辑`).fontSize(fs(this.ts, 12)).fontColor(SUB)
                 .layoutWeight(1)
             }
             .width('100%')
 
             if (this.works().length === 0) {
               Text('还没有存过作品，配好了点下面的「保存这件」')
-                .fontSize(fs(this.ts, 11)).fontColor(SUB).width('100%').padding({ top: 8, bottom: 8 })
+                .fontSize(fs(this.ts, 13)).fontColor(SUB).width('100%').padding({ top: 8, bottom: 8 })
             } else {
               List({ space: 8 }) {
                 ForEach(this.works(), (w: WorkRec): void => {
@@ -420,7 +365,7 @@ struct PotteryPage {
                         }
                         .width(88).height(88).borderRadius(8).clip(true)
                         Text('✕')
-                          .fontSize(fs(this.ts, 12)).fontColor(INK)
+                          .fontSize(fs(this.ts, 14)).fontColor(INK)
                           .width(20).height(20).borderRadius(10)
                           .backgroundColor('rgba(255,255,255,0.88)')
                           .textAlign(TextAlign.Center)
@@ -430,7 +375,7 @@ struct PotteryPage {
                       }
                       .width(88)
 
-                      Text(w.name).fontSize(fs(this.ts, 10)).fontColor(SUB).width(88).maxLines(1)
+                      Text(w.name).fontSize(fs(this.ts, 12)).fontColor(SUB).width(88).maxLines(1)
                         .textOverflow({ overflow: TextOverflow.Ellipsis })
                     }
                     .alignItems(HorizontalAlign.Start)
@@ -460,13 +405,13 @@ struct PotteryPage {
 
       Row({ space: 10 }) {
         Button('再来一件')
-          .layoutWeight(1).height(42).fontSize(fs(this.ts, 14))
+          .layoutWeight(1).height(42).fontSize(fs(this.ts, 16))
           .backgroundColor($r('app.color.line')).fontColor(INK)
           .onClick((): void => {
             this.reset();
           })
         Button('保存这件')
-          .layoutWeight(1).height(42).fontSize(fs(this.ts, 14))
+          .layoutWeight(1).height(42).fontSize(fs(this.ts, 16))
           .backgroundColor(paletteOf(this.glaze).deep).fontColor(Color.White)
           .onClick((): void => {
             this.save();
