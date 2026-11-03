@@ -75,6 +75,12 @@ export struct PotteryCanvas {
     c.clearRect(0, 0, w, h);
     drawPaper(c, p, this.seed, w, h);
     this.feet(c, p, w, h);
+    // 展示座先画、器身后画：座面贴着器底，器身把座面当中盖住，
+    // 露出来的两侧弧面和座身前沿就是「坐在上面」的遮挡关系。
+    // 鼎式的接触点在三足尖（feet 往下伸的那截），不在 V_BOT 那条线；
+    // 转台不用特判——灰模帧的底足/足尖本来就烘在 botPx 上。
+    drawPedestal(c, p, this.shape, this.pedestal,
+      this.shape === '鼎式' ? bot + (bot - top) * 0.20 : bot, w, h);
 
     tracePath(c, this.shape, w, h);
     let g: CanvasGradient = c.createLinearGradient(0, top, 0, bot);
@@ -121,8 +127,6 @@ export struct PotteryCanvas {
       c.arc(w / 2 + rx * 1.02, top + (bot - top) * 0.22, rx * 0.26, Math.PI * 0.5, Math.PI * 1.5);
       c.stroke();
     }
-
-    drawPedestal(c, p, this.shape, this.pedestal, bot, w, h);
   }
 
   build() {

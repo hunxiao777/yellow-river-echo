@@ -492,56 +492,73 @@ export function drawRimFoot(c, p, shape,
 
 
 
+
+
+
+
+
+
 export function drawPedestal(c, p, shape,
   pedestal, bot, w, h) {
-  let base = bot + (h - bot) * 0.42;
-  if (shape === '鼎式') {
-    base = bot + (h - bot) * 0.53;
-  }
+  let base = bot + h * 0.012;
   if (pedestal === '无') {
-    c.fillStyle = 'rgba(43,38,34,0.10)';
+    
+    c.fillStyle = 'rgba(43,38,34,0.16)';
     c.beginPath();
-    c.ellipse(w / 2, base, w * 0.30, h * 0.03, 0, 0, Math.PI * 2);
+    c.ellipse(w / 2, base + h * 0.012, w * 0.26, h * 0.026, 0, 0, Math.PI * 2);
     c.fill();
     return;
   }
+  
   c.fillStyle = 'rgba(43,38,34,0.12)';
   c.beginPath();
-  c.ellipse(w / 2, base + h * 0.055, w * 0.36, h * 0.035, 0, 0, Math.PI * 2);
+  c.ellipse(w / 2, base + h * 0.085, w * 0.36, h * 0.032, 0, 0, Math.PI * 2);
   c.fill();
   if (pedestal === '木座') {
     c.fillStyle = '#5A4030';
     c.beginPath();
-    c.moveTo(w * 0.24, base);
-    c.lineTo(w * 0.76, base);
-    c.lineTo(w * 0.70, base + h * 0.055);
-    c.lineTo(w * 0.30, base + h * 0.055);
+    c.moveTo(w * 0.26, base);
+    c.lineTo(w * 0.74, base);
+    c.lineTo(w * 0.69, base + h * 0.05);
+    c.lineTo(w * 0.31, base + h * 0.05);
     c.closePath();
     c.fill();
-    c.fillRect(w * 0.30, base + h * 0.055, w * 0.055, h * 0.045);
-    c.fillRect(w * 0.645, base + h * 0.055, w * 0.055, h * 0.045);
-    c.fillRect(w * 0.47, base + h * 0.055, w * 0.06, h * 0.035);
+    c.fillRect(w * 0.32, base + h * 0.05, w * 0.05, h * 0.04);
+    c.fillRect(w * 0.63, base + h * 0.05, w * 0.05, h * 0.04);
+    
+    c.fillStyle = '#7A5843';
+    c.beginPath();
+    c.ellipse(w / 2, base, w * 0.24, h * 0.02, 0, 0, Math.PI * 2);
+    c.fill();
   } else if (pedestal === '圆几') {
     c.strokeStyle = p.accent;
     c.lineWidth = Math.max(w * 0.012, 1.5);
     let rx = w * 0.30;
+    
+    for (let i = -1; i <= 1; i++) {
+      c.beginPath();
+      c.moveTo(w / 2 + i * rx * 0.66, base + h * 0.02);
+      c.lineTo(w / 2 + i * rx * 0.80, base + h * 0.085);
+      c.stroke();
+    }
     c.beginPath();
     c.ellipse(w / 2, base, rx, h * 0.045, 0, 0, Math.PI * 2);
     c.fillStyle = 'rgba(255,255,255,0.35)';
     c.fill();
     c.stroke();
-    for (let i = -1; i <= 1; i++) {
-      c.beginPath();
-      c.moveTo(w / 2 + i * rx * 0.66, base + h * 0.03);
-      c.lineTo(w / 2 + i * rx * 0.80, base + h * 0.09);
-      c.stroke();
-    }
   } else {
-    c.fillStyle = 'rgba(255,255,255,0.55)';
-    c.fillRect(w * 0.20, base, w * 0.60, h * 0.055);
-    c.strokeStyle = p.deep;
-    c.lineWidth = Math.max(w * 0.008, 1);
-    c.strokeRect(w * 0.20, base, w * 0.60, h * 0.055);
+    
+    let rx = w * 0.28;
+    let bh = h * 0.06;
+    c.fillStyle = 'rgba(255,255,255,0.45)';
+    c.fillRect(w / 2 - rx, base, rx * 2, bh);
+    c.beginPath();
+    c.ellipse(w / 2, base + bh, rx, h * 0.024, 0, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.78)';
+    c.beginPath();
+    c.ellipse(w / 2, base, rx, h * 0.024, 0, 0, Math.PI * 2);
+    c.fill();
   }
 }
 
