@@ -13,7 +13,6 @@ export interface RouteParam {
   courseId?: string;
   eventId?: string;
   tab?: number;
-  colorKey?: string;
   relic?: number;
   from?: string;
 }
@@ -116,13 +115,7 @@ export function goRoute(): void {
   router.pushUrl({ url: 'pages/RoutePage' });
 }
 
-// 首页「颜色工坊」：一个颜色对应一类文物；colorKey 带上时落地先选中那一色
-export function goColor(colorKey: string): void {
-  let p: RouteParam = { colorKey: colorKey };
-  router.pushUrl({ url: 'pages/ColorPage', params: p });
-}
-
-// 数字文物：tab 0 观文物 / 1 创意坊（展台 + 彩陶、颜色入口）/ 2 选教程
+// 数字文物：tab 0 观文物 / 1 创意坊（展台 + 工坊入口）/ 2 选教程
 export function goStudio(tab: number): void {
   let p: RouteParam = { tab: tab };
   router.pushUrl({ url: 'pages/StudioPage', params: p });
