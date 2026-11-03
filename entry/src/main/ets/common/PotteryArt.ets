@@ -327,7 +327,13 @@ export function drawWord(c: CanvasRenderingContext2D, p: Palette, word: string,
     return;
   }
   c.fillStyle = p.accent;
-  c.font = `${Math.round(size)}px sans-serif`;
+  // 单位必须写 vp：ArkUI 的画布坐标是 vp，可 font 里的裸数字它按「物理像素」吃。
+  // 模拟器实测（同一处画两笔只差单位）—— '40px' 落 16 设备像素、'40vp' 落 58，
+  // 正好差一个屏幕密度 3.5。写 px 就等于把题字缩小 3.5 倍：罐肚上那颗「河」
+  // 只有 10 帧像素高（本该 44），而且十次里有六次干脆一个字都不落。
+  // 浏览器不认 vp，所以 .tmp/pot_preview/preview.mjs 拼 harness 时会把这一处换回 px
+  // （CSS px 就是画布单位，语义与 ArkUI 的 vp 一致），换不掉会有断言报错。
+  c.font = `${Math.round(size)}vp sans-serif`;
   c.textAlign = 'center';
   c.textBaseline = 'middle';
   let total = cs.length * size * 1.18;
