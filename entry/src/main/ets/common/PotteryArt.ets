@@ -347,8 +347,9 @@ export function drawWord(c: CanvasRenderer, p: Palette, word: string,
 }
 
 // #RRGGBB 线性掺色：b 的权重 k，结果还是不透明的 #RRGGBB。
-// 只服务纸底那一端，所以待在本文件里不进 Theme；不用 toString(16) 是免得 ArkTS 又在
-// Number 的动态方法上挑刺，直接查表。收到非法颜色就原样返回，宁可不掺也别画出一个 #000000。
+// 除了纸底，课程分镜里“渗碳由灰变黑”“窑温把胎色压深”也要靠它渐变，所以导出。
+// 不用 toString(16) 是免得 ArkTS 又在 Number 的动态方法上挑刺，直接查表。
+// 收到非法颜色就原样返回，宁可不掺也别画出一个 #000000。
 const HEXD: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
   'A', 'B', 'C', 'D', 'E', 'F'];
 
@@ -357,7 +358,7 @@ function hx2(n: number): string {
   return HEXD[Math.floor(v / 16)] + HEXD[v % 16];
 }
 
-function mixHex(a: string, b: string, k: number): string {
+export function mixHex(a: string, b: string, k: number): string {
   if (a.length !== 7 || b.length !== 7 || !a.startsWith('#') || !b.startsWith('#')) {
     return a;
   }

@@ -1,12 +1,11 @@
 import { router } from '@kit.ArkUI';
-import { INK, SUB, PAPER, CLAY, LINE, fs, coverRes } from '../common/Theme';
+import { INK, SUB, PAPER, CLAY, LINE, fs, coverRes, colorRowOf } from '../common/Theme';
 import { goBack, params, goRelic, goSandtable } from '../common/Nav';
 import { PatternBg } from '../view/PatternBg';
 import { ContentRepo } from '../service/ContentRepo';
 import { RelicBrowser } from '../view/RelicBrowser';
 import { Course } from '../model/Models';
 import { CourseRow } from '../view/CourseRow';
-import { colorRowOf } from './ColorPage';
 
 // 「数字文物」独立模块：页顶栏三个页签——观文物 / 创意坊 / 选教程
 // 观文物是内嵌的查询面板（搜索 + 分类年代颜色筛选 + 两列结果），
@@ -16,7 +15,7 @@ interface ExhibitRec {
   key: string;
 }
 
-// 六件展品：实物示意图 + 对应色键，与颜色工坊六色一一对上
+// 六件展品：实物示意图 + 对应色键，色键用来取展台下方的色名与说法
 const SHOW: ExhibitRec[] = [
   { img: 'relic_caitao', key: 'yangshao' },
   { img: 'relic_heitao', key: 'longshan' },
@@ -153,6 +152,8 @@ export struct StudioPage {
         }
         .layoutWeight(1)
         .scrollBar(BarState.Off)
+        // 课少的时候内容不满一屏，Scroll 默认会把它垂直居中，讲读/影像这种单课分类会掉到屏幕中间
+        .align(Alignment.Top)
         .edgeEffect(EdgeEffect.Spring)
       }
     }
@@ -287,7 +288,7 @@ export struct StudioPage {
     .justifyContent(FlexAlign.SpaceBetween)
   }
 
-  // —— 工坊入口：彩陶工坊 / 颜色工坊，各带一句玩法说明 ——
+  // —— 工坊入口：彩陶工坊 / 3D工坊 / 黄河沙盘，各带一句玩法说明 ——
   @Builder
   works() {
     Column({ space: 10 }) {
@@ -314,33 +315,6 @@ export struct StudioPage {
         .border({ width: 1, color: LINE })
         .onClick((): void => {
           router.pushUrl({ url: 'pages/PotteryPage' });
-        })
-      }
-      .width('100%')
-
-      Row() {
-        Column({ space: 6 }) {
-          this.workTitle('颜色工坊')
-          Text('认矿物色 · 给线稿上彩，一色一类文物')
-            .fontSize(fs(this.ts, 10))
-            .fontColor(SUB)
-          Row({ space: 4 }) {
-            Text('进工坊')
-              .fontSize(fs(this.ts, 10))
-              .fontColor(CLAY)
-            Text('›')
-              .fontSize(fs(this.ts, 11))
-              .fontColor(CLAY)
-          }
-        }
-        .alignItems(HorizontalAlign.Start)
-        .layoutWeight(1)
-        .padding(12)
-        .backgroundColor('rgba(255,255,255,0.72)')
-        .borderRadius(12)
-        .border({ width: 1, color: LINE })
-        .onClick((): void => {
-          router.pushUrl({ url: 'pages/ColorPage' });
         })
       }
       .width('100%')
