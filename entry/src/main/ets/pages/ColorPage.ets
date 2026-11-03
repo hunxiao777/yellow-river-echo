@@ -43,7 +43,7 @@ struct ColorPage {
   @State sel: string = 'yangshao';
 
   aboutToAppear(): void {
-    // 从创意工坊展台带色进来时，落地先选中那一色
+    // 从数字文物展台带色进来时，落地先选中那一色
     let p = params();
     if (p !== undefined && p.colorKey !== undefined && p.colorKey.length > 0) {
       this.sel = p.colorKey;
