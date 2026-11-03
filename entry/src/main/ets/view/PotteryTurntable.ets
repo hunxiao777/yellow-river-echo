@@ -1,4 +1,5 @@
 import { image } from '@kit.ImageKit';
+import { LengthMetricsUnit } from '@kit.ArkUI';
 import { common } from '@kit.AbilityKit';
 import { fs, paletteOf, Palette, withAlpha, hexLum, SUB } from '../common/Theme';
 import { drawBand, drawPaper, drawPedestal, drawWord, tracePath } from '../common/PotteryArt';
@@ -11,7 +12,8 @@ import { PotteryCanvas } from './PotteryCanvas';
  * 为什么不走真 3D：设备不支持 WebGL 时（探针见 pages/PotteryPage.ets）没有渲染通路，
  * 但器型的立体感又不能丢，所以烘帧脚本先把 5 种器型各 24 个角度转成灰模 webp，
  * 到这里只用二维 Canvas 把「颜色 / 纹样 / 题字」重新叠上去 —— 换釉色换纹样都不用重新烘帧，
- * 转台拖动也只是换一张已解码的位图，成本全在罩层那几笔矢量上。
+ * 转台拖动也只是换一张已解码的位图。代价在罩层：模拟器实测，卡顿是按「一帧往主画布上落了几笔」
+ * 收的（八笔 clip ≈ 每轮 300+ 丢帧，一笔 ≈ 0），所以罩层的笔数就是这一页的性能预算。
  *
  * 三层合成只用 ArkUI 明确支持的 Porter-Duff：
  *   source-over    灰模帧本体
@@ -33,6 +35,9 @@ import { PotteryCanvas } from './PotteryCanvas';
 const SLABS: number = 8;
 const SPIN_MS: number = 120;
 const RESUME_MS: number = 2500;
+// 展开带位图每个「展开单位」烘几个像素。屏上一整条纹样带约占 2710 设备像素，而展开周期只有
+// per≈741 个单位，按 1 倍烘就是 3.7 倍放大、糊得一眼可见；3 倍是「不比矢量软」和 3.5 MB 之间的折中。
+const STRIP_SS: number = 3;
 // 罩釉的压实度不是拍脑袋的数值表，是跟灰模底亮度对着算出来的：
 // FRAME_LUM 是灰模器身上半部的实测亮度中位数，TINT_TOL 是「罩完允许差多少」的亮度容差，
 // TINT_MIN 以下灰模的明暗就透出来了 —— 伪 3D 剩下的立体感全指望它。
@@ -70,16 +75,24 @@ export struct PotteryTurntable {
   private dragBase: number = 0;
   private idleAt: number = 0;
   private spin: number = -1;
+  // 展开带缓存：一张「一个展开周期宽 × 纹样带高」的位图，换纹样/釉色/种子/器型时整张重烘
+  // （一次矢量重画），转台每帧只剩 8~16 次贴图。题字不烘进来：它的周期是「一整圈」而不是半周，
+  // 而且要 source-over + 轮廓 clip（见 wrap 第二遍），留在矢量那条路走。
+  private strip: image.PixelMap | null = null;
+  private stripKey: string = '';
 
   aboutToAppear(): void {
     let svc = TurntableFrames.get();
     this.idx = svc.loadIndex(getContext(this) as common.UIAbilityContext);
     this.meta = svc.metaOf(this.shape);
-    if (this.idx !== null && this.meta !== null) {
+    let m = this.meta;
+    if (this.idx !== null && m !== null) {
       this.fw = this.idx.canvas[0];
       this.fh = this.idx.canvas[1];
       this.degStep = this.idx.degStep > 0 ? this.idx.degStep : 15;
       this.showFrame();
+      // 进页就把整套帧铺进缓存：转台每 120ms 走一笔，成像路径上绝不能现解码
+      svc.preloadFrom(m.key, this.frameIdx(), this.frameCount());
     }
     this.ensureSpin();
   }
@@ -90,6 +103,13 @@ export struct PotteryTurntable {
       this.spin = -1;
     }
     this.cur = null;
+    // 带子位图也是 native 内存，离页一并交回去
+    let s = this.strip;
+    this.strip = null;
+    this.stripKey = '';
+    if (s !== null) {
+      s.release().then((): void => {});
+    }
     TurntableFrames.get().releaseAll();
   }
 
@@ -110,6 +130,11 @@ export struct PotteryTurntable {
     if (m.key !== this.lastKey) {
       this.cur = null;
       this.ready = false;
+      // 上一件那套帧立刻放掉，缓存位全留给新器型，不然新的一套还没解完就被旧的挤出去
+      svc.keepOnly(m.key);
+      this.showFrame();
+      svc.preloadFrom(m.key, this.frameIdx(), this.frameCount());
+      return;
     }
     this.showFrame();
   }
@@ -219,6 +244,8 @@ export struct PotteryTurntable {
     c.drawImage(cur, 0, 0, this.fw, this.fh);
     this.tint(c, p, m);
     this.wrap(c, p, m);
+    // 器表明暗放在纹样之后：装饰要泡在同一层光里，不然纹样是「贴上去的」而不是「长在器上的」
+    this.shade(c, m);
     // 口沿、底足不再描：二维版那句 drawRimFoot 是拿来把「轮廓路径的平口」补成椭圆口的，
     // 而灰模帧的口、足、耳在 3D 里已经烘进位图了，再描一遍等于让一圈红环浮在罐口上方。
     // 量过帧的不透明包围盒：top=71 / bot=491 / 半宽 237，与映射表 77 / 488 / 236 对得上，
@@ -249,6 +276,88 @@ export struct PotteryTurntable {
     c.globalCompositeOperation = 'source-atop';
     c.fillStyle = g;
     c.fillRect(0, 0, this.fw, this.fh);
+  }
+
+  /* 器表明暗 —— 补的那道「这是个圆东西」的光。
+   *
+   * 为什么非补不可：烘帧的相机在赤道上（camera.position.set(0,0,camZ)、lookAt 原点），
+   * fov 只有 8.123°，接近正投影。旋转体在正投影下每个方位的轮廓是一模一样的，
+   * 灰模自己给不出「转」的体积线索 —— 除了耳和附件，24 帧几乎是同一张图，
+   * 这就是「绕竖直轴看不出立体效果」的根因（帧数据可查：罐 24 帧内容包围盒逐帧同形）。
+   *
+   * 人眼读「圆东西在转」靠的是一对相反的线索：**明暗在屏幕上是固定的，纹样在器表上是跟着转的**。
+   * 高光不跑、纹样跑，就成立；两者一起跑反而像一张贴纸在平移。所以这一笔走屏幕坐标、
+   * 且必须压在纹样之后（装饰泡在同一层光里，才是长在器上的）。
+   * 高光偏右：帧里的键光在 three 是 position.set(2.8, 3.4, 4.2)，+x 投到屏上就是右，
+   * 补的光跟帧里本来的光必须同侧，不然一件器物上会出现两个光源。
+   */
+  private shade(c: CanvasRenderingContext2D, m: ShapeMeta): void {
+    let r = m.maxHalfPx;
+    if (r <= 0) {
+      return;
+    }
+    let g: CanvasGradient = c.createLinearGradient(this.fw / 2 - r, 0, this.fw / 2 + r, 0);
+    g.addColorStop(0, 'rgba(43,38,34,0.26)');
+    g.addColorStop(0.30, 'rgba(43,38,34,0.02)');
+    g.addColorStop(0.46, 'rgba(255,255,255,0)');
+    g.addColorStop(0.64, 'rgba(255,255,255,0.15)');
+    g.addColorStop(0.80, 'rgba(255,255,255,0.03)');
+    g.addColorStop(1, 'rgba(43,38,34,0.30)');
+    c.globalCompositeOperation = 'source-atop';
+    c.fillStyle = g;
+    c.fillRect(0, 0, this.fw, this.fh);
+  }
+
+  /* 把纹样带烘成一张「一个周期宽 × 带高」的位图。返回 false 表示这条路走不通（拿不到
+     OffscreenCanvas / getPixelMap），调用方退回矢量重画那条老路，画面不变、只是慢。
+     两个刻意的收窄，都是上一版把 render_service 拖死之后改的：
+     · 只烘一个周期（per = πR）：纹样本来就是半周一循环，题字那种「整圈」周期交给矢量第二遍。
+     · 只烘纹样带那一段高：整帧高、一整圈宽的带子在 density 3.5 的屏上是 5194×2240 ≈ 46 MB
+       native 内存，上一版就是它撞上 watchdog 的（faultlog sysfreeze-render_service-1003，
+       Reason: SERVICE_BLOCK，thread(RenderService) blocked 5s）。按带高裁后是 2223×393 ≈ 3.5 MB。
+     取回来的尺寸用 STRIP 日志打进 hilog，是为了把「OffscreenCanvas 到底按什么单位建位图」这件事
+     钉死：want 和 got 相等才说明画布真是按像素建的，贴图坐标才可以照展开单位直接算。 */
+  private ensureStrip(p: Palette, m: ShapeMeta, y0: number, y1: number): boolean {
+    let r = m.maxHalfPx;
+    if (r <= 0 || y1 <= y0) {
+      return false;
+    }
+    let per = Math.PI * r;
+    let key = this.shape + '|' + this.motif + '|' + this.glaze + '|' + this.seed + '|'
+      + Math.round(per) + '|' + Math.round(y0) + '|' + Math.round(y1);
+    if (this.strip !== null && key === this.stripKey) {
+      return true;
+    }
+    let old = this.strip;
+    this.strip = null;
+    this.stripKey = '';
+    try {
+      let wPx = Math.ceil(per * STRIP_SS);
+      let hPx = Math.ceil((y1 - y0) * STRIP_SS);
+      let off = new OffscreenCanvas(wPx, hPx, LengthMetricsUnit.PX);
+      let o = off.getContext('2d', new RenderingContextSettings(true));
+      // 先按 STRIP_SS 放大、再把带子上沿挪到 0：drawBand 照旧用帧坐标（y 落在 y0..y1）画，
+      // 出来的位图就是「只有带子那一条」，行号和贴图那边一一对上。
+      o.scale(STRIP_SS, STRIP_SS);
+      o.translate(0, -y0);
+      drawBand(o, p, this.motif, this.seed, 0, per, y0, y1, this.fh);
+      let pm = o.getPixelMap(0, 0, wPx, hPx);
+      let got = pm.getImageInfoSync().size;
+      console.info('STRIP want ' + wPx + 'x' + hPx + ' got ' + got.width + 'x' + got.height);
+      this.strip = pm;
+      this.stripKey = key;
+    } catch (e) {
+      console.warn('band strip unavailable: keep vector wrap');
+      if (this.strip !== null) {
+        this.strip.release().then((): void => {});
+        this.strip = null;
+        this.stripKey = '';
+      }
+    }
+    if (old !== null) {
+      old.release().then((): void => {});
+    }
+    return this.strip !== null;
   }
 
   // 纹样带按弧度覆盖：把器表正对的半周展开成一条带，等角度切成 SLABS 段，
@@ -290,22 +399,65 @@ export struct PotteryTurntable {
       sR.push(s1);
       sq.push((x1 - x0) / (s1 - s0));
     }
-    // 第一遍：纹样带。矢量走 source-atop，只落在灰模的不透明像素里，耳、口沿都能挂上。
-    c.globalCompositeOperation = 'source-atop';
-    for (let k = 0; k < SLABS; k++) {
-      c.save();
-      c.beginPath();
-      c.rect(xL[k], 0, xR[k] - xL[k], this.fh);
-      c.clip();
-      c.translate(xL[k], 0);
-      c.scale(sq[k], 1);
-      c.translate(-sL[k], 0);
-      let j0 = Math.floor(sL[k] / per);
-      let j1 = Math.floor(sR[k] / per);
-      for (let j = j0; j <= j1; j++) {
-        drawBand(c, p, this.motif, this.seed, j * per, (j + 1) * per, y0, y1, this.fh);
+    // 展开带缓存这条路：带子先烘成一张一个周期宽的位图，每帧只剩 8~16 次贴图而不是重画矢量。
+    // 按位拆罩层能定位到这一层（同一协议、同一台模拟器，累计 jank 帧）：
+    // 去掉纹样带这一层 → 13；只留它、别的全关 → 1023；全开 → 464~1093。
+    // 但换成位图之后并没有立刻变快，三臂各复测（每臂 2~5 轮）：
+    //   矢量 · 八段 clip      325 / 333 / 642
+    //   位图 · 八段 clip      295 / 328 / 364 / 410 / 624
+    //   位图 · 一笔贴平        0 / 0   （画面是错的：没有柱面压缩，纹样横着铺满）
+    // 所以这笔钱是按「主画布上落了几笔」收的，跟几何是矢量还是贴图关系不大：
+    // 缓存把卡顿从中位 333 压到 364，等于没压下来；真要丝滑得把八段并到一屏一笔里去。
+    // 这一层先按「画面正确」定下来（纹样贴在器表上、到边缘自然压扁），减笔数单独一轮，
+    // 不在这里顺手改画面。
+    let blitted = false;
+    if (this.ensureStrip(p, m, y0, y1)) {
+      let bmp = this.strip;
+      if (bmp !== null) {
+        blitted = true;
+        let bh = y1 - y0;
+        let sw = r * da;
+        c.globalCompositeOperation = 'source-atop';
+        for (let k = 0; k < SLABS; k++) {
+          // 展开坐标按一个周期取模回到带子里。贴图用「整张带子铺满 per·slope 宽、再按段 clip」
+          // 而不是带源矩形的八参形式：官方 d.ts 里 drawImage 源矩形的单位跟着 API 版本变
+          // （18 以前 px、以后 vp），而 OffscreenCanvas 建出来的位图按不按 density 放大查不到实锤，
+          // 两头都不敢猜 —— 八参那版上设备实测就是纹样缩成一小块浮在罐肚右边（取证
+          // .tmp/em_jank/crop2.png），只给目标矩形的五参形式压根没有源坐标，单位问题直接消失。
+          let u = sL[k] - per * Math.floor(sL[k] / per);
+          let wide = per * sq[k];
+          let x0 = xL[k] - u * sq[k];
+          c.save();
+          c.beginPath();
+          c.rect(xL[k], y0, xR[k] - xL[k], bh);
+          c.clip();
+          c.drawImage(bmp, x0, y0, wide, bh);
+          // 跨接缝的那一段：左边贴完还差一截，把同一张带子往右平移一个周期再贴一笔
+          if (u + sw > per) {
+            c.drawImage(bmp, x0 + wide, y0, wide, bh);
+          }
+          c.restore();
+        }
       }
-      c.restore();
+    }
+    if (!blitted) {
+      // 第一遍：纹样带。矢量走 source-atop，只落在灰模的不透明像素里，耳、口沿都能挂上。
+      c.globalCompositeOperation = 'source-atop';
+      for (let k = 0; k < SLABS; k++) {
+        c.save();
+        c.beginPath();
+        c.rect(xL[k], 0, xR[k] - xL[k], this.fh);
+        c.clip();
+        c.translate(xL[k], 0);
+        c.scale(sq[k], 1);
+        c.translate(-sL[k], 0);
+        let j0 = Math.floor(sL[k] / per);
+        let j1 = Math.floor(sR[k] / per);
+        for (let j = j0; j <= j1; j++) {
+          drawBand(c, p, this.motif, this.seed, j * per, (j + 1) * per, y0, y1, this.fh);
+        }
+        c.restore();
+      }
     }
     // 第二遍：题字。单独一遍是因为 ArkUI 的 Canvas 在 source-atop 下不画文字 ——
     // 同一个 slab 变换里写两笔、只差这一句合成模式：source-atop 的蓝 S 是 0 像素，
