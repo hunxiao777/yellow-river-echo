@@ -62,6 +62,10 @@ export function hexLum(hex) {
 
 
 
+
+
+
+
 export const V_TOP = 0.12;
 export const V_BOT = 0.76;
 
@@ -373,7 +377,13 @@ export function drawWord(c, p, word,
     return;
   }
   c.fillStyle = p.accent;
-  c.font = `${Math.round(size)}px sans-serif`;
+  
+  
+  
+  
+  
+  
+  c.font = `${Math.round(size)}vp sans-serif`;
   c.textAlign = 'center';
   c.textBaseline = 'middle';
   let total = cs.length * size * 1.18;
@@ -384,11 +394,44 @@ export function drawWord(c, p, word,
 
 
 
+
+const HEXD = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+  'A', 'B', 'C', 'D', 'E', 'F'];
+
+function hx2(n) {
+  let v = Math.round(n < 0 ? 0 : (n > 255 ? 255 : n));
+  return HEXD[Math.floor(v / 16)] + HEXD[v % 16];
+}
+
+function mixHex(a, b, k) {
+  if (a.length !== 7 || b.length !== 7 || !a.startsWith('#') || !b.startsWith('#')) {
+    return a;
+  }
+  let ar = parseInt(a.substring(1, 3), 16);
+  let ag = parseInt(a.substring(3, 5), 16);
+  let ab = parseInt(a.substring(5, 7), 16);
+  let br = parseInt(b.substring(1, 3), 16);
+  let bg = parseInt(b.substring(3, 5), 16);
+  let bb = parseInt(b.substring(5, 7), 16);
+  return '#' + hx2(ar + (br - ar) * k) + hx2(ag + (bg - ag) * k) + hx2(ab + (bb - ab) * k);
+}
+
+
+
+
+
+
+
+
+
+
+
+
 export function drawPaper(c, p, seed,
   w, h) {
   let g = c.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, p.paper);
-  g.addColorStop(1, p.base);
+  g.addColorStop(1, mixHex(p.paper, p.base, 0.30));
   c.fillStyle = g;
   c.fillRect(0, 0, w, h);
   c.fillStyle = 'rgba(255,255,255,0.22)';

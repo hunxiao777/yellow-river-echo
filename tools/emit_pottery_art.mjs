@@ -33,7 +33,7 @@ const OUT = join(ROOT, 'entry', 'src', 'main', 'resources', 'rawfile', 'pottery'
 const CHECK = process.argv.slice(2).includes('--check');
 
 // 出现过的类型注解一律列在这里：剥的时候按整词删，比数字前先两边同删
-const TYPES = ['CanvasRenderingContext2D', 'CanvasGradient', 'MotifPainter',
+const TYPES = ['CanvasRenderer', 'CanvasRenderingContext2D', 'CanvasGradient', 'MotifPainter',
   'number[][]', 'string[]', 'number[]', 'Palette', 'string', 'number', 'boolean', 'void'];
 
 function fail(msg) {

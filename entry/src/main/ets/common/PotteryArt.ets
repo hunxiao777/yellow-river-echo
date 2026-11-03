@@ -10,7 +10,11 @@ import { Palette } from './Theme';
  * 改了一种纹样就会只在一边生效，而这种差异只有对着两台设备比才看得出来。
  *
  * 所以这里的函数一律把 shape / motif / seed 当参数收进来，不读组件状态。
- * 轮廓数据与 rawfile/pottery/geometry.js 镜像，改一处要改两处
+ * 形参类型统一用 CanvasRenderer（CanvasRenderingContext2D 的父类）而不是子类型：
+ * 转台为了不再每帧重画十几遍整条纹样带，会把带子先烘到 OffscreenCanvas 上，
+ * 而 OffscreenCanvasRenderingContext2D 跟 CanvasRenderingContext2D 是兄弟不是父子，
+ * 只认父类才一处画法两边都能喂（ArkTS 不做结构化兼容，写成子类型直接编译不过）。
+ * * 轮廓数据与 rawfile/pottery/geometry.js 镜像，改一处要改两处
  * （改完跑 node tools/bake_pottery_frames.mjs --check 会校验帧与映射表是否同步）。
  */
 
@@ -68,7 +72,7 @@ export function bandOf(shape: string): number[] {
 }
 
 // 器身轮廓闭合路径（只建路径，不填不描，由调用方决定怎么用）
-export function tracePath(c: CanvasRenderingContext2D, shape: string,
+export function tracePath(c: CanvasRenderer, shape: string,
   w: number, h: number): void {
   let prof = profileOf(shape);
   let cx = w / 2;
@@ -94,7 +98,7 @@ export function tracePath(c: CanvasRenderingContext2D, shape: string,
   c.closePath();
 }
 
-export function fish(c: CanvasRenderingContext2D, p: Palette, x0: number, x1: number,
+export function fish(c: CanvasRenderer, p: Palette, x0: number, x1: number,
   y0: number, y1: number, seed: number): void {
   let cy = (y0 + y1) / 2;
   let n = 3;
@@ -133,7 +137,7 @@ export function fish(c: CanvasRenderingContext2D, p: Palette, x0: number, x1: nu
   }
 }
 
-export function bird(c: CanvasRenderingContext2D, p: Palette, x0: number, x1: number,
+export function bird(c: CanvasRenderer, p: Palette, x0: number, x1: number,
   y0: number, y1: number, seed: number): void {
   let cy = (y0 + y1) / 2 + (y1 - y0) * 0.10;
   let n = 3;
@@ -175,7 +179,7 @@ export function bird(c: CanvasRenderingContext2D, p: Palette, x0: number, x1: nu
   }
 }
 
-export function swirl(c: CanvasRenderingContext2D, p: Palette, x0: number, x1: number,
+export function swirl(c: CanvasRenderer, p: Palette, x0: number, x1: number,
   y0: number, y1: number, seed: number): void {
   let cy = (y0 + y1) / 2;
   let n = 3;
@@ -206,7 +210,7 @@ export function swirl(c: CanvasRenderingContext2D, p: Palette, x0: number, x1: n
   }
 }
 
-export function grid(c: CanvasRenderingContext2D, p: Palette, x0: number, x1: number,
+export function grid(c: CanvasRenderer, p: Palette, x0: number, x1: number,
   y0: number, y1: number, seed: number): void {
   c.strokeStyle = p.accent;
   c.lineWidth = Math.max((y1 - y0) * 0.035, 1);
@@ -225,7 +229,7 @@ export function grid(c: CanvasRenderingContext2D, p: Palette, x0: number, x1: nu
   }
 }
 
-export function sawtooth(c: CanvasRenderingContext2D, p: Palette, x0: number, x1: number,
+export function sawtooth(c: CanvasRenderer, p: Palette, x0: number, x1: number,
   y0: number, y1: number, seed: number): void {
   c.fillStyle = p.accent;
   c.strokeStyle = p.accent;
@@ -255,7 +259,7 @@ export function sawtooth(c: CanvasRenderingContext2D, p: Palette, x0: number, x1
   c.stroke();
 }
 
-export function petal(c: CanvasRenderingContext2D, p: Palette, x0: number, x1: number,
+export function petal(c: CanvasRenderer, p: Palette, x0: number, x1: number,
   y0: number, y1: number, seed: number): void {
   let cy = (y0 + y1) / 2;
   let n = 3;
@@ -283,7 +287,7 @@ export function petal(c: CanvasRenderingContext2D, p: Palette, x0: number, x1: n
   }
 }
 
-export type MotifPainter = (c: CanvasRenderingContext2D, p: Palette, x0: number,
+export type MotifPainter = (c: CanvasRenderer, p: Palette, x0: number,
   x1: number, y0: number, y1: number, seed: number) => void;
 
 // 六种纹样的统一入口：二维版整幅画一次，转台版按弧度切成 8 段各画一次
@@ -306,7 +310,7 @@ export function motifPainter(motif: string): MotifPainter {
   return fish;
 }
 
-export function drawWord(c: CanvasRenderingContext2D, p: Palette, word: string,
+export function drawWord(c: CanvasRenderer, p: Palette, word: string,
   shape: string, seed: number, w: number, h: number): void {
   if (word.length === 0) {
     return;
@@ -342,13 +346,46 @@ export function drawWord(c: CanvasRenderingContext2D, p: Palette, word: string,
   }
 }
 
+// #RRGGBB 线性掺色：b 的权重 k，结果还是不透明的 #RRGGBB。
+// 只服务纸底那一端，所以待在本文件里不进 Theme；不用 toString(16) 是免得 ArkTS 又在
+// Number 的动态方法上挑刺，直接查表。收到非法颜色就原样返回，宁可不掺也别画出一个 #000000。
+const HEXD: string[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+  'A', 'B', 'C', 'D', 'E', 'F'];
+
+function hx2(n: number): string {
+  let v = Math.round(n < 0 ? 0 : (n > 255 ? 255 : n));
+  return HEXD[Math.floor(v / 16)] + HEXD[v % 16];
+}
+
+function mixHex(a: string, b: string, k: number): string {
+  if (a.length !== 7 || b.length !== 7 || !a.startsWith('#') || !b.startsWith('#')) {
+    return a;
+  }
+  let ar = parseInt(a.substring(1, 3), 16);
+  let ag = parseInt(a.substring(3, 5), 16);
+  let ab = parseInt(a.substring(5, 7), 16);
+  let br = parseInt(b.substring(1, 3), 16);
+  let bg = parseInt(b.substring(3, 5), 16);
+  let bb = parseInt(b.substring(5, 7), 16);
+  return '#' + hx2(ar + (br - ar) * k) + hx2(ag + (bg - ag) * k) + hx2(ab + (bb - ab) * k);
+}
+
 // 纸底：竖向渐变 + 五道横向水波纹。转台把它压到器物后面（destination-over），
 // 二维版还是老样子先铺底再画器，两种顺序画出来的纸底是同一张。
-export function drawPaper(c: CanvasRenderingContext2D, p: Palette, seed: number,
+//
+// 下端那一笔原来是 p.base —— 也就是器物本体那层釉色。器身和纸底用同一个颜色的结果是
+// 「陶器和背景分不开」：纸底渐变的取样行（器腹以下、底足以上，t≈0.72~0.86）龙山黑只有 134，
+// 仰韶红 191；对着同一行的器缘算下来，六套釉色的 ΔL 全在 57~68 这一带。
+// 现在按 0.30 的权重先把 base 掺进 paper，掺完仍是**不透明色**：同一行龙山黑纸底 188、
+// 仰韶红 213，六套釉色的 ΔL 抬到 85~113，土味的色相留着，明度让开。
+// 为什么不能用 rgba(base, 0.30) 让画布自己去叠：转台底下垫的是不透明的 .backgroundColor，
+// 二维版和浏览器 harness 底下是透明画布，同一句 alpha 在三处叠出三种颜色，量都量不准
+// （harness 里读出来直接和改之前一模一样，就是这个坑暴露的）。掺成实色后三条链路同一个数。
+export function drawPaper(c: CanvasRenderer, p: Palette, seed: number,
   w: number, h: number): void {
   let g: CanvasGradient = c.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, p.paper);
-  g.addColorStop(1, p.base);
+  g.addColorStop(1, mixHex(p.paper, p.base, 0.30));
   c.fillStyle = g;
   c.fillRect(0, 0, w, h);
   c.fillStyle = 'rgba(255,255,255,0.22)';
@@ -367,7 +404,7 @@ export function drawPaper(c: CanvasRenderingContext2D, p: Palette, seed: number,
 // 纹样带的一层：底光 + 纹样本体 + 上下两道边线。
 // 二维版整幅调一次（x0=0, x1=w）；转台按弧度切成若干竖条，每条调一到两次，
 // 所以这里不能读组件状态，也不能假设 x0 一定是 0。
-export function drawBand(c: CanvasRenderingContext2D, p: Palette, motif: string,
+export function drawBand(c: CanvasRenderer, p: Palette, motif: string,
   seed: number, x0: number, x1: number, y0: number, y1: number, h: number): void {
   c.fillStyle = 'rgba(255,255,255,0.16)';
   c.fillRect(x0, y0, x1 - x0, y1 - y0);
@@ -385,7 +422,7 @@ export function drawBand(c: CanvasRenderingContext2D, p: Palette, motif: string,
 // 口沿的双椭圆和底足的椭圆。
 // 特意不含器耳：二维版靠这两段弧线描出耳来，转台的耳已经烘进 3D 灰模帧里了，
 // 再描一遍会变成图上长出一对扁平的纸耳朵。
-export function drawRimFoot(c: CanvasRenderingContext2D, p: Palette, shape: string,
+export function drawRimFoot(c: CanvasRenderer, p: Palette, shape: string,
   w: number, h: number): void {
   let top = h * V_TOP;
   let bot = h * V_BOT;
@@ -409,7 +446,7 @@ export function drawRimFoot(c: CanvasRenderingContext2D, p: Palette, shape: stri
 
 // 展示座。bot 传器物底边的 y：二维版是 h * V_BOT，转台是帧映射到画布后的底边，
 // 两者都落在同一处（帧的 topPx/botPx 就是按 0.12/0.76 烘的）。
-export function drawPedestal(c: CanvasRenderingContext2D, p: Palette, shape: string,
+export function drawPedestal(c: CanvasRenderer, p: Palette, shape: string,
   pedestal: string, bot: number, w: number, h: number): void {
   let base = bot + (h - bot) * 0.42;
   if (shape === '鼎式') {
