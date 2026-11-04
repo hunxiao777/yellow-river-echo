@@ -1,3 +1,4 @@
+import { util } from '@kit.ArkTS';
 import { SiteRepo } from '../service/SiteRepo';
 import { StudioStore } from '../service/StudioStore';
 import { fs, WATER_FLOW, WATER_OFF } from '../common/Theme';
@@ -6,7 +7,7 @@ import { effectiveWaterMode } from '../common/River';
 // 河图洛书·流域图：把整条黄河（源—几字弯—晋陕峡谷—出潼关—入海）连同两侧支流
 // 画成一张可以缩放的古地图。干流用"外晕—中亮—内白芯—流动光斑"四层描边做出缓慢
 // 流动的黄色荧光，支流走青蓝，点河道溅起的水花从柠檬黄渐变到橘。
-// 经纬度是按真实走向手工标定的示意坐标（不是测绘数据），界面上必须带着这句话。
+// 河线来自 HydroRIVERS v1 的黄河连通流域，城市与遗址位置为导览标注。
 
 const TAU: number = Math.PI * 2;
 const FRAME_MS: number = 40;
@@ -15,10 +16,10 @@ const DEG: number = Math.PI / 180;
 // 图幅范围（含四周边缘的山系）
 const LON0: number = 95.6;
 const LON1: number = 120.4;
-const LAT0: number = 32.8;
+const LAT0: number = 31.9;
 const LAT1: number = 42.0;
 const COS: number = Math.cos(37.2 * DEG);   // 纬线压缩系数
-const STR: number = 1.42;                    // 纵向拉伸，让 2:1 的流域填满竖画面
+const STR: number = 1.35;                    // 纵向拉伸，让 2:1 的流域填满竖画面
 const FIT_PAD: number = 12;
 const MAX_ZOOM: number = 9;
 const SITE_ZOOM: number = 1.55;              // 放大到这一步才出现遗址圈
@@ -32,6 +33,28 @@ interface Chain {
   big: boolean;       // 干级支流：有名称、有流动光斑
 }
 
+interface RiverReach {
+  order: number;
+  pts: number[];
+}
+interface RiverNetwork {
+  main: number[];
+  reaches: RiverReach[];
+}
+interface BasinLabel {
+  name: string;
+  lon: number;
+  lat: number;
+  dx: number;
+  dy: number;
+}
+const BASIN_LABELS: BasinLabel[] = [
+  { name: '青海源区', lon: 96.34, lat: 34.53, dx: 0, dy: -38 },
+  { name: '兰州', lon: 103.83, lat: 36.06, dx: -42, dy: -30 },
+  { name: '河套平原', lon: 107.4, lat: 40.7, dx: -20, dy: -40 },
+  { name: '壶口瀑布', lon: 110.45, lat: 36.15, dx: 14, dy: -35 },
+  { name: '东营入海口', lon: 119.17, lat: 37.77, dx: -65, dy: -38 }
+];
 interface Ridge {
   name: string;
   pts: number[];
@@ -87,21 +110,7 @@ interface Flash {
 
 // 干流：约古宗列曲 → 扎陵/鄂陵湖 → 玛曲第一弯 → 贵德龙羊峡 → 兰州 → 宁夏 →
 // 河套"几"字弯 → 晋陕峡谷 → 壶口·龙门 → 潼关折东 → 三门峡·洛阳·郑州·开封 → 山东入海
-const MAIN: number[] = [
-  96.15, 35.55, 96.65, 35.25, 97.15, 34.95, 97.6, 34.88, 98.2, 34.88, 98.95, 35.0,
-  99.75, 34.72, 100.6, 34.35, 101.35, 34.18, 101.95, 34.08, 102.3, 33.72, 102.5, 33.38,
-  102.85, 33.52, 102.95, 33.95, 102.7, 34.45, 102.5, 35.05, 102.15, 35.6, 101.45, 36.08,
-  100.95, 36.02, 101.7, 36.15, 102.2, 36.1, 102.85, 36.1, 103.4, 35.92, 103.82, 36.06,
-  104.2, 36.42, 104.62, 36.78, 105.05, 37.15, 105.55, 37.62, 106.05, 38.12, 106.42, 38.62,
-  106.62, 39.1, 106.92, 39.52, 107.62, 40.02, 108.5, 40.42, 109.6, 40.72, 110.62, 40.72,
-  111.5, 40.58, 111.78, 40.68, 111.92, 40.38, 111.6, 40.02, 111.2, 39.72, 111.5, 39.32,
-  111.12, 39.35, 110.95, 38.95, 110.88, 38.45, 110.7, 37.95, 110.6, 37.45, 110.5, 37.0,
-  110.4, 36.6, 110.32, 36.15, 110.42, 35.75, 110.62, 35.45, 110.68, 35.2, 110.5, 34.95,
-  110.26, 34.62, 110.42, 34.52, 111.1, 34.75, 111.62, 34.82, 112.2, 34.85, 112.8, 34.85,
-  113.4, 34.9, 113.85, 34.95, 114.35, 34.92, 114.85, 35.02, 115.25, 35.28, 115.65, 35.22,
-  116.05, 35.5, 116.35, 35.88, 116.6, 36.08, 116.95, 36.38, 117.25, 36.7, 117.65, 36.92,
-  118.1, 37.05, 118.6, 37.3, 119.0, 37.55, 119.25, 37.78
-];
+
 
 const TRIB: Chain[] = [
   { name: '渭河', big: true, pts: [104.32, 34.82, 105.1, 34.85, 105.75, 34.62, 106.6, 34.55,
@@ -270,9 +279,32 @@ export struct BasinMap {
   private halos: Halo[] = [];
   private flashes: Flash[] = [];
   private alive: boolean = true;
+  private main: number[] = [];
+  private reaches: RiverReach[] = [];
+  private riverPaths: Path2D[] = [];
+  private networkStatus: string = '正在读取离线河网…';
+  private terrainCache: ImageData | undefined = undefined;
+  private terrainKey: string = "";
 
   aboutToAppear(): void {
     this.alive = true;
+    this.loadNetwork();
+  }
+
+  private loadNetwork(): void {
+    try {
+      let bytes = getContext(this).resourceManager.getRawFileContentSync('basin-network.json');
+      let data = JSON.parse(util.TextDecoder.create('utf-8').decodeToString(bytes)) as RiverNetwork;
+      if (!this.alive) { return; }
+      this.main = data.main;
+      this.reaches = data.reaches;
+      this.networkStatus = 'HydroRIVERS · 放大查看细支流';
+      this.terrainKey = '';
+      this.paint();
+    } catch (e) {
+      this.networkStatus = '河网读取失败，请重新进入';
+      this.paint();
+    }
   }
 
   aboutToDisappear(): void {
@@ -299,8 +331,8 @@ export struct BasinMap {
     return (lon - this.clon) * COS * this.k + this.w * 0.5;
   }
 
-  private Y(lat: number): number {
-    return (this.clat - lat) * STR * this.k + this.h * 0.5;
+  private Y(lat: number, lon: number = 108): number {
+    return (this.clat - lat) * STR * this.k + this.h * 0.48;
   }
 
   private invLon(x: number): number {
@@ -308,7 +340,7 @@ export struct BasinMap {
   }
 
   private invLat(y: number): number {
-    return this.clat - (y - this.h * 0.5) / (STR * this.k);
+    return this.clat - (y - this.h * 0.48) / (STR * this.k);
   }
 
   private clampView(): void {
@@ -433,7 +465,7 @@ export struct BasinMap {
       this.zoom = z1;
       this.k = this.fitScale() * this.zoom;
       this.clon = gl0 - (ax - this.w * 0.5) / (COS * this.k);
-      this.clat = gg0 + (ay - this.h * 0.5) / (STR * this.k);
+      this.clat = gg0 + (ay - this.h * 0.48) / (STR * this.k);
     } else {
       this.zoom = z1;
     }
@@ -447,9 +479,9 @@ export struct BasinMap {
     let n = Math.floor(pts.length / 2);
     for (let i = 0; i < n - 1; i++) {
       let ax = this.X(pts[i * 2]);
-      let ay = this.Y(pts[i * 2 + 1]);
+      let ay = this.Y(pts[i * 2 + 1], pts[i * 2]);
       let bx = this.X(pts[i * 2 + 2]);
-      let by = this.Y(pts[i * 2 + 3]);
+      let by = this.Y(pts[i * 2 + 3], pts[i * 2 + 2]);
       let dx = bx - ax;
       let dy = by - ay;
       let len = dx * dx + dy * dy;
@@ -471,10 +503,10 @@ export struct BasinMap {
 
   // 点在河上吗（干流 + 所有支流）
   private onWater(x: number, y: number): boolean {
-    if (this.nearestOnChain(MAIN, x, y) <= HIT_RIVER) {
+    if (this.nearestOnChain(this.main, x, y) <= HIT_RIVER) {
       return true;
     }
-    for (let c of TRIB) {
+    for (let c of this.reaches) {
       if (this.nearestOnChain(c.pts, x, y) <= HIT_RIVER) {
         return true;
       }
@@ -492,7 +524,7 @@ export struct BasinMap {
       let bestD = HIT_SITE * HIT_SITE;
       for (let g of SITE_GEO) {
         let dx = this.X(g.lon) - x;
-        let dy = this.Y(g.lat) - y;
+        let dy = this.Y(g.lat, g.lon) - y;
         let d = dx * dx + dy * dy;
         if (d <= bestD) {
           bestD = d;
@@ -500,7 +532,7 @@ export struct BasinMap {
         }
       }
       if (best !== undefined) {
-        this.burst(this.X(best.lon), this.Y(best.lat), false);
+        this.burst(this.X(best.lon), this.Y(best.lat, best.lon), false);
         this.onSitePick(best.id);
         return;
       }
@@ -521,7 +553,7 @@ export struct BasinMap {
     if (g === undefined || this.w <= 0) {
       return;
     }
-    this.burst(this.X(g.lon), this.Y(g.lat), true);
+    this.burst(this.X(g.lon), this.Y(g.lat, g.lon), true);
     this.ensureTimer();
     if (this.timer < 0) {
       this.paint();
@@ -596,7 +628,7 @@ export struct BasinMap {
     c.beginPath();
     for (let i = i0; i <= i1; i++) {
       let x = this.X(pts[i * 2]);
-      let y = this.Y(pts[i * 2 + 1]);
+      let y = this.Y(pts[i * 2 + 1], pts[i * 2]);
       if (i === i0) {
         c.moveTo(x, y);
       } else {
@@ -606,65 +638,60 @@ export struct BasinMap {
   }
 
   private paintSky(c: CanvasRenderingContext2D): void {
-    let w = this.w;
-    let h = this.h;
-    let gr = c.createLinearGradient(0, 0, 0, h);
-    gr.addColorStop(0, '#141D27');
-    gr.addColorStop(0.42, '#1A212A');
-    gr.addColorStop(1, '#241F25');
-    c.fillStyle = gr;
-    c.fillRect(0, 0, w, h);
-    // 流域腹地泛一点暖沙色，让干流的黄有出处
-    let md = c.createRadialGradient(w * 0.46, h * 0.56, 0, w * 0.46, h * 0.56, w * 0.62);
-    md.addColorStop(0, 'rgba(196,152,96,0.13)');
-    md.addColorStop(1, 'rgba(196,152,96,0)');
-    c.fillStyle = md;
-    c.fillRect(0, 0, w, h);
+    c.fillStyle = '#080D13';
+    c.fillRect(0, 0, this.w, this.h);
   }
 
-  private paintRidges(c: CanvasRenderingContext2D): void {
-    c.save();
-    c.setLineDash([3.5, 4.5]);
-    c.lineCap = 'round';
-    let show = this.zoom >= 1.7;
-    c.font = `${Math.round(9)}px sans-serif`;
-    for (let r of RIDGES) {
+  // Cache the static river network; click particles and golden flow stay independent.
+  private paintNetwork(c: CanvasRenderingContext2D, dim: boolean): void {
+    let key = `${this.w}|${this.h}|${this.k}|${this.clon}|${this.clat}|${dim}|${this.main.length}`;
+    if (key === this.terrainKey && this.terrainCache !== undefined) {
+      c.putImageData(this.terrainCache, 0, 0); return;
+    }
+    this.paintSky(c);
+    let minOrder = this.zoom < 1.65 ? 3 : (this.zoom < 3.1 ? 2 : 1);
+    let palette: string[] = ['#A4ACBC', '#BBC8DC', '#CBD6E6', '#D8D7E8', '#DADDED', '#E4E9EE', '#E8EEF2', '#EDF3F6'];
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    for (let order = minOrder; order <= 8; order++) {
       c.beginPath();
-      for (let i = 0; i < r.pts.length / 2; i++) {
-        let x = this.X(r.pts[i * 2]);
-        let y = this.Y(r.pts[i * 2 + 1]);
-        if (i === 0) {
-          c.moveTo(x, y);
-        } else {
-          c.lineTo(x, y);
+      for (let reach of this.reaches) {
+        if (reach.order !== order) { continue; }
+        for (let i = 0; i < reach.pts.length; i += 2) {
+          let x = this.X(reach.pts[i]); let y = this.Y(reach.pts[i + 1]);
+          if (i === 0) { c.moveTo(x, y); } else { c.lineTo(x, y); }
         }
       }
-      c.strokeStyle = 'rgba(214,196,164,0.19)';
-      c.lineWidth = 1.5;
+      c.strokeStyle = palette[order - 1]; c.globalAlpha = dim ? 0.4 : 0.8;
+      c.lineWidth = Math.min(2.1, (0.23 + order * 0.15) * Math.pow(this.zoom, 0.22));
       c.stroke();
-      if (show) {
-        c.setLineDash([]);
-        let mid = Math.floor(r.pts.length / 4);
-        c.fillStyle = 'rgba(214,196,164,0.42)';
-        c.fillText(r.name, this.X(r.pts[mid * 2]) + 3, this.Y(r.pts[mid * 2 + 1]) - 3);
-        c.setLineDash([3.5, 4.5]);
+    }
+    c.globalAlpha = 1;
+    this.paintLakes(c);
+    if (this.zoom >= 1.8) {
+      c.font = '9px sans-serif'; c.fillStyle = '#AEBACC';
+      for (let ch of TRIB) {
+        if (!ch.big && this.zoom < 3) { continue; }
+        let mid = Math.floor(ch.pts.length / 4);
+        let x = this.X(ch.pts[mid * 2]); let y = this.Y(ch.pts[mid * 2 + 1]);
+        c.strokeStyle = '#080D13'; c.lineWidth = 3;
+        c.strokeText(ch.name, x + 4, y - 4); c.fillText(ch.name, x + 4, y - 4);
       }
     }
-    c.restore();
-    c.setLineDash([]);
+    this.terrainCache = c.getImageData(0, 0, this.w, this.h);
+    this.terrainKey = key;
   }
 
   private paintLakes(c: CanvasRenderingContext2D): void {
     for (let lk of LAKES) {
       let x = this.X(lk.lon);
-      let y = this.Y(lk.lat);
+      let y = this.Y(lk.lat, lk.lon);
       let rx = lk.rx * COS * this.k;
       let ry = lk.ry * STR * this.k;
       c.beginPath();
       c.ellipse(x, y, rx, ry, 0, 0, TAU);
-      c.fillStyle = 'rgba(74,150,178,0.34)';
+      c.fillStyle = 'rgba(187,203,222,0.6)';
       c.fill();
-      c.strokeStyle = 'rgba(132,214,228,0.36)';
+      c.strokeStyle = 'rgba(219,231,241,0.72)';
       c.lineWidth = 0.9;
       c.stroke();
       if (lk.label && this.zoom >= 1.7) {
@@ -675,46 +702,12 @@ export struct BasinMap {
     }
   }
 
-  private paintTrib(c: CanvasRenderingContext2D, flow: boolean, dim: boolean): void {
-    let tw = Math.max(0.7, Math.min(2.6, 1.0 * Math.sqrt(this.zoom)));
-    c.lineJoin = 'round';
-    c.lineCap = 'round';
-    for (let ch of TRIB) {
-      let n = Math.floor(ch.pts.length / 2);
-      c.beginPath();
-      this.trace(c, ch.pts, 0, n - 1);
-      if (!dim) {
-        c.strokeStyle = ch.big ? 'rgba(96,196,214,0.15)' : 'rgba(96,196,214,0.1)';
-        c.lineWidth = tw * (ch.big ? 4.2 : 3);
-        c.stroke();
-      }
-      c.strokeStyle = dim ? 'rgba(126,200,214,0.26)' : 'rgba(132,214,228,0.6)';
-      c.lineWidth = tw * (ch.big ? 1.5 : 1);
-      c.stroke();
-      if (flow && ch.big) {
-        c.save();
-        c.setLineDash([2.5, 13]);
-        c.lineDashOffset = -(this.phase * 0.62) % 15.5;
-        c.strokeStyle = 'rgba(206,246,252,0.5)';
-        c.lineWidth = tw * 1.15;
-        c.stroke();
-        c.restore();
-        c.setLineDash([]);
-      }
-      if (ch.big && this.zoom >= 1.8) {
-        let mid = Math.floor(n / 2);
-        c.font = '9px sans-serif';
-        c.fillStyle = 'rgba(150,206,214,0.52)';
-        c.fillText(ch.name, this.X(ch.pts[mid * 2]) + 3, this.Y(ch.pts[mid * 2 + 1]) - 2);
-      }
-    }
-  }
-
   // 干流：暗岸 → 外晕 → 中亮 → 内芯 → 顺流光斑，逐段加宽（下游水量更大）
   private paintMain(c: CanvasRenderingContext2D, flow: boolean, glowOn: boolean): void {
-    let n = Math.floor(MAIN.length / 2) - 1;
+    if (this.main.length < 4) { return; }
+    let n = Math.floor(this.main.length / 2) - 1;
     let chunks = 7;
-    let bw = Math.max(1.5, Math.min(4.6, 1.9 * Math.sqrt(this.zoom)));
+    let bw = Math.max(1.0, Math.min(3.2, 1.25 * Math.sqrt(this.zoom)));
     c.lineJoin = 'round';
     c.lineCap = 'round';
     let breathe = glowOn ? 1 + 0.1 * Math.sin(this.time * 0.55) : 1;
@@ -726,7 +719,7 @@ export struct BasinMap {
         continue;
       }
       let wid = bw * (0.6 + 0.95 * (ch + 0.5) / chunks);
-      this.trace(c, MAIN, i0, i1);
+      this.trace(c, this.main, i0, i1);
       c.strokeStyle = 'rgba(206,164,104,0.15)';
       c.lineWidth = wid * 6.2;
       c.stroke();
@@ -739,7 +732,7 @@ export struct BasinMap {
           continue;
         }
         let f = (ch + 0.5) / chunks;
-        this.trace(c, MAIN, i0, i1);
+        this.trace(c, this.main, i0, i1);
         let wid = bw * (0.6 + 0.95 * f);
         if (pass === 0 && glowOn) {
           c.strokeStyle = `rgba(255,170,52,${(0.085 * breathe).toFixed(3)})`;
@@ -772,7 +765,7 @@ export struct BasinMap {
           continue;
         }
         let f = (ch + 0.5) / chunks;
-        this.trace(c, MAIN, i0, i1);
+        this.trace(c, this.main, i0, i1);
         c.strokeStyle = flow ? 'rgba(255,255,236,0.72)' : 'rgba(255,244,200,0.5)';
         c.lineWidth = bw * (0.6 + 0.95 * f) * 0.95;
         c.stroke();
@@ -784,20 +777,22 @@ export struct BasinMap {
       c.font = `${Math.round(10 + Math.min(4, this.zoom))}px sans-serif`;
       c.fillStyle = 'rgba(255,224,150,0.5)';
       let mi = Math.floor(n * 0.62);
-      c.fillText('黄河', this.X(MAIN[mi * 2]) - 8, this.Y(MAIN[mi * 2 + 1]) - 12);
+      c.fillText('黄河', this.X(this.main[mi * 2]) - 8, this.Y(this.main[mi * 2 + 1], this.main[mi * 2]) - 12);
     }
   }
 
   private paintCities(c: CanvasRenderingContext2D): void {
+    if (this.zoom < 1.6) { return; }
     let lv = this.zoom < 1.5 ? 1 : (this.zoom < 2.4 ? 2 : 3);
     let r = this.zoom > 3 ? 2.4 : 1.9;
     c.font = `${Math.round(this.zoom > 2.4 ? 10 : 9)}px sans-serif`;
     for (let ct of CITIES) {
+      if (ct.name === '兰州') { continue; }
       if (ct.lv > lv) {
         continue;
       }
       let x = this.X(ct.lon);
-      let y = this.Y(ct.lat);
+      let y = this.Y(ct.lat, ct.lon);
       if (x < -20 || x > this.w + 20 || y < -20 || y > this.h + 20) {
         continue;
       }
@@ -821,11 +816,35 @@ export struct BasinMap {
     }
   }
 
+  private paintBasinLabels(c: CanvasRenderingContext2D): void {
+    c.save();
+    c.font = `${vp2px(fs(this.ts, 10))}px sans-serif`;
+    c.textBaseline = 'middle';
+    for (let mark of BASIN_LABELS) {
+      let x = this.X(mark.lon); let y = this.Y(mark.lat);
+      if (x < 5 || x > this.w - 5 || y < 58 || y > this.h - 64) { continue; }
+      let bw = c.measureText(mark.name).width + 16;
+      let bh = 24;
+      let bx = Math.max(8, Math.min(this.w - bw - 8, x + mark.dx));
+      let by = Math.max(55, Math.min(this.h - 88, y + mark.dy));
+      c.beginPath(); c.moveTo(x, y);
+      c.lineTo(Math.max(bx + 8, Math.min(bx + bw - 8, x)), by + bh);
+      c.lineWidth = 0.7; c.strokeStyle = 'rgba(242,219,164,0.65)'; c.stroke();
+      c.fillStyle = 'rgba(16,23,31,0.60)';
+      c.fillRect(bx, by, bw, bh);
+      c.strokeStyle = 'rgba(239,214,159,0.48)'; c.lineWidth = 0.6;
+      c.strokeRect(bx, by, bw, bh);
+      c.fillStyle = '#F3E2B5'; c.fillText(mark.name, bx + 8, by + bh / 2);
+      c.beginPath(); c.arc(x, y, 2, 0, TAU); c.fillStyle = '#FFF2C9'; c.fill();
+    }
+    c.restore();
+  }
+
   private paintSites(c: CanvasRenderingContext2D): void {
     if (this.zoom < SITE_ZOOM) {
       // 全流域尺度下这 20 处挤成一团，只给一个"往这儿放大"的提示
       let x = this.X(112.9);
-      let y = this.Y(34.85);
+      let y = this.Y(34.85, 112.9);
       c.beginPath();
       c.arc(x, y, 6.5, 0, TAU);
       c.strokeStyle = 'rgba(255,222,150,0.75)';
@@ -848,7 +867,7 @@ export struct BasinMap {
     let big = this.zoom > 2.6;
     for (let g of SITE_GEO) {
       let x = this.X(g.lon);
-      let y = this.Y(g.lat);
+      let y = this.Y(g.lat, g.lon);
       if (x < -30 || x > this.w + 30 || y < -30 || y > this.h + 30) {
         continue;
       }
@@ -974,7 +993,7 @@ export struct BasinMap {
     c.fill();
     c.font = '9.5px sans-serif';
     c.fillStyle = 'rgba(226,220,206,0.45)';
-    c.fillText('黄河流域示意图', 13, 44);
+    c.fillText(this.networkStatus, 13, 44);
     // 视图名
     let vn = '全流域';
     if (this.zoom > 1.12) {
@@ -1010,7 +1029,7 @@ export struct BasinMap {
     }
     let len = pickKm / kmPerVp;
     let x0 = 14;
-    let y0 = this.h - 16;
+    let y0 = this.h - 48;
     c.beginPath();
     c.moveTo(x0, y0 - 4);
     c.lineTo(x0, y0);
@@ -1041,13 +1060,11 @@ export struct BasinMap {
     let dim = mode === WATER_OFF;
     let flow = mode === WATER_FLOW && !dim;
     c.clearRect(0, 0, w, h);
-    this.paintSky(c);
-    this.paintRidges(c);
-    this.paintLakes(c);
-    this.paintTrib(c, flow, dim);
+    this.paintNetwork(c, dim);
     this.paintMain(c, flow, !dim);
     this.paintCities(c);
     this.paintSites(c);
+    this.paintBasinLabels(c);
     if (this.halos.length > 0 || this.drops.length > 0 || this.flashes.length > 0) {
       this.paintFx(c);
     }

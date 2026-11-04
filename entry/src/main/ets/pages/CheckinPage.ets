@@ -9,7 +9,7 @@ import { goDetail } from '../common/Nav';
 // 河图洛书：一整幅黄河流域图，从约古宗列曲到东营入海，两侧支流同框。
 // 干流是缓慢流动的黄色荧光，点河道溅黄橘渐变水花；放大到河南流域才出现 20 处遗址圈，
 // 选中后盖章写进 StudioStore.siteCheckins（只存本机，不进分布式队列）。
-const MAP_H: number = 316;
+const MAP_H: number = 310;
 
 @Entry
 @Component
@@ -187,7 +187,7 @@ struct CheckinPage {
           Column({ space: 8 }) {
             Row({ space: 8 }) {
               // 这块是深色底（#1A212A），标题/提示不能用纸面上的 INK/SUB，否则黑压黑看不清
-              Text('黄河全流域').fontSize(fs(this.ts, 14)).fontColor('#F2E6CF').fontWeight(FontWeight.Medium)
+              Text('黄河全流域 · 水系脉络').fontSize(fs(this.ts, 14)).fontColor('#F2E6CF').fontWeight(FontWeight.Medium)
               Blank()
               Text('双指缩放 · 拖动平移 · 点河道溅水花').fontSize(fs(this.ts, 10)).fontColor('rgba(226,216,196,0.62)')
             }
@@ -201,26 +201,26 @@ struct CheckinPage {
                 this.pickSite(id);
               },
               onMiss: (x: number, y: number): void => {
-                promptAction.showToast({ message: '这儿是黄土高原，河在发光的那条线上' });
+                promptAction.showToast({ message: '点亮的黄色是黄河干流，银白色是支流' });
               }
             })
 
             Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.Start }) {
               Row({ space: 4 }) {
                 Circle().width(8).height(8).fill('#FFD873')
-                Text('干流（荧光流动）').fontSize(fs(this.ts, 10)).fontColor(SUB)
+                Text('干流').fontSize(fs(this.ts, 10)).fontColor('#A9B4C4')
               }.margin({ right: 12, bottom: 4 })
               Row({ space: 4 }) {
-                Circle().width(8).height(8).fill(RIVER)
-                Text('支流 23 条').fontSize(fs(this.ts, 10)).fontColor(SUB)
+                Circle().width(8).height(8).fill('#CBD6E6')
+                Text('大小支流').fontSize(fs(this.ts, 10)).fontColor('#A9B4C4')
               }.margin({ right: 12, bottom: 4 })
               Row({ space: 4 }) {
                 Circle().width(8).height(8).fill(CLAY)
-                Text('盖过章的遗址').fontSize(fs(this.ts, 10)).fontColor(SUB)
+                Text('盖过章的遗址').fontSize(fs(this.ts, 10)).fontColor('#A9B4C4')
               }.margin({ right: 12, bottom: 4 })
               Row({ space: 4 }) {
                 Circle().width(8).height(8).fill('#F0EBE2')
-                Text('城镇').fontSize(fs(this.ts, 10)).fontColor(SUB)
+                Text('城镇').fontSize(fs(this.ts, 10)).fontColor('#A9B4C4')
               }.margin({ bottom: 4 })
             }
             .width('100%')
