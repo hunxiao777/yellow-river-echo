@@ -45,7 +45,7 @@ struct LoginPage {
   // 字号档位变了要整页重画：不持有这行，切档后这一页还是老字号
   @StorageLink('textScale') ts: number = 1;
   @State mode: string = 'login'; // login | register
-  @State nick: string = '';
+  @State nick: string = '续响者';
   @State pwd: string = '';
   @State pwd2: string = '';
   @State phone: string = '';
@@ -282,29 +282,12 @@ struct LoginPage {
         .width('100%')
 
         Column({ space: 12 }) {
-          Stack({ alignContent: Alignment.BottomEnd }) {
-            Column() {
-              ArtCover({ palette: this.avatarSeed(this.avatar).key, shape: 'ding',
-                seed: this.avatar, label: '' })
-            }
-            .width(108).height(108).borderRadius(54).clip(true)
-            .border({ width: 2, color: LOESS })
-
-            Text(this.avatarSeed(this.avatar).glyph)
-              .fontSize(fs(this.ts, 12)).fontColor('#FFFFFF')
-              .width(26).height(26).textAlign(TextAlign.Center)
-              .borderRadius(13)
-              .backgroundColor(CLAY)
-              .border({ width: 2, color: PAPER })
-          }
-          .onClick((): void => {
-            this.cycleAvatar();
-          })
+          Image($r('app.media.river_emblem')).width(108).height(108)
 
           Column({ space: 4 }) {
-            Text(this.isRegister() ? '欢迎注册' : '欢迎登录')
+            Text(this.isRegister() ? '欢迎注册' : '欢迎续响者')
               .fontSize(fs(this.ts, 25)).fontColor(CLAY).fontWeight(FontWeight.Bold).letterSpacing(4)
-            Text('黄河续响 · 账号与笔记都只存这台设备')
+            Text('一河千年 · 与你续响')
               .fontSize(fs(this.ts, 11)).fontColor(SUB).letterSpacing(1)
           }
           .margin({ top: 4 })
@@ -342,7 +325,7 @@ struct LoginPage {
           Button(this.isRegister() ? '注册并进入' : '登录')
             .fontSize(fs(this.ts, 16)).fontColor('#FFFFFF')
             .backgroundColor(CLAY)
-            .width('100%').height(46).borderRadius(23)
+            .width('100%').height(46).borderRadius(8)
             .margin({ top: 4 })
             .onClick((): void => {
               this.submit();
@@ -351,7 +334,7 @@ struct LoginPage {
           Button(this.isRegister() ? '已有账号，去登录' : '注册')
             .fontSize(fs(this.ts, 15)).fontColor(CLAY)
             .backgroundColor('#F3E3D3')
-            .width('100%').height(46).borderRadius(23)
+            .width('100%').height(46).borderRadius(8)
             .onClick((): void => {
               this.mode = this.isRegister() ? 'login' : 'register';
             })
@@ -413,6 +396,6 @@ struct LoginPage {
     .height('100%')
     .scrollBar(BarState.Off)
     .align(Alignment.Top)
-    .backgroundColor($r('app.color.page_bg'))
+    .backgroundColor('#F1E4C9')
   }
 }

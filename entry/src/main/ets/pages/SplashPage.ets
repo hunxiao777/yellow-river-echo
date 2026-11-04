@@ -23,19 +23,22 @@ struct SplashPage {
   private timer: number = -1;
   private step: number = 0;
   private leaving: boolean = false;
+  private bootReady: boolean = false;
+  @State bootFailed: boolean = false;
 
   aboutToAppear(): void {
     let ctx = getContext(this) as common.UIAbilityContext;
     let started = Date.now();
-    Boot.run(ctx).catch((e: Error): void => {
+    Boot.run(ctx).then((): void => { this.bootReady = true; }).catch((e: Error): void => {
       console.error('boot: ' + e.message);
+      this.bootFailed = true;
     });
     this.timer = setInterval((): void => {
       this.step += 1;
-      this.draw = Math.min(this.step / 14, 1);
-      this.titleIn = Math.min(this.step / 8, 1);
+      this.draw = Math.min(this.step / 45, 1);
+      this.titleIn = Math.min(this.step / 18, 1);
       this.paint();
-      if (this.step >= 20 && Date.now() - started > 1700 && !this.leaving) {
+      if (this.bootReady && this.step >= 60 && Date.now() - started > 3500 && !this.leaving) {
         this.leaving = true;
         clearInterval(this.timer);
         this.go();
@@ -50,14 +53,7 @@ struct SplashPage {
   }
 
   go(): void {
-    let s = StudioStore.get();
-    if (!s.guideSeen) {
-      router.replaceUrl({ url: 'pages/GuidePage' });
-    } else if (!s.signedIn()) {
-      router.replaceUrl({ url: 'pages/LoginPage' });
-    } else {
-      router.replaceUrl({ url: 'pages/Index' });
-    }
+    router.replaceUrl({ url: 'pages/GuidePage' });
   }
 
   private paint(): void {
@@ -94,12 +90,12 @@ struct SplashPage {
     let reach = this.draw * (n - 1);
     c.lineCap = 'round';
     c.lineJoin = 'round';
-    c.strokeStyle = 'rgba(200,161,96,0.55)';
+    c.strokeStyle = 'rgba(242,216,157,0.75)';
     c.lineWidth = Math.max(w * 0.055, 10);
     c.beginPath();
     c.moveTo(RIVER_PTS[0][0] * w, RIVER_PTS[0][1] * h);
     for (let i = 1; i < n; i++) {
-      if (i > reach) {
+      if (i - 1 >= reach) {
         break;
       }
       let p = RIVER_PTS[i];
@@ -140,52 +136,26 @@ struct SplashPage {
   }
 
   build() {
-    Stack({ alignContent: Alignment.BottomStart }) {
-      Canvas(this.ctx)
-        .width('100%')
-        .height('100%')
-        .onReady((): void => {
-          this.paint();
-        })
-
-      Column({ space: 10 }) {
-        Text('黄河续响平台')
-          .fontSize(fs(this.ts, 40))
-          .fontColor(INK)
-          .fontWeight(FontWeight.Bold)
-          .letterSpacing(8)
-          .opacity(this.titleIn)
-        Text('黄河文化分布式数字档案')
-          .fontSize(fs(this.ts, 14))
-          .fontColor(SUB)
-          .letterSpacing(3)
-          .opacity(this.titleIn)
-        Row({ space: 6 }) {
-          Circle().width(6).height(6).fill(LOESS)
-          Circle().width(6).height(6).fill(CLAY).opacity(0.7)
-          Circle().width(6).height(6).fill(RIVER).opacity(0.5)
-        }
-        .margin({ top: 18 })
-        .opacity(this.titleIn)
+    Stack({ alignContent: Alignment.Top }) {
+      Image($r('app.media.splash_scroll')).width('100%').height('100%').objectFit(ImageFit.Cover)
+      Canvas(this.ctx).width('100%').height('48%').position({ x: 0, y: '34%' })
+        .opacity(0.65).onReady((): void => { this.paint(); })
+      Column({ space: 24 }) {
+        Image($r('app.media.river_emblem')).width(96).height(96)
+        Text('黄\n河\n续\n响').fontFamily('serif').fontSize(26).fontColor('#F8E8BF')
+          .lineHeight(33).textAlign(TextAlign.Center)
+        Text('一河千年 · 生生不息').fontSize(10).letterSpacing(4).fontColor('#F6DCB1')
+      }.width('100%').margin({ top: 66 }).opacity(this.titleIn)
+      if (this.bootFailed) {
+        Button('加载未完成，点击重试').fontSize(12).fontColor('#754B37').backgroundColor('#F3E4BF')
+          .position({ x: '20%', y: '88%' }).width('60%')
+          .onClick((): void => {
+            this.bootFailed = false;
+            Boot.run(getContext(this) as common.UIAbilityContext).then((): void => {
+              this.bootReady = true;
+            }).catch((): void => { this.bootFailed = true; });
+          })
       }
-      .alignItems(HorizontalAlign.Start)
-      .padding({ left: 30, bottom: 64 })
-
-      Text('按时间沉淀的东西，值得再捞一次')
-        .fontSize(fs(this.ts, 11))
-        .fontColor(SUB)
-        .opacity(this.draw * 0.8)
-        .padding({ left: 30, bottom: 34 })
-    }
-    .width('100%')
-    .height('100%')
-    .backgroundColor($r('app.color.page_bg'))
-    .onClick((): void => {
-      if (!this.leaving && this.step >= 8) {
-        this.leaving = true;
-        clearInterval(this.timer);
-        this.go();
-      }
-    })
+    }.width('100%').height('100%').backgroundColor('#C77F60')
   }
 }

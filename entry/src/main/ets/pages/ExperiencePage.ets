@@ -70,7 +70,7 @@ struct ExperiencePage {
       if (name.includes('..') || !/^[a-zA-Z0-9_./-]+$/.test(name)) { throw new Error('Invalid resource'); }
       let bytes = (getContext(this) as common.UIAbilityContext).resourceManager.getRawFileContentSync('experience/' + name);
       let mime = name.endsWith('.html') ? 'text/html' : name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' :
-        name.endsWith('.png') ? 'image/png' : name.endsWith('.glb') ? 'model/gltf-binary' : 'application/octet-stream';
+        name.endsWith('.png') ? 'image/png' : name.endsWith('.jpg') ? 'image/jpeg' : name.endsWith('.glb') ? 'model/gltf-binary' : 'application/octet-stream';
       response.setResponseData(bytes.buffer as ArrayBuffer);
       response.setResponseMimeType(mime);
       response.setResponseEncoding('UTF-8');
@@ -88,6 +88,8 @@ struct ExperiencePage {
       Column() {
       Web({ src: this.origin + 'index.html', controller: this.controller })
         .javaScriptAccess(true).domStorageAccess(true).fileAccess(true)
+        // 关掉 WebView 自带的双指缩放页面，手势才能交给百度地图自己处理
+        .zoomAccess(false)
         .onInterceptRequest((event): WebResourceResponse =>
           this.localResource(event.request.getRequestUrl()) as WebResourceResponse)
         .javaScriptProxy({ object: this.bridge, name: 'Native', methodList: ['back', 'journey', 'panorama', 'saveImage', 'shareImage'], controller: this.controller })
